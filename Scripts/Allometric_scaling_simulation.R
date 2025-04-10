@@ -1,16 +1,264 @@
-# Simulation code to better understand how allometry influences metrics of size & shape shifting
+## Simulation code to better understand how allometry influences metrics of size & shape shifting
 # Goal is to show interesting cases where allometry is important to understanding the true morphological response. Try to... 
-# Go beyond just spatial Bergmann's rule (e.g. temporal)
 # Go beyond just wing & mass (& even beyond just birds)
 
+# Libraries ---------------------------------------------------------------
 ## Load libraries
 library(tidyverse)
 library(janitor)
 library(ggplot2)
 library(gridExtra)
+library(ggpubr)
+library(cowplot)
 library(smatr)
+library(broom.mixed)
+library(MASS) # mvrnorm() function
+library(ggpmisc) # Plots MA or SMA lines of best fit
+#library(conflicted)
+ggplot2::theme_set(theme_cowplot())
+#conflicts_prefer(dplyr::select)
+#conflicts_prefer(dplyr::filter)
+
+
+# GPT simulate ------------------------------------------------------------
+# Understand mvrnorm() function
+cov_mat <- matrix(c(1, 0, -.3, 0, 1, .8, -.3, .8, 1), nrow = 3) 
+dat <- mvrnorm(n = 10000, mu = c(-10, 6, 400), Sigma = cov_mat, empirical = TRUE)
+head(dat)
+round(cor(dat), 2)
+plot(dat[,2], dat[,3]) # Visualize
+
+## Generate functions to create datasets with different amounts of correlation (r), OLS slopes, and SMA slopes, and plot 3x3 grid.
+
+# Provide either b_ols_vals OR r_vals, & generate the missing values for a given set of b_sma_vals. Formulas used are as follow:
+#b_sma = b_ols / r
+#b_ols = b_sma * r 
+#r = b_ols / b_sma
+gen_parm_combos <- function(
+    b_sma_vals = c(0.2, 0.33, 0.5), 
+    b_ols_vals = NULL, r_vals = NULL) {
+  stopifnot(xor(is.null(b_ols_vals), is.null(r_vals)))  # only one should be provided
+  
+  if (!is.null(r_vals)) {
+    parm_combos <- expand.grid(b_sma = b_sma_vals, r = r_vals)
+    parm_combos$b_ols <- parm_combos$b_sma * parm_combos$r
+  } else {
+    parm_combos <- expand.grid(b_sma = b_sma_vals, b_ols = b_ols_vals)
+    parm_combos$r <-  parm_combos$b_ols / parm_combos$b_sma
+  }
+  parm_combos %>% mutate(across(everything(.), ~round(.x, 2)))
+}
+parm_combos <- gen_parm_combos(r_vals = c(.2, .4, .6)) #b_ols_vals = c(.08, .15, .19)
+
+# Simulate data under the constraints in parm_combos, & estimate the parameters from the simulated data 
+simulate_SMA_data <- function(parm_combos, n = 1000, seed = NULL){
+  set.seed(seed)
+  sim_list <- list()
+  for (i in seq_len(nrow(parm_combos))) {
+    print(i)
+    b_ols <- parm_combos$b_ols[i]
+    r <- parm_combos$r[i]
+    b_sma <- parm_combos$b_sma[i]
+    
+    X <- rnorm(n, mean = 0, sd = 1)
+    var_X <- var(X)
+    
+    # Compute required noise variance
+    var_epsilon <- (b_ols^2 * var_X) * ((1 - r^2) / r^2)
+    sd_epsilon <- sqrt(var_epsilon)
+    
+    eps <- rnorm(n, mean = 0, sd = sd_epsilon)
+    Y <- b_ols * X + eps
+    
+    sim_list[[paste0("b_sma=", b_sma, "_r=", round(r, 2))]] <- tibble(
+      X = X,
+      Y = Y,
+      true_r = r,
+      true_b_ols = b_ols,
+      true_b_sma = b_sma,
+      est_r = cor(X, Y),
+      est_b_ols = coef(lm(Y ~ X))[2],
+      est_b_sma = coef(sma(Y ~ X))[2]
+    )
+  }
+  bind_rows(sim_list, .id = "condition")
+}
+sim_df <- simulate_SMA_data(parm_combos = parm_combos)
+sim_df
+
+# Ensure that estimated parameters are similar to the true parameter values
+create_SMA_summary <- function(sim_df) {
+  sim_df %>% dplyr::select(starts_with(c("true", "est"))) %>%
+    distinct()
+}
+create_SMA_summary(sim_df)
+
+# Plot 3x3 grid 
+plot_SMA_grid <- function(sim_data) {
+  sim_data %>%
+    group_by(condition) %>%
+    mutate(xbar = mean(X), ybar = mean(Y)) %>%
+    ungroup() %>%
+    ggplot(aes(X, Y)) +
+    geom_point(alpha = 0.6) +
+    geom_smooth(method = "lm", se = FALSE, linetype = "dotted", color = "red") +  # OLS line
+    geom_abline(data = sim_data %>% distinct(condition, xbar = mean(X), ybar = mean(Y), est_b_sma), aes(slope = est_b_sma, intercept = ybar - est_b_sma * xbar), color = "blue", size = 1) +
+    facet_wrap(~condition, scales = "free") +
+    theme_minimal() +
+    labs(title = "SMA Regression: Varying Slopes and Correlations") +
+    ylim(c(-1, 1))
+}
+plot_SMA_grid(sim_data = sim_df)
+
+# Simulate 3 vars --------------------------------------------------------
+# GOAL:: I want to include a third variable, temperature. So we'll have mass (X1), temperature (X2), and Wing (Y). I want to be able to set different correlations between X1 and X2, as well as different b_sma slopes for X1 & Y. 
+gen_parm_combos_mv <- function(
+    b_sma_vals = c(0.2, 0.33, 0.5), 
+    r_x1y_vals = c(-.2, -.4, -.6),
+    #b2_ols_vals = c(.2, .4, .6), # Effect of temperature
+    r12_vals = c(-0.3, -0.6)
+) {
+  parm_combos <- expand.grid(b_sma = b_sma_vals, r_x1y = r_x1y_vals, r12 = r12_vals) #b2_ols = b2_ols_vals
+  parm_combos$b1_ols <- parm_combos$b_sma * parm_combos$r_x1y
+  parm_combos %>% mutate(across(everything(), ~ round(.x, 2))) %>% 
+    tibble()
+}
+parms_mv <- gen_parm_combos_mv()
+
+
+
+# TO DO: 
+# Potential probs: 1) May be an issue with the 'marginal OLS slope' of Y ~ X1 (vs Y ~ X1 + X2), 2) the residuals from sma_mod may not be appropriate (need to do Peig & Green, 2009 approach?), 
+
+## OLD DELETE
+sim_SMA_mv <- function(parms_mv, N = 1000, seed = NULL, beta2 = 0.4) {
+  set.seed(seed)
+  sim_list <- list()
+  
+  for (i in seq_len(nrow(parms_mv))) {
+    print(i)
+    b1_ols <- parms_mv$b1_ols[i]  # desired marginal OLS slope of Y ~ X1
+    r12 <- parms_mv$r12[i]       # correlation between X1 and X2
+    b_sma1 <- parms_mv$b_sma[i]
+    
+    # Simulate X1 and X2 from bivariate normal with correlation r12
+    Sigma <- matrix(c(1, r12, r12, 1), nrow = 2)
+    X_vals <- MASS::mvrnorm(N, mu = c(0, 0), Sigma = Sigma)
+    X1 <- X_vals[,1] # mass (X1)
+    X2 <- X_vals[,2] # temperature (X2)
+    
+    # Compute the variance of the residual to achieve desired b_ols1 (approximate)
+    # Now Y = β1·X1 + β2·X2 + ε
+    # To maintain b_ols1 as marginal slope of Y ~ X1, this is tricky, because
+    # marginal slope = β1 + β2·Cov(X1,X2)/Var(X1)
+    # => We solve for β1 such that marginal slope equals desired b_ols1
+    
+    cov12 <- cov(X1, X2)
+    var_X1 <- var(X1)
+    beta1 <- b_ols1 - beta2 * cov12 / var_X1  # adjust beta1 so that marginal slope ≈ b_ols1
+    
+    # Simulate Y (wing)
+    eps <- rnorm(N, 0, 1)
+    Y <- beta1 * X1 + beta2 * X2 + eps 
+    
+    # Generate SMA model & extract residuals
+    sma_mod <- sma(Y ~ X1)
+    sma_resid <- residuals(sma_mod)
+    
+    # Store all values
+    sim_list[[paste0("b_sma=", b_sma1, "_r=", parms_mv$r[i], "_r12=", r12)]] <- tibble(
+      X1 = X1,
+      X2 = X2,
+      Y = Y,
+      true_beta1 = beta1,
+      true_beta2 = beta2,
+      true_b1_ols = b1_ols,
+      true_b_sma = b_sma,
+      est_r12 = cor(X1, X2),
+      #est_b_ols1 = coef(lm(Y ~ X1))[2],
+      est_scale_coeff = coef(sma_mod)[2], # Scaling coefficient 
+      est_b2_ols = coef(lm(Y ~ X1 + X2))[3],  # Effect of X2 (temp) OLS
+      est_b2_sma = coef(lm(sma_resid ~ X2))[2] # Effect of X2 (temp) SMA
+    )
+  }
+  bind_rows(sim_list, .id = "condition")
+}
+sim_df_mv <- sim_SMA_mv(parms_mv = parms_mv)
+
+## Attempt 2
+parms_mv[i,]
+i<- 1
+sim_SMA_mv <- function(parms_mv, N = 1000, seed = NULL, beta2 = 0.4) {
+  if (!is.null(seed)) set.seed(seed)
+  sim_list <- list()
+  
+  for (i in seq_len(nrow(parms_mv))) {
+    cat("Simulating row", i, "\n")
+    
+    b1_ols <- parms_mv$b1_ols[i]     # desired marginal OLS slope of Y ~ X1
+    r12 <- parms_mv$r12[i]          # correlation between X1 and X2
+    b_sma <- parms_mv$b_sma[i]     # desired SMA slope
+    r_x1y <- parms_mv$r_x1y[i]          # desired correlation between X1 and Y
+    
+    # Simulate X1 and X2 from bivariate normal with correlation r12
+    Sigma <- matrix(c(1, r12, r12, 1), nrow = 2)
+    X_vals <- MASS::mvrnorm(N, mu = c(0, 0), Sigma = Sigma)
+    X1 <- X_vals[, 1]
+    X2 <- X_vals[, 2]
+    
+    # Adjust beta1 to preserve desired marginal OLS slope
+    cov12 <- cov(X1, X2)
+    var_X1 <- var(X1)
+    beta1 <- b1_ols - beta2 * cov12 / var_X1
+    
+    # Compute residual variance needed to achieve r_x1y and b_ols1
+    var_epsilon <- (b_ols1^2 * var_X1) * ((1 - r_x1y^2) / r_x1y^2)
+    sd_epsilon <- sqrt(var_epsilon)
+    
+    # Simulate Y
+    eps <- rnorm(N, 0, sd_epsilon)
+    Y <- beta1 * X1 + beta2 * X2 + eps
+    
+    # Fit SMA model and get residuals
+    sma_mod <- smatr::sma(Y ~ X1)
+    sma_resid <- residuals(sma_mod)
+    
+    # Store simulation output
+    sim_list[[paste0("b_sma=", b_sma, "_r=", r_x1y, "_r12=", r12)]] <- tibble::tibble(
+      X1 = X1,
+      X2 = X2,
+      Y = Y,
+      true_r12 = r12,
+      true_beta2 = beta2,
+      true_b1_ols = b1_ols,
+      true_r_x1y = r_x1y,
+      true_b_sma = b_sma,
+      est_r12 = cor(X1, X2),
+      est_scale_coeff = coef(sma_mod)[2],
+      est_b2_ols = coef(lm(Y ~ X1 + X2))[3],
+      est_b2_sma = coef(lm(sma_resid ~ X2))[2]
+    )
+  }
+  dplyr::bind_rows(sim_list, .id = "condition")
+}
+sim_df_mv <- sim_SMA_mv(parms_mv)
+
+#names(parms_mv) <- paste0("true_", names(parms_mv))
+
+##
+
+create_SMA_summary <- function(sim_df_mv) {
+  sim_df_mv %>% 
+    dplyr::select(starts_with("true"), starts_with("est")) %>%
+    distinct()
+}
+# NOTE:: est_scale_coeff way off, as is the effect of temp from the sma_resid model. 
+# Thus far, the est_b2_ols does much better at getting the correct value
+create_SMA_summary(sim_df_mv) %>% 
+  dplyr::select(true_r12, true_b_sma, est_scale_coeff)
 
 # b_sma = b_ols / r -------------------------------------------------------
+## DELETE
 # Simulate 3 related hypothetical species that have different allometric scaling relationships
 # My thought is I can use these hypothetical species to illustrate how size metrics vary depending on the scaling coefficient 
 # Is mass:wing ratio the same at different sizes under isometry? 
@@ -75,6 +323,7 @@ morph_df %>%
 
 # Simple ratios -----------------------------------------------------------
 ## Understand how simple ratios are affected by scaling theory 
+# NOTE:: According to Jokob (1996), ratios (mass : linear metric) are correlated with body size 
 # Unlogged -- Hyperallometric species has the shallowest slope, as expected
 morph_df %>% mutate(mass_wing = mass / wing) %>% 
   ggplot(aes(x = mass, y = mass_wing, color = species)) +
@@ -140,8 +389,8 @@ morph_df %>% mutate(mass_wing = mass_log / wing_log) %>%
 # NOTE:: In paper make note that we would know this will happen due to hypoallometry
 
 # Increases in temperature from 1975 to 2025 at different sampling locations 
-n <- 200
-temp <- rnorm(n, mean = 1.5, sd = 0.3)  
+n <- 1000
+temp <- rnorm(n, mean = 1.2, sd = 0.3)  
 
 # Generate wing length: Strongly decreases with temperature
 wing <- 15 - 0.6 * temp + rnorm(n, sd = .5)  
@@ -153,32 +402,110 @@ mass <- 40 - 0.3 * temp + rnorm(n, sd = .5)
 SA_V <- (wing^2) / mass
 
 # Create data frame
-bird_data <- data.frame(temp, wing, mass, SA_V)
+size_temp <- data.frame(temp, wing, mass, SA_V) %>% tibble()
 
 # Check relationships
-cor(bird_data)
+cor(size_temp)
 
 # Visualize
-p1 <- ggplot(bird_data, aes(x = temp, y = wing)) +
-  geom_point() + 
+p1 <- ggplot(size_temp, aes(x = temp, y = wing)) +
+  geom_point(alpha = .4) + 
   geom_smooth(method = "lm", se = FALSE) + 
   labs(title ="Wing vs Temp", x = "Temperature increase") 
 
-p2 <- ggplot(bird_data, aes(x = temp, y = mass)) +
-  geom_point() + geom_smooth(method = "lm", se = FALSE) + 
+p2 <- ggplot(size_temp, aes(x = temp, y = mass)) +
+  geom_point(alpha = .4) + 
+  geom_smooth(method = "lm", se = FALSE) + 
   labs(title = "Mass vs Temp", x = "Temperature increase")
 
 # We would expect that SA:V would increase as temperature increases, but in this case SA:V decreases
-p3 <- ggplot(bird_data, aes(x = temp, y = SA_V)) +
-  geom_point() + 
+p3 <- ggplot(size_temp, aes(x = temp, y = SA_V)) +
+  geom_point(alpha = .4) + 
   geom_smooth(method = "lm", se = FALSE) + 
-  labs(title = "SA:V Ratio vs Temp (Decreases)", x = "Temperature increase")
+  labs(title = "SA:V Ratio vs Temp", x = "Temperature increase")
 
 grid.arrange(p1, p2, p3, nrow = 2)
 
+# >SMA & OLS lines of best fit --------------------------------------------
+# Generate wing length: Strongly decreases with temperature
+wing <- 15 - 0.6 * temp + rnorm(n, sd = .5)  
+
+# Generate mass: Decreases with latitude more strongly than wing
+mass <- 15 - 5 * temp + .41 * wing + rnorm(n, sd = .5) 
+
+size_temp2 <- data.frame(temp, wing, mass) %>% 
+  mutate(wing_log = log(wing), 
+         mass_log = log(mass)) %>% 
+  tibble()
+
+mod_wm <- sma(wing_log ~ mass_log, data = size_temp2)
+mod_mw <- sma(mass_log ~ wing_log, data = size_temp2)
+cor(size_temp2$wing_log, size_temp2$mass_log)
+summary(mod_wm)
+mod_ols <- lm(wing_log ~ mass_log, data = size_temp2)
+size_temp_r <- size_temp2 %>% mutate(res_wm = residuals(mod_wm), 
+                                     res_mw = residuals(mod_mw),
+                                     ols_r = residuals(mod_ols), 
+                                     individual = row_number())
+
+## Can flip axes
+size_temp_r %>% filter(mass_log > 2.5 & mass_log < 2.6 & res_wm < 0)
+size_temp_r %>% filter(individual == 92)
+
+size_temp_r %>% arrange(desc(mass_log)) 
+# Wing ~ mass
+w_m <- size_temp_r %>%
+  ggplot(aes(x = mass_log, y = wing_log)) + 
+  geom_point(alpha = .6) +
+  geom_point(data = ~filter(.x, individual == 92), 
+             size = 5, color = "green") + 
+  geom_smooth(method = "lm", color = "red") +
+  ggpmisc::stat_ma_line(method = "SMA", color = "blue") 
+
+# Mass ~ wing 
+m_w <- size_temp_r %>%
+  ggplot(aes(x = wing_log, y = mass_log)) + 
+  geom_point(alpha = .6) +
+  geom_point(data = ~filter(.x, individual == 92), 
+             size = 5, color = "green") + 
+  geom_smooth(method = "lm", color = "red") +
+  ggpmisc::stat_ma_line(method = "SMA", color = "blue") 
+
+ggarrange(w_m, m_w)
+
+# In SMA -- Residuals are equally & opposite correlation with X & Y
+cor(size_temp_r$mass_log, size_temp_r$res_wm)
+cor(size_temp_r$wing_log, size_temp_r$res_wm)
+
+# In OLS -- Residuals are not correlated with X & highly correlated with Y
+cor(size_temp_r$mass_log, size_temp_r$ols_r) # Not correlated
+cor(size_temp_r$wing_log, size_temp_r$ols_r) # Highly correlated
+
+# SMA vs OLS regression lines colored by temp
+ggplot(data = size_temp2, aes(x = mass_log, y = wing_log)) + 
+  geom_point(alpha = 1, aes(color = temp)) +
+  geom_smooth(method = "lm", color = "red") +
+  ggpmisc::stat_ma_line(method = "SMA", color = "blue") 
+
+# Comparing residuals
+size_temp_r %>% ggplot(aes(x = swi_r, y = ols_r)) + 
+  geom_point(alpha = .2) + 
+  geom_abline(slope = 1, color = "red") + 
+  labs(x = "SMA residuals", "OLS residuals")
+
+# Influence of temperature on wingyness
+ggplot(data = size_temp_r, aes(x = temp, y = swi_r)) + 
+  geom_point(alpha = .6) +
+  geom_smooth(method = "lm") + 
+  labs(x = "Temperature increase", y = "Wingyness")
+
+## Example analysis: If we are interested in understanding how temp increase influence wingyness.. We could use 1) residuals from allometric scaling with mass on x-axis (wing_resid ~ temp), or 2) multiple regression (Wing ~ temp + mass). 
+# Depending on this correlation between temp & mass, the pros & cons between multiple regression (as suggested by Ryding, 2022; Freckleton 2002) & allometric residuals (Green, 2001) shift. When there is no correlation between temperature & mass allometric residuals MAY (?) give most unbiased results, but when they are highly correlated it is likely that multiple regression is better? 
+cor(size_temp2$temp, size_temp2$mass_log) 
+
 
 # Ex2: Neg covariation ---------------------------------------------------
-# Individuals are doing different things then the population.. Example, wing & mass show a positive trend with latitude, but actually negatively covary. A migratory bird might diverge in migration strategy & behavior (time-minimizing vs energy-minimizing), where some individuals are fat & short winged, & others are skinny & long-winged.
+# Individuals are doing different things then the population.. Example, wing & mass show a positive trend with latitude, but actually negatively covary. A migratory bird might diverge in migration strategy & behavior (time-minimizing vs energy-minimizing), where short-distance migrant individuals are fat & short winged, & long-distance migrant individuals are skinny & long-winged.
 set.seed(42)
 
 # Generate latitude values
@@ -210,15 +537,13 @@ p2 <- ggplot(bird_data, aes(x = latitude, y = mass)) +
 
 p3 <- ggplot(bird_data, aes(x = wing, y = mass)) +
   geom_point() + geom_smooth(method = "lm", se = FALSE) + 
-  ggtitle("Mass vs Wing (Negative Correlation)")
+  ggtitle("Mass vs Wing")
 
 p4 <- ggplot(bird_data, aes(x = latitude, y = m_w)) +
   geom_point() + geom_smooth(method = "lm", se = FALSE) + 
   ggtitle("")
 
-grid.arrange(p1, p2, p3,  nrow = 2) #p4,
-
-
+grid.arrange(p1, p2, p3, nrow = 1) #p4,
 
 # Use allometry? ----------------------------------------------------------
 ## When should we use allometric scaling theory in estimating body size??
@@ -230,7 +555,7 @@ grid.arrange(p1, p2, p3,  nrow = 2) #p4,
 
 ## So it may make sense to use allometric scaling theory in estimating body size (via comparing individuals to the general population) when.. 
 # 1) You have high confidence in your SMA line (high sample sizes, or within a single population)
-# 2) You want to remove the effect of allometric scaling & keep each individual's position RELATIVE to its expected (mass or wing) for its (wing or mass), given the scaling observed in your empirical sample. When would you or wouldn't you want to do this? 
+# 2) You want to remove the effect of allometric scaling & keep each individual's position RELATIVE to its expected (mass or wing) given its (wing or mass), given the scaling observed in your empirical sample. When would you or wouldn't you want to do this? 
 
 # >Single population ---------------------------------------------------------
 ## Extract data from the a single population of a hypothetical species under isometry
@@ -248,7 +573,7 @@ iso_spp %>%
 
 ## If we can only sample 300 individuals, how consistent is the SMA slope? 
 sma_lines <- map_dfr(1:50, \(rep){
-  samp250 <- iso_spp %>% slice_sample(n = 50)
+  samp250 <- iso_spp %>% slice_sample(n = 300)
   samp_sma <- smatr::sma(wing_log ~ mass_log, samp250)
   tibble(
     pops = "single", rep, 
@@ -330,7 +655,7 @@ slope_dif <- b_mult_pop - b_sing_pop
 # If our 300 individuals are spread over 100 different populations... 
 #NOTE:: n can be 300, or take 3 individuals from each population 
 sma_lines_pop <- map_dfr(1:50, \(rep){
-  samp_pop <- pop_morph_df2 %>% slice_sample(n = 50) # n = 3, by = pop
+  samp_pop <- pop_morph_df2 %>% slice_sample(n = 300) # n = 3, by = pop
   samp_sma_pop <- smatr::sma(wing_log ~ mass_log, samp_pop)
   tibble(
     pops = "multi", rep, 
@@ -358,7 +683,6 @@ if(FALSE){
                 aes(intercept = int, slope = slope), 
                 color = "blue",
                 alpha = .5)
-}
 
 # SMI ---------------------------------------------------------------------
 # Estimate body condition using SMI (Peig & Green, 2009) 
@@ -368,6 +692,8 @@ vignette(package = "smatr") # None
 
 ## Calculate the standardized wing index (swi)
 mod_swi <- sma(wing_log ~ mass_log, data = pop_morph_df2)
+
+mod_ols <- lm(wing_log ~ mass_log, data = pop_morph_df2)
 
 # L0 is the average mass, essentially allowing for comparison of wing lengths for a given mass 
 L0 <- mean(pop_morph_df2$mass)
@@ -390,7 +716,6 @@ swi_df %>% slice_tail(n = 3) # Small wings relative to their mass
 swi_df %>% slice_sample(n = 1000) %>% 
   ggplot(aes(x = mass, y = wing, size = swi)) +
   geom_point(alpha = .3)
-
 
 # >SWI vs wing:mass -------------------------------------------------------
 swi_df2 <- swi_df %>% mutate(wing_mass = wing / mass)
@@ -462,7 +787,7 @@ p2 <- ggplot(bird_data, aes(x = habitat, y = wing, fill = habitat)) +
   geom_boxplot() + ggtitle("Wing Length by Habitat")
 
 p3 <- ggplot(
-  bird_data,  aes(x = habitat, y = mass_wing_ratio, fill = habitat)
+  bird_data, aes(x = habitat, y = mass_wing_ratio, fill = habitat)
 ) + geom_boxplot() + 
   ggtitle("Mass/Wing Ratio by Habitat (Stronger Effect)")
 
@@ -471,8 +796,7 @@ grid.arrange(p1, p2, p3, nrow = 2)
 
 # >30 spp ----------------------------------------------------------------
 # 1) Ag vs natural habitat: Birds get fatter in agriculture , but also get shorter & fatter wings to increase maneuverability to evade predators. Simulate so you miss key responses when using single variables, but see a marked response when you combine the two metrics. This could replace #2 and just use #2 to cite
-# 2) Temporal change through time, missing key responses when using single variables (Weeks, Jirinec, the total body length to article)
-
+# 2) Temporal change through time, missing key responses when using single variables (Weeks, Jirinec, the total body length to mass article)
 set.seed(42)  # For reproducibility
 
 # Define parameters
@@ -485,73 +809,123 @@ species_names <- paste0("Species_", 1:n_species)
 
 # Initialize empty data frame
 bird_data <- data.frame()
+spp_morph <- list()
 
-# SIMULATED POORLY - START FROM SCRATCH
-# Loop over each species
+## Nested loop
+# First, loop over each species
 for (species in species_names) {
-  for (i in 1:n_per_species) {
-    habitat <- sample(habitats, 1)  # Randomly assign habitat
+  print(species)
+  # Baseline values for wing and mass (species-specific)
+  base_mass <- rnorm(1, mean = 35, sd = 7)  # Average mass per species
+  base_wing <- rnorm(1, mean = 22, sd = 5)  # Average wing per species
+  # Define a 'turn' variable, where 1/2 of the species will not receive the habitat effect for either wing or mass
+  turn <- rbinom(2, 1, .5)
+  spp_sd_m <- abs(rnorm(1, .5, .5))
+  spp_sd_w <- abs(rnorm(1, .3, .2))
+  
+  # Second, 
+  for (i in 1:n_per_species) { 
+    print(i)
+    habitat <- sample(habitats, 1)  # Randomly assign habitat for each individ
     
-    # Baseline values for wing and mass (species-specific)
-    base_mass <- rnorm(1, mean = 35, sd = .5)  # Average mass per species
-    base_wing <- rnorm(1, mean = 22, sd = .3)  # Average wing per species
-    
-    # Habitat effects (species-specific)
-    mass_shift <- rnorm(1, 2.5, .1)
-    wing_shift <- rnorm(1, -2, .08) 
+    # Habitat effects (individual-specific)
+    mass_shift <- rnorm(1, .3, spp_sd_m)
+    wing_shift <- rnorm(1, -.8, spp_sd_w) 
     
     # Adjust mass and wing based on habitat
-    if (habitat == "AG") {
+    if (habitat == "AG" & turn[1] == 1) {
       mass <- base_mass + mass_shift + rnorm(1, sd = .1)
+    } else if(habitat == "AG" & turn[2] == 1){
       wing <- base_wing + wing_shift + rnorm(1, sd = .1)
-    } else {
-      mass <- base_mass + rnorm(1, sd = .1)
-      wing <- base_wing + rnorm(1, sd = .1)
+    }
+    else {
+      mass <- base_mass + rnorm(1, sd = spp_sd_m)
+      wing <- base_wing + rnorm(1, sd = spp_sd_w)
     }
     
     # Compute mass-to-wing ratio
     mass_wing_ratio <- mass / wing
     
     # Append to data frame
-    bird_data <- rbind(bird_data, data.frame(Species = species, Habitat = habitat, Mass = mass, Wing = wing, Mass_Wing_Ratio = mass_wing_ratio))
+    bird_data <- rbind(bird_data, data.frame(Species = species, Habitat = habitat, Mass = mass, Wing = wing, Mass_Wing_Ratio = mass_wing_ratio)) %>% 
+      tibble()
   }
+  spp_morph[[species]] <- bird_data
+  bird_data <- data.frame() # Reset to an empty dataframe
 }
 
+# Scale so coefficients are more comparable
+bird_data2 <- spp_morph %>% bind_rows() %>%
+  mutate(across(where(is.numeric), scale))
+  
 # Check the first few rows
-head(bird_data)
+head(bird_data2)
 
 # Summary of habitat effects
-bird_data %>%
+bird_data2 %>%
   group_by(Habitat) %>%
   summarise(across(c(Mass, Wing, Mass_Wing_Ratio), mean, na.rm = TRUE))
 
 ## Bayesian framework 
-#brm_mw_fe <- brms::brm(Mass_Wing_Ratio ~ Habitat + (1 + Habitat | Species),
-#                    family = gaussian(), data = bird_data,
-#                    chains = 4, iter = 2000, cores = 4)
-#summary(brm_mw_fe)
+# NOTE:: This paramterization estimates the mean difference for each habitat value, & then allows each species to have its own intercept & additional variation on the mean habitat. Estimating the overall mean is more computationally efficient than (Habitat | Species)
+detach("package:ggpmisc", unload = TRUE)
+detach("package:ggpp", unload = TRUE)
+DVs <- c("Mass_Wing_Ratio", "Mass", "Wing")
+brm_l <- map(DVs, \(DV){
+  form <- as.formula(paste0(DV, "~ Habitat + (Habitat | Species)"))
+  brms::brm(formula = form,
+            family = gaussian(), data = bird_data2,
+            chains = 4, iter = 2000, cores = 4)
+})
+names(brm_l) <- DVs
 
-# Extract species-specific estimates
-#species_effects <- as.data.frame(brms::ranef(brm_mw_fe)$Species)
+# Extract fixed effects
+fixefs <- map_dfr(brm_l, ~tidy(.x, effects = "fixed"), .id = "DV") %>%
+  filter(term == "HabitatNAT") %>%
+  select(DV, estimate_fixed = estimate, std.error_fixed = std.error)
 
-# Clean up data for plotting
-species_effects <- species_effects %>%
-  mutate(Species = rownames(.),
-         Estimate = Estimate.HabitatNAT,  # Extract habitat effect
-         Lower = Q2.5.HabitatNAT,  # 2.5% credible interval
-         Upper = Q97.5.HabitatNAT)  # 97.5% credible interval
+# Extract random effects
+ranefs <- map_dfr(brm_l, ~tidy(.x, effects = "ran_vals"), .id = "DV") %>%
+  filter(term == "HabitatNAT") %>%
+  select(DV, Species = level, estimate_ran = estimate, std.error_ran = std.error)
 
-# Plot species-specific habitat effects
-ggplot(species_effects, aes(x = Species, y = Estimate)) +
+# Join and compute total effect
+full_effects <- left_join(ranefs, fixefs) %>%
+  mutate(
+    Estimate_total = estimate_fixed + estimate_ran,
+    Std.error_total = sqrt(std.error_fixed^2 + std.error_ran^2),
+    Lower = Estimate_total - (1.96 * Std.error_total), 
+    Upper = Estimate_total + (1.96 * Std.error_total), 
+  )
+
+## Plot species-specific habitat effects
+p1 <- full_effects %>% 
+  ggplot(aes(x = Species, y = Estimate_total, color = DV)) +
   geom_point() +
   geom_errorbar(aes(ymin = Lower, ymax = Upper), width = 0.2) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
   theme_minimal() +
   coord_flip() +
+  facet_wrap(~DV) + 
   ggtitle("Species-Specific Habitat Effects on Mass/Wing Ratio") +
   ylab("Effect of NAT Habitat on Mass/Wing Ratio") +
   xlab("Species")
+p1
+# COLOR CODE BASED ON NEGATIVE, POSITIVE, OR OVERLAPS ZERO
 
+## DELETE
+# Extract species-specific estimates for each model
+species_effects <- map(brm_l, \(mod){
+  as.data.frame(brms::ranef(mod)$Species) %>% 
+    rownames_to_column("Species")
+}) %>% list_rbind(names_to = "DV")
+
+# Clean up data for plotting
+species_effects2 <- species_effects %>%
+  rename(Estimate = Estimate.HabitatNAT,  # Extract habitat effect
+         Lower = Q2.5.HabitatNAT,  # 2.5% credible interval
+         Upper = Q97.5.HabitatNAT) %>%  # 97.5% credible interval
+  select(Species, DV, Estimate, Lower, Upper)
 
 # >Ex1: Bergs - wing^2 / mass ---------------------------------------
 # Original Example 1 using SPATIAL berg's rule 
