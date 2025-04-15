@@ -14,26 +14,46 @@ library(smatr)
 library(broom.mixed)
 library(MASS) # mvrnorm() function
 library(ggpmisc) # Plots MA or SMA lines of best fit
-#library(conflicted)
+library(scales)
 ggplot2::theme_set(theme_cowplot())
+#library(conflicted)
 #conflicts_prefer(dplyr::select)
 #conflicts_prefer(dplyr::filter)
 
 
-# GPT simulate ------------------------------------------------------------
-# Understand mvrnorm() function
-cov_mat <- matrix(c(1, 0, -.3, 0, 1, .8, -.3, .8, 1), nrow = 3) 
-dat <- mvrnorm(n = 10000, mu = c(-10, 6, 400), Sigma = cov_mat, empirical = TRUE)
-head(dat)
-round(cor(dat), 2)
-plot(dat[,2], dat[,3]) # Visualize
+# Background --------------------------------------------------------------
 
+# b_ols = cov[x,y] / var[x] OR equivalently 
+# b_ols = r * Sy / Sx where S is the std. dev
+# b_sma = sign(r) * Sy / Sx , ie if r is negative then b_sma is also negative
+
+# NOTE:: From the formulas above, we have 
+# b_sma = (r * (Sy / Sx)) / r # rs cancel out
+
+gen_cov_matrix_from_sma <- function(b_sma, r) {
+  Sx <- 1
+  Sy <- abs(b_sma) * Sx
+  cov_xy <- r * Sx * Sy
+  matrix(c(
+    Sx^2,     cov_xy,
+    cov_xy,   Sy^2
+  ), nrow = 2)
+}
+
+cov_mat <- gen_cov_matrix_from_sma(b_sma = 0.33, r = 0.5)
+test <- mvrnorm(1000, c(0,0), cov_mat)
+sma(test[,2] ~ test[,1])
+cov_mat
+
+# Simulate functions --------------------------------------------------------
 ## Generate functions to create datasets with different amounts of correlation (r), OLS slopes, and SMA slopes, and plot 3x3 grid.
 
-# Provide either b_ols_vals OR r_vals, & generate the missing values for a given set of b_sma_vals. Formulas used are as follow:
-#b_sma = b_ols / r
-#b_ols = b_sma * r 
-#r = b_ols / b_sma
+## gen_parm_combos() functions
+# Goal is to provide either b_ols_vals OR r_vals, & generate the missing values for a given set of b_sma_vals. 
+# Formulas used are as follow:
+# b_sma = b_ols / r
+# b_ols = b_sma * r 
+# r = b_ols / b_sma
 gen_parm_combos <- function(
     b_sma_vals = c(0.2, 0.33, 0.5), 
     b_ols_vals = NULL, r_vals = NULL) {
@@ -50,6 +70,7 @@ gen_parm_combos <- function(
 }
 parm_combos <- gen_parm_combos(r_vals = c(.2, .4, .6)) #b_ols_vals = c(.08, .15, .19)
 
+## simulate_SMA_data() function
 # Simulate data under the constraints in parm_combos, & estimate the parameters from the simulated data 
 simulate_SMA_data <- function(parm_combos, n = 1000, seed = NULL){
   set.seed(seed)
@@ -63,7 +84,7 @@ simulate_SMA_data <- function(parm_combos, n = 1000, seed = NULL){
     X <- rnorm(n, mean = 0, sd = 1)
     var_X <- var(X)
     
-    # Compute required noise variance
+    # Compute the appropriate amount of noise to generate Y, resulting in the appropriate correlation between X & Y
     var_epsilon <- (b_ols^2 * var_X) * ((1 - r^2) / r^2)
     sd_epsilon <- sqrt(var_epsilon)
     
@@ -83,8 +104,14 @@ simulate_SMA_data <- function(parm_combos, n = 1000, seed = NULL){
   }
   bind_rows(sim_list, .id = "condition")
 }
-sim_df <- simulate_SMA_data(parm_combos = parm_combos)
-sim_df
+
+# Generate data frame
+sim_df <- simulate_SMA_data(parm_combos = parm_combos) %>% 
+  mutate(Scaling = case_when(
+    true_b_sma == .2 ~ "Hypoallometric",
+    true_b_sma == .33 ~ "Isometric",
+    true_b_sma == .5 ~ "Hyperallometric",
+  ))
 
 # Ensure that estimated parameters are similar to the true parameter values
 create_SMA_summary <- function(sim_df) {
@@ -94,6 +121,8 @@ create_SMA_summary <- function(sim_df) {
 create_SMA_summary(sim_df)
 
 # Plot 3x3 grid 
+# Row 1: Hypoallometry, row 2: isometry, row 3: hyperallometry
+# NOTE:: At lower slopes the difference between OLS & SMA regression is greater
 plot_SMA_grid <- function(sim_data) {
   sim_data %>%
     group_by(condition) %>%
@@ -111,83 +140,47 @@ plot_SMA_grid <- function(sim_data) {
 plot_SMA_grid(sim_data = sim_df)
 
 # Simulate 3 vars --------------------------------------------------------
-# GOAL:: I want to include a third variable, temperature. So we'll have mass (X1), temperature (X2), and Wing (Y). I want to be able to set different correlations between X1 and X2, as well as different b_sma slopes for X1 & Y. 
+## GOAL:: I want to include a third variable, temperature. So we'll have mass (X1), temperature (X2), and Wing (Y). 
+## Example analysis: If we are interested in understanding how temp increase influence wingyness.. We could use 1) residuals from allometric scaling with mass on x-axis (wing_resid ~ temp), or 2) multiple regression (Wing ~ temp + mass). 
+# I want to be able to set different correlations between X1 and X2, as well as different b_sma slopes for X1 & Y. 
+
+#gen_parm_combos_mv() function to generate combination of true parameter values
 gen_parm_combos_mv <- function(
     b_sma_vals = c(0.2, 0.33, 0.5), 
-    r_x1y_vals = c(-.2, -.4, -.6),
-    #b2_ols_vals = c(.2, .4, .6), # Effect of temperature
-    r12_vals = c(-0.3, -0.6)
+    r_x1y_vals = NULL, 
+    b1_ols_vals = NULL, 
+    r12_vals = c(-0.15, -0.3)
 ) {
-  parm_combos <- expand.grid(b_sma = b_sma_vals, r_x1y = r_x1y_vals, r12 = r12_vals) #b2_ols = b2_ols_vals
-  parm_combos$b1_ols <- parm_combos$b_sma * parm_combos$r_x1y
-  parm_combos %>% mutate(across(everything(), ~ round(.x, 2))) %>% 
+  if (is.null(r_x1y_vals) && is.null(b1_ols_vals)) {
+    stop("Must supply either r_x1y_vals or b1_ols_vals.")
+  }
+  if (!is.null(r_x1y_vals) && !is.null(b1_ols_vals)) {
+    stop("Supply only one of r_x1y_vals or b1_ols_vals.")
+  }
+  
+  if (!is.null(r_x1y_vals)) {
+    parm_combos <- expand.grid(b_sma = b_sma_vals, r_x1y = r_x1y_vals, r12 = r12_vals)
+    parm_combos$b1_ols <- parm_combos$b_sma * parm_combos$r_x1y
+  } else {
+    parm_combos <- expand.grid(b_sma = b_sma_vals, b1_ols = b1_ols_vals, r12 = r12_vals)
+    parm_combos$r_x1y <- parm_combos$b1_ols / parm_combos$b_sma
+  }
+  
+  parm_combos %>% 
+    mutate(across(everything(), ~ round(.x, 3))) %>%
     tibble()
 }
-parms_mv <- gen_parm_combos_mv()
 
-
+# NOTE: Cor X1 & Y is positive, Cor X2 & Y is negative, Cor X1 & X2 is negative
+parms_mv <- gen_parm_combos_mv(r_x1y_vals = c(.2, .4, .6))
+parms_mv <- gen_parm_combos_mv(b1_ols_vals = c(.04, .08, .1))
 
 # TO DO: 
 # Potential probs: 1) May be an issue with the 'marginal OLS slope' of Y ~ X1 (vs Y ~ X1 + X2), 2) the residuals from sma_mod may not be appropriate (need to do Peig & Green, 2009 approach?), 
 
-## OLD DELETE
-sim_SMA_mv <- function(parms_mv, N = 1000, seed = NULL, beta2 = 0.4) {
-  set.seed(seed)
-  sim_list <- list()
-  
-  for (i in seq_len(nrow(parms_mv))) {
-    print(i)
-    b1_ols <- parms_mv$b1_ols[i]  # desired marginal OLS slope of Y ~ X1
-    r12 <- parms_mv$r12[i]       # correlation between X1 and X2
-    b_sma1 <- parms_mv$b_sma[i]
-    
-    # Simulate X1 and X2 from bivariate normal with correlation r12
-    Sigma <- matrix(c(1, r12, r12, 1), nrow = 2)
-    X_vals <- MASS::mvrnorm(N, mu = c(0, 0), Sigma = Sigma)
-    X1 <- X_vals[,1] # mass (X1)
-    X2 <- X_vals[,2] # temperature (X2)
-    
-    # Compute the variance of the residual to achieve desired b_ols1 (approximate)
-    # Now Y = β1·X1 + β2·X2 + ε
-    # To maintain b_ols1 as marginal slope of Y ~ X1, this is tricky, because
-    # marginal slope = β1 + β2·Cov(X1,X2)/Var(X1)
-    # => We solve for β1 such that marginal slope equals desired b_ols1
-    
-    cov12 <- cov(X1, X2)
-    var_X1 <- var(X1)
-    beta1 <- b_ols1 - beta2 * cov12 / var_X1  # adjust beta1 so that marginal slope ≈ b_ols1
-    
-    # Simulate Y (wing)
-    eps <- rnorm(N, 0, 1)
-    Y <- beta1 * X1 + beta2 * X2 + eps 
-    
-    # Generate SMA model & extract residuals
-    sma_mod <- sma(Y ~ X1)
-    sma_resid <- residuals(sma_mod)
-    
-    # Store all values
-    sim_list[[paste0("b_sma=", b_sma1, "_r=", parms_mv$r[i], "_r12=", r12)]] <- tibble(
-      X1 = X1,
-      X2 = X2,
-      Y = Y,
-      true_beta1 = beta1,
-      true_beta2 = beta2,
-      true_b1_ols = b1_ols,
-      true_b_sma = b_sma,
-      est_r12 = cor(X1, X2),
-      #est_b_ols1 = coef(lm(Y ~ X1))[2],
-      est_scale_coeff = coef(sma_mod)[2], # Scaling coefficient 
-      est_b2_ols = coef(lm(Y ~ X1 + X2))[3],  # Effect of X2 (temp) OLS
-      est_b2_sma = coef(lm(sma_resid ~ X2))[2] # Effect of X2 (temp) SMA
-    )
-  }
-  bind_rows(sim_list, .id = "condition")
-}
-sim_df_mv <- sim_SMA_mv(parms_mv = parms_mv)
-
-## Attempt 2
-parms_mv[i,]
 i<- 1
+parms_mv[i,]
+## sim_SMA_mv() function to simulate the data with specified multivariate relationships
 sim_SMA_mv <- function(parms_mv, N = 1000, seed = NULL, beta2 = 0.4) {
   if (!is.null(seed)) set.seed(seed)
   sim_list <- list()
@@ -209,10 +202,10 @@ sim_SMA_mv <- function(parms_mv, N = 1000, seed = NULL, beta2 = 0.4) {
     # Adjust beta1 to preserve desired marginal OLS slope
     cov12 <- cov(X1, X2)
     var_X1 <- var(X1)
-    beta1 <- b1_ols - beta2 * cov12 / var_X1
+    beta1 <- b1_ols - beta2 * cov12 / var_X1 # cov12 / var_X1 = r12
     
     # Compute residual variance needed to achieve r_x1y and b_ols1
-    var_epsilon <- (b_ols1^2 * var_X1) * ((1 - r_x1y^2) / r_x1y^2)
+    var_epsilon <- (b1_ols^2 * var_X1) * ((1 - r_x1y^2) / r_x1y^2)
     sd_epsilon <- sqrt(var_epsilon)
     
     # Simulate Y
@@ -232,10 +225,11 @@ sim_SMA_mv <- function(parms_mv, N = 1000, seed = NULL, beta2 = 0.4) {
       true_beta2 = beta2,
       true_b1_ols = b1_ols,
       true_r_x1y = r_x1y,
-      true_b_sma = b_sma,
+      true_b1_sma = b_sma,
       est_r12 = cor(X1, X2),
-      est_scale_coeff = coef(sma_mod)[2],
+      est_b1_sma = coef(sma_mod)[2],
       est_b2_ols = coef(lm(Y ~ X1 + X2))[3],
+      est_b2_noX1 = coef(lm(Y ~ X2))[2],
       est_b2_sma = coef(lm(sma_resid ~ X2))[2]
     )
   }
@@ -243,10 +237,7 @@ sim_SMA_mv <- function(parms_mv, N = 1000, seed = NULL, beta2 = 0.4) {
 }
 sim_df_mv <- sim_SMA_mv(parms_mv)
 
-#names(parms_mv) <- paste0("true_", names(parms_mv))
-
-##
-
+# create_SMA_summary to compare parameter estimates
 create_SMA_summary <- function(sim_df_mv) {
   sim_df_mv %>% 
     dplyr::select(starts_with("true"), starts_with("est")) %>%
@@ -255,178 +246,31 @@ create_SMA_summary <- function(sim_df_mv) {
 # NOTE:: est_scale_coeff way off, as is the effect of temp from the sma_resid model. 
 # Thus far, the est_b2_ols does much better at getting the correct value
 create_SMA_summary(sim_df_mv) %>% 
-  dplyr::select(true_r12, true_b_sma, est_scale_coeff)
+  dplyr::select(-true_beta2)
+  #dplyr::select(true_r12, true_b_sma, est_b_sma)
 
-# b_sma = b_ols / r -------------------------------------------------------
-## DELETE
-# Simulate 3 related hypothetical species that have different allometric scaling relationships
-# My thought is I can use these hypothetical species to illustrate how size metrics vary depending on the scaling coefficient 
-# Is mass:wing ratio the same at different sizes under isometry? 
-# What are the implications of taking some sort of residual (e.g., relative wing size, after controlling for allometry) compared to just taking a wing / mass ratio under the different allometric scaling patterns? 
+# Plot boxplots to compare simulated parameter value to estimated parm values
+plotting_df_mv <- create_SMA_summary(sim_df_mv) %>% 
+  pivot_longer(cols = c(est_b2_noX1, est_b2_ols, est_b2_sma), 
+               names_to = "Mod_est", values_to = "Temp_b2") %>% 
+  mutate(Mod_est = str_remove(Mod_est, "est_b2_"))
+plotting_df_mv %>% ggplot(aes(x = Mod_est, y = Temp_b2, color = Mod_est)) + 
+  geom_point() +
+  geom_boxplot() + 
+  geom_hline(yintercept = unique(sim_df_mv$true_beta2), 
+             linetype = "dashed", color = "black")
 
-# Sample size & mass values
-N <- 1000
-mass <- rnorm(N, mean = 60, sd = 8)
-mass_log <- log(mass)
+# Do allometric relationships influence the bias in b2 estimates? 
+plotting_df_mv %>% ggplot(aes(x = est_b_sma, y = Temp_b2, color = Mod_est)) + 
+  geom_point() +
+  geom_smooth(method = "lm") + 
+  geom_hline(yintercept = unique(sim_df_mv$true_beta2), 
+             linetype = "dashed", color = "black")
 
-# NOTE:: I don't think it is possible to generate data from an exact SMA slope (e.g. 0.33). This is because 1) smatr doesn't include a simulation function, and 2) the correlation is part of what determines b_sma. I.e., b_sma = b_ols / r, so unless we don't include any error term (r = 1) there will always be stochastic variation in the correlation between wing & mass. Thus we must use.. 
-## Trial & error:: Identify values of slopes & standard deviations that work to achieve desired b_sma. These values end up in the parms dataframe
-# To increase correlation: Increase b_ols or reduce sd of error. Reducing sd of error will create less stochasticity in b_sma 
-b_ols <- .18
-sd_err <- 0.038 
-error <- rnorm(N, 0, sd_err) # Add error on log wing scale
-wing_log <- log(100) + b_ols * mass_log + error
-r <- cor(wing_log, mass_log)
-r
+# Depending on this correlation between temp & mass, the pros & cons between multiple regression (as suggested by Ryding, 2022; Freckleton 2002) & allometric residuals (Green, 2001) shift. When there is no correlation between temperature & mass allometric residuals MAY (?) give most unbiased results, but when they are highly correlated it is likely that multiple regression is better? 
 
-mod <- summary(lm(wing_log ~ mass_log))
-b_ols_est <- coef(mod)[2,1]
-b_sma <- b_ols / r
-b_sma
+# 3 vars manual  --------------------------------------------
 
-# Store the combinations of values that worked in a tbl
-parms <- tibble(
-  species = c("Isometry", "hyperallometry", "hypoallometry"),
-  sd = c(.038, .04, .027),
-  b_ols = c(.18, .30, .11)
-)
-
-# Does the intercept matter here? 
-log_a <- log(100)
-#log_a <- log(1) # Set intercept to 0 
-
-# Use the tbl parms to simulate data
-morph_df <- parms %>% rowwise() %>% 
-  mutate(wing_log = list(log_a + (b_ols * mass_log) + rnorm(N,0,sd))) %>% 
-  unnest(wing_log) %>% 
-  mutate(wing = exp(wing_log), mass_log, mass = exp(mass_log), 
-         r = cor(mass_log, wing_log), b_sma = b_ols / r, .by = species)
-  
-head(morph_df)
-
-## NOTE:: Should really extract the estimated b_ols coefficients to calculate the b_sma values
-# lm(wing ~ mass * species, data = morph_df)
-
-# Ensure b_sma comes out as expected
-morph_df %>% pull(b_sma) %>% unique()
-
-# Ensure we recover the species specific slopes 
-# NOTE:: The elevations are different
-mod_sma <- smatr::sma(wing_log ~ mass_log * species, morph_df)
-summary(mod_sma)
-
-# Visualize log-log relationship
-morph_df %>% 
-  ggplot(aes(x = mass_log, y = wing_log, color = species)) + 
-  geom_point(alpha = .3) + 
-  geom_smooth(method = "lm")
-
-# Simple ratios -----------------------------------------------------------
-## Understand how simple ratios are affected by scaling theory 
-# NOTE:: According to Jokob (1996), ratios (mass : linear metric) are correlated with body size 
-# Unlogged -- Hyperallometric species has the shallowest slope, as expected
-morph_df %>% mutate(mass_wing = mass / wing) %>% 
-  ggplot(aes(x = mass, y = mass_wing, color = species)) +
-  geom_point(alpha = .3) + 
-  geom_smooth(method = "lm")
-
-## STILL to do: 
-# When log_a = 0, and doing logged mass / wing, you do see flat lines , but I would expect isometry to be flat, hyperallometry to have negative slope, and hypoallometry to have positive slope
-morph_df2 <- morph_df %>% 
-  mutate(mass_wing = mass / wing, 
-         mass_wing_log = mass_log / wing_log)
-
-mod_sma_mw <- smatr::sma(mass_wing_log ~ mass_log * species, morph_df2)
-summary(mod_sma_mw)
-
-morph_df %>% mutate(mass_wing = mass_log / wing_log) %>% 
-  ggplot(aes(x = mass, y = mass_wing, color = species)) +
-  geom_point(alpha = .3) + 
-  geom_smooth(method = "lm")
-
-# >Same intercepts? --------------------------------------------------------
-## How can we obtain the same intercepts, only varying the slopes? 
-# Code from GPT, didn't quite work. 
-
-# Define a reference mass for alignment
-reference_mass <- mean(mass_log)
-
-# Use the tbl parms to simulate data
-morph_df <- parms %>%
-  rowwise() %>%
-  mutate(
-    wing_log = list(log_a + (b_ols * mass_log) + rnorm(N, 0, sd))
-  ) %>%
-  unnest(wing_log) %>%
-  group_by(species) %>%
-  mutate(
-    mass_log,
-    # Adjust wing_log to align intercepts at the reference mass
-    wing_log = wing_log - (b_ols * reference_mass) + log_a
-  ) %>%
-  ungroup()
-
-# Fit the SMA model to check intercepts
-mod_sma <- smatr::sma(wing_log ~ mass_log * species, data = morph_df)
-summary(mod_sma)
-
-# Visualize to confirm alignment
-ggplot(morph_df, aes(x = mass_log, y = wing_log, color = species)) +
-  geom_point(alpha = 0.5) +
-  geom_smooth(method = "lm", se = FALSE) +
-  labs(title = "Adjusted Simulation: Same Intercepts Across Species",
-       x = "Log(Mass)", y = "Log(Wing)") +
-  theme_minimal()
-
-# Understand how simple ratios are affected by scaling theory 
-morph_df %>% mutate(mass_wing = mass_log / wing_log) %>% 
-  ggplot(aes(x = mass_log, y = mass_wing, color = species)) +
-  geom_point(alpha = .3) + 
-  geom_smooth(method = "lm")
-
-# Ex1: Temporal bergs - wing^2 / mass ---------------------------------------
-# A species appears to adhere to temporal version of Bergmann's rule as both mass and wing decrease w/ temperature, but wing^2 / mass (SA / V) actually decreases with temp (due to hypoallometry). 
-# NOTE:: In paper make note that we would know this will happen due to hypoallometry
-
-# Increases in temperature from 1975 to 2025 at different sampling locations 
-n <- 1000
-temp <- rnorm(n, mean = 1.2, sd = 0.3)  
-
-# Generate wing length: Strongly decreases with temperature
-wing <- 15 - 0.6 * temp + rnorm(n, sd = .5)  
-
-# Generate mass: Decreases with latitude, but not as strongly as wing
-mass <- 40 - 0.3 * temp + rnorm(n, sd = .5)  
-
-# Compute SA:V ratio (wing^2 / mass)
-SA_V <- (wing^2) / mass
-
-# Create data frame
-size_temp <- data.frame(temp, wing, mass, SA_V) %>% tibble()
-
-# Check relationships
-cor(size_temp)
-
-# Visualize
-p1 <- ggplot(size_temp, aes(x = temp, y = wing)) +
-  geom_point(alpha = .4) + 
-  geom_smooth(method = "lm", se = FALSE) + 
-  labs(title ="Wing vs Temp", x = "Temperature increase") 
-
-p2 <- ggplot(size_temp, aes(x = temp, y = mass)) +
-  geom_point(alpha = .4) + 
-  geom_smooth(method = "lm", se = FALSE) + 
-  labs(title = "Mass vs Temp", x = "Temperature increase")
-
-# We would expect that SA:V would increase as temperature increases, but in this case SA:V decreases
-p3 <- ggplot(size_temp, aes(x = temp, y = SA_V)) +
-  geom_point(alpha = .4) + 
-  geom_smooth(method = "lm", se = FALSE) + 
-  labs(title = "SA:V Ratio vs Temp", x = "Temperature increase")
-
-grid.arrange(p1, p2, p3, nrow = 2)
-
-# >SMA & OLS lines of best fit --------------------------------------------
 # Generate wing length: Strongly decreases with temperature
 wing <- 15 - 0.6 * temp + rnorm(n, sd = .5)  
 
@@ -473,7 +317,7 @@ m_w <- size_temp_r %>%
 
 ggarrange(w_m, m_w)
 
-# In SMA -- Residuals are equally & opposite correlation with X & Y
+# In SMA -- Residuals are equal & oppositely correlated with X & Y
 cor(size_temp_r$mass_log, size_temp_r$res_wm)
 cor(size_temp_r$wing_log, size_temp_r$res_wm)
 
@@ -488,21 +332,196 @@ ggplot(data = size_temp2, aes(x = mass_log, y = wing_log)) +
   ggpmisc::stat_ma_line(method = "SMA", color = "blue") 
 
 # Comparing residuals
-size_temp_r %>% ggplot(aes(x = swi_r, y = ols_r)) + 
+size_temp_r %>% ggplot(aes(x = res_wm, y = ols_r)) + 
   geom_point(alpha = .2) + 
   geom_abline(slope = 1, color = "red") + 
-  labs(x = "SMA residuals", "OLS residuals")
+  labs(x = "SMA residuals", y = "OLS residuals")
 
 # Influence of temperature on wingyness
-ggplot(data = size_temp_r, aes(x = temp, y = swi_r)) + 
+ggplot(data = size_temp_r, aes(x = temp, y = res_wm)) + 
   geom_point(alpha = .6) +
   geom_smooth(method = "lm") + 
   labs(x = "Temperature increase", y = "Wingyness")
 
-## Example analysis: If we are interested in understanding how temp increase influence wingyness.. We could use 1) residuals from allometric scaling with mass on x-axis (wing_resid ~ temp), or 2) multiple regression (Wing ~ temp + mass). 
-# Depending on this correlation between temp & mass, the pros & cons between multiple regression (as suggested by Ryding, 2022; Freckleton 2002) & allometric residuals (Green, 2001) shift. When there is no correlation between temperature & mass allometric residuals MAY (?) give most unbiased results, but when they are highly correlated it is likely that multiple regression is better? 
-cor(size_temp2$temp, size_temp2$mass_log) 
+# Biologically realistic values -----------------------------------
+# Simulate 3 related hypothetical species that have different allometric scaling relationships
+# My thought is I can use these hypothetical species to illustrate how size metrics vary depending on the scaling coefficient 
+# Is mass:wing ratio the same at different sizes under isometry? 
+# What are the implications of taking some sort of residual (e.g., relative wing size, after controlling for allometry) compared to just taking a wing / mass ratio under the different allometric scaling patterns? 
 
+# Sample size & mass values
+N <- 1000
+Mass <- rnorm(N, mean = 60, sd = 8)
+Mass_log <- log(Mass)
+
+# NOTE:: I don't think it is possible to generate data from an exact SMA slope (e.g. 0.33). This is because 1) smatr doesn't include a simulation function, and 2) the correlation is part of what determines b_sma. I.e., b_sma = b_ols / r, so unless we don't include any error term (r = 1) there will always be stochastic variation in the correlation between wing & mass. Thus we must use.. 
+## Trial & error:: Identify values of slopes & standard deviations that work to achieve desired b_sma. These values end up in the parms dataframe
+# To increase correlation: Increase b_ols or reduce sd of error. Reducing sd of error will create less stochasticity in b_sma 
+b_ols <- .18
+sd_err <- 0.038 
+error <- rnorm(N, 0, sd_err) # Add error on log wing scale
+Wing_log <- log(100) + b_ols * Mass_log + error
+r <- cor(Wing_log, Mass_log)
+r
+
+mod <- summary(lm(Wing_log ~ Mass_log))
+b_ols_est <- coef(mod)[2,1]
+b_sma <- b_ols / r
+b_sma
+
+# Store the combinations of values that worked in a tbl
+parms <- tibble(
+  Species = c("Isometry", "Hyperallometry", "Hypoallometry"),
+  sd = c(.038, .04, .027),
+  b_ols = c(.18, .30, .11)
+)
+
+## The intercept is critical! Does the intercept matter here? 
+log_a <- log(10)
+#log_a <- log(1) # Set intercept to 0 
+
+# Use the tbl parms to simulate data
+morph_df <- parms %>% rowwise() %>% 
+  mutate(Wing_log = list(log_a + (b_ols * Mass_log) + rnorm(N,0,sd))) %>% 
+  unnest(Wing_log) %>% 
+  mutate(Wing = exp(Wing_log), Mass_log, Mass = exp(Mass_log), 
+         r = cor(Mass_log, Wing_log), b_sma = b_ols / r, .by = Species) %>% 
+  mutate(Species = factor(Species, levels = c("Hypoallometry", "Isometry", "Hyperallometry"))) %>%
+  tibble()
+morph_df
+
+## NOTE:: Should really extract the estimated b_ols coefficients to calculate the b_sma values
+# lm(wing ~ mass * species, data = morph_df)
+
+# Ensure b_sma comes out as expected
+morph_df %>% pull(b_sma) %>% unique()
+
+# Ensure we recover the species specific slopes 
+# NOTE:: The elevations are different
+mod_sma <- smatr::sma(Wing_log ~ Mass_log * Species, morph_df)
+summary(mod_sma)
+
+# Visualize log-log relationship
+morph_df %>% 
+  ggplot(aes(x = Mass_log, y = Wing_log, color = Species)) + 
+  geom_point(alpha = .3) + 
+  #geom_smooth(method = "lm", linetype = "dashed", fullrange = TRUE) + 
+  ggpmisc::stat_ma_line(method = "SMA", fullrange = TRUE) #+
+  #ylim(c(-2, 10)) +
+  #xlim(0, 4.6)
+
+# Simple ratios -----------------------------------------------------------
+## Understand how simple ratios are affected by scaling theory 
+# Unlogged -- Hyperallometric species has the shallowest slope, as expected
+morph_df %>% mutate(Mass_wing = Mass / Wing) %>% 
+  ggplot(aes(x = Mass, y = Mass_wing, color = Species)) +
+  geom_point(alpha = .3) + 
+  geom_smooth(method = "lm")
+
+## STILL to do: 
+# When log_a = 0, and doing logged mass / wing, you do see flat lines , but I would expect isometry to be flat, hyperallometry to have negative slope, and hypoallometry to have positive slope
+morph_df2 <- morph_df %>% 
+  mutate(Mass_wing = Mass / Wing, 
+         Mass_wing_log = Mass_log / Wing_log)
+
+# NOTE:: According to Jokob (1996), ratios (mass : linear metric) are correlated with body size 
+morph_df2 %>% 
+  ggplot(aes(x = Mass_log, y = Mass_wing_log, color = Species)) +
+  geom_point(alpha = .3) + 
+  geom_smooth(method = "lm", fullrange = TRUE) + 
+  labs(x = "Log mass", y = "Mass / wing ratio") 
+
+# Statistical models to compare slopes
+mod_sma_mw <- smatr::sma(Mass_wing_log ~ Mass_log * Species, morph_df2)
+summary(mod_sma_mw)
+# NOTE:: Hypoallometry has steepest slope & hyperallometry has shallowest slope. Makes sense, as mass is the numerator, so in a Hypoallometric species the mass increases relatively more than wing 
+summary(lm(Mass_wing_log ~ Mass_log * Species, morph_df2))
+
+# >Same intercepts? --------------------------------------------------------
+## How can we obtain the same intercepts, only varying the slopes? 
+# Code from GPT, didn't quite work. 
+
+# Define a reference mass for alignment
+reference_mass <- mean(Mass_log)
+
+# Use the tbl parms to simulate data
+morph_df <- parms %>%
+  rowwise() %>%
+  mutate(
+    Wing_log = list(log_a + (b_ols * Mass_log) + rnorm(N, 0, sd))
+  ) %>%
+  unnest(Wing_log) %>%
+  group_by(Species) %>%
+  mutate(
+    Mass_log,
+    # Adjust wing_log to align intercepts at the reference mass
+    Wing_log = Wing_log - (b_ols * reference_mass) + log_a
+  ) %>% ungroup()
+
+# Fit the SMA model to check intercepts
+mod_sma <- smatr::sma(Wing_log ~ Mass_log * Species, data = morph_df)
+summary(mod_sma)
+
+# Visualize to confirm alignment
+ggplot(morph_df, aes(x = Mass_log, y = Wing_log, color = Species)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(title = "Adjusted Simulation: Same Intercepts Across Species",
+       x = "Log(Mass)", y = "Log(Wing)") +
+  theme_minimal()
+
+# Understand how simple ratios are affected by scaling theory 
+morph_df %>% mutate(Mass_wing = Mass_log / Wing_log) %>% 
+  ggplot(aes(x = Mass_log, y = Mass_wing, color = Species)) +
+  geom_point(alpha = .3) + 
+  geom_smooth(method = "lm")
+
+# Ex1: Temporal bergs - wing^2 / mass ---------------------------------------
+# A species appears to adhere to temporal version of Bergmann's rule as both mass and wing decrease w/ temperature, but wing^2 / mass (SA / V) actually decreases with temp (due to hypoallometry). 
+# NOTE:: In paper make note that we would know this will happen due to hypoallometry
+
+# Increases in temperature from 1975 to 2025 at different sampling locations 
+n <- 1000
+temp <- rnorm(n, mean = 1.2, sd = 0.3)  
+
+# Generate wing length: Strongly decreases with temperature
+wing <- 15 - 0.6 * temp + rnorm(n, sd = .5)  
+
+# Generate mass: Decreases with latitude, but not as strongly as wing
+mass <- 40 - 0.3 * temp + rnorm(n, sd = .5)  
+
+# Compute SA:V ratio (wing^2 / mass)
+SA_V <- (wing^2) / mass
+
+# Create data frame
+size_temp <- data.frame(temp, wing, mass, SA_V) %>% tibble()
+
+# Check relationships
+cor(size_temp)
+
+## Visualize
+# How does SA / V ratio change with body size?
+size_temp %>% ggplot(aes(x = mass, y = SA_V)) +
+  geom_point() + 
+  geom_smooth(method = "lm")
+
+p1 <- ggplot(size_temp, aes(x = temp, y = wing)) +
+  geom_point(alpha = .4) + 
+  geom_smooth(method = "lm", se = FALSE) + 
+  labs(title ="Wing vs Temp", x = "Temperature increase") 
+
+p2 <- ggplot(size_temp, aes(x = temp, y = mass)) +
+  geom_point(alpha = .4) + 
+  geom_smooth(method = "lm", se = FALSE) + 
+  labs(title = "Mass vs Temp", x = "Temperature increase")
+
+# We would expect that SA:V would increase as temperature increases, but in this case SA:V decreases
+p3 <- ggplot(size_temp, aes(x = temp, y = SA_V)) +
+  geom_point(alpha = .4) + 
+  geom_smooth(method = "lm", se = FALSE) + 
+  labs(title = "SA:V Ratio vs Temp", x = "Temperature increase")
+
+grid.arrange(p1, p2, p3, nrow = 2)
 
 # Ex2: Neg covariation ---------------------------------------------------
 # Individuals are doing different things then the population.. Example, wing & mass show a positive trend with latitude, but actually negatively covary. A migratory bird might diverge in migration strategy & behavior (time-minimizing vs energy-minimizing), where short-distance migrant individuals are fat & short winged, & long-distance migrant individuals are skinny & long-winged.
@@ -559,22 +578,22 @@ grid.arrange(p1, p2, p3, nrow = 1) #p4,
 
 # >Single population ---------------------------------------------------------
 ## Extract data from the a single population of a hypothetical species under isometry
-iso_spp <- morph_df %>% filter(species == "Isometry")
+iso_spp <- morph_df %>% filter(Species == "Isometry")
 
 # Ensure we recover the expected slope under isometry (0.33)
-iso_sma <- smatr::sma(wing_log ~ mass_log, iso_spp)
+iso_sma <- smatr::sma(Wing_log ~ Mass_log, iso_spp)
 summary(iso_sma)
 
 # Visualize log-log relationship
 iso_spp %>% 
-  ggplot(aes(x = mass_log, y = wing_log)) + 
+  ggplot(aes(x = Mass_log, y = Wing_log)) + 
   geom_point(alpha = .3) + 
-  geom_smooth(method = "lm")
+  ggpmisc::stat_ma_line(method = "SMA") 
 
 ## If we can only sample 300 individuals, how consistent is the SMA slope? 
 sma_lines <- map_dfr(1:50, \(rep){
   samp250 <- iso_spp %>% slice_sample(n = 300)
-  samp_sma <- smatr::sma(wing_log ~ mass_log, samp250)
+  samp_sma <- smatr::sma(Wing_log ~ Mass_log, samp250)
   tibble(
     pops = "single", rep, 
     int = coef(samp_sma)[1], slope = coef(samp_sma)[2]
@@ -582,11 +601,12 @@ sma_lines <- map_dfr(1:50, \(rep){
 })
 
 # Plot variation in lines 
-ggplot(data = iso_spp, aes(x = mass_log, y = wing_log)) + 
+ggplot(data = iso_spp, aes(x = Mass_log, y = Wing_log)) + 
   geom_point(alpha = .1) + 
   geom_abline(data = sma_lines, 
               aes(intercept = int, slope = slope), 
-              alpha = .5)
+              alpha = .5) +
+  ggpmisc::stat_ma_line(method = "SMA", se = FALSE)
 
 # >Mult populations -------------------------------------------------------
 ## What if we sample 300 individuals from several different populations? 
@@ -605,7 +625,7 @@ pop_morph_df <- pmap(list(pop_id, latitude, mean_mass),
 }) %>% list_rbind()
 
 # Ensure that the simulated mass values resemble the mass values simulated above in iso_spp (mean 60, sd 8)
-iso_spp %>% mutate(mass = exp(mass_log)) %>% 
+iso_spp %>% mutate(mass = exp(Mass_log)) %>% 
   ggplot(aes(x = mass)) +
   geom_density()
 pop_morph_df %>% ggplot(aes(x = mass)) +
@@ -617,7 +637,7 @@ pop_morph_df %>% ggplot(aes(x = lat, y = mass)) +
   geom_smooth(method = "lm")
 
 ## Simulate wing under isometry
-iso_parms <- parms %>% filter(species == "Isometry")
+iso_parms <- parms %>% filter(Species == "Isometry")
 
 # Generate distinct allometric scaling slopes for each population. This is key to achieve the desired effect
 # NOTE:: The variation in the b_ols_pop slopes is what determines the amount of spread when we draw 50x from the global population
@@ -683,6 +703,7 @@ if(FALSE){
                 aes(intercept = int, slope = slope), 
                 color = "blue",
                 alpha = .5)
+}
 
 # SMI ---------------------------------------------------------------------
 # Estimate body condition using SMI (Peig & Green, 2009) 
@@ -743,7 +764,280 @@ summary(lm(swi ~ lat, data = swi_df2))
 
 ## Recommendations: 
 # ALWAYS examine the allometric scaling relationship -- this will help you interpret your results 
-# If your species shows allometric scaling near isometry, taking a raw ratio will be nearly identical to directly incorporating allometric scaling theory in estimates of relative mass or wingyness 
+# If your species shows allometric scaling near isometry, taking a raw ratio will be nearly identical to directly incorporating allometric scaling theory in estimates of relative mass or wingyness. Or would wing^2 / mass be better?
+
+
+# Thoughts 2.0 -------------------------------------------------------------
+# After meeting with Asad on April 14th
+# My simulation was biased towards the OLS method b/c I generated Wing length from the OLS slopes & X1 + X2 + error.
+# New plan: Simulate correlated data consistent with Allen's rule & use change in intercepts as a neutral way to measure the true effect of change in temperature on proportions of birds 
+## Alternative approaches: 
+# 1) Jenna: Do some sort of posterior predictive check to see which model can generate data that looks similar to the observed (i.e., simulated) dataset 
+# 2) Asad: Simulate data & run both models, using these parameter estimates as the 'truth'. Then add noise to the simulation & see which method is more robust to additional noise. Essentially, examine the power of each approach to detect the truth 
+
+
+# >Asad simulation ---------------------------------------------------------
+## Simulate data
+# Function to generate a symmetric correlation matrix
+
+## OLD
+if(FALSE){
+  gen_sym_cov <- function(cov_mass_wing, cov_temp_wing, cov_temp_mass){
+    matrix(c(
+      1, cov_mass_wing, cov_temp_wing,
+      cov_mass_wing, 1,   cov_temp_mass,
+      cov_temp_wing, cov_temp_mass, 1
+    ), nrow = 3)
+  }
+}
+
+# Desired correlation matrix
+
+# cor_mat <- gen_sym_cov(cov_mass_wing = .3, cov_temp_wing = -.2, cov_temp_mass= -.5) # Produces important point
+
+#cor_mat <- gen_sym_cov(cov_mass_wing = .6, cov_temp_wing = 0, cov_temp_mass= 0)
+
+# Simulate correlated data
+#set.seed(1)
+#data <- mvrnorm(n = 10000, mu = rep(0, 3), Sigma = cor_mat, empirical = TRUE)
+
+# Transform marginal distributions to be biologically realistic
+#Wing       <- log(rescale(data[,1], to = c(40, 50)))# ~ log-Normal(45, 3)
+#Mass       <- log(rescale(data[,2], to = c(10, 16))) # ~ log-Normal(13, 2)
+#Temp_inc   <- rescale(data[,3], to = c(0.1, 1.6)) # Uniform-like on [0.1, 1.3]
+
+#morph_temp <- tibble(Wing, Mass, Temp_inc)
+
+
+##
+
+### GPT 
+
+library(MASS)
+library(smatr)
+library(tidyverse)
+library(broom)
+
+# Format 'temperature increase' & 'Temp label' columns
+format_sma_parms <- function(sma_mod){
+  coef(sma_mod) %>% 
+    rownames_to_column("Temp_inc") %>% 
+    #mutate(Temp_bin = as.numeric(Temp_bin)) %>%
+    mutate(
+      Temp_inc = str_pad(Temp_inc, side = "left", width = 2, pad = "0"),
+      Temp_inc = str_replace(Temp_inc, pattern = "^([0-9])([0-9])$", replacement = "\\1.\\2"),
+      Temp_label = paste0(Temp_inc, "°C"), 
+      Temp_inc = as.numeric(Temp_inc)) %>%
+    tibble() 
+}
+
+gen_3var_cov <- function(b_sma_12, r_12 = .5, r_13 = 0, r_23 = 0) {
+  S1 <- abs(b_sma_12)
+  S2 <- 1
+  cov_12 <- r_12 * S1 * S2
+  cov_13 <- r_13 * S1 * 1
+  cov_23 <- r_23 * S2 * 1
+  matrix(c(
+    S1^2,    cov_12, cov_13,
+    cov_12,  S2^2,   cov_23,
+    cov_13,  cov_23, 1
+  ), nrow = 3)
+}
+
+parms_mat <- expand_grid(
+  b_sma_12 = c(.22, .33, .44),
+  r_12 = c(.2, .3, .4),
+  r_13 = c(0, -.1, -.2, -.4),
+  r_23 = c(0, -.1, -.2, -.4)
+  # Effect of temperature on wingyness
+) %>% mutate(Temp_eff = case_when( 
+  r_13 > r_23 ~ "Pos", 
+  r_13 == r_23 ~ "No_eff", 
+  r_13 < r_23 ~ "Neg"))
+
+extract_coefs <- function(b_sma_12, r_12, r_13, r_23) {
+  Sigma <- gen_3var_cov(b_sma_12, r_12, r_13, r_23)
+  data <- mvrnorm(n = 10000, mu = rep(0, 3), Sigma = Sigma, empirical = TRUE)
+  morph_temp <- tibble(Wing = data[,1], Mass= data[,2], Temp_inc= data[,3])
+  
+  morph_temp2 <- morph_temp %>% 
+    mutate(Temp_bin = cut(Temp_inc, breaks = 15, labels = FALSE, 
+                          ordered_result = TRUE)) %>%
+    arrange(Temp_inc) %>%
+    slice_sample(n = 200, by = Temp_bin) %>%
+    filter(!Temp_bin %in% c(1:3, 12:15))
+  
+  ## Compare SMA resid vs Ryding approach 
+  sma_mod <- sma(Wing ~ Mass, data = morph_temp2)
+  resid_sma <- residuals(sma_mod)
+  
+  resid_app <- lm(resid_sma ~ Temp_inc, data = morph_temp2)
+  ryding_app <- lm(Wing ~ Mass + Temp_inc, data = morph_temp2)
+  
+  ## Fit SMA models to ensure that temp had desired effect on allometry
+  # Keep the slope fixed
+  mod_temp_bin <- sma(Wing ~ Mass + Temp_bin, data = morph_temp2)
+  # Allow the slope to vary with binned temp
+  mod_temp_bin_int <- sma(Wing ~ Mass * Temp_bin, data = morph_temp2)
+  
+  # Format coefficients
+  mod_parms <- format_sma_parms(mod_temp_bin)
+  mod_parms_int <- format_sma_parms(mod_temp_bin_int)
+  
+  tibble(
+    cor_allometry = cor(mod_parms$Temp_inc, mod_parms$elevation),
+    cor_allometry_int = cor(mod_parms_int$Temp_inc, mod_parms_int$elevation),
+    coef_resid_app = coef(resid_app)["Temp_inc"],
+    coef_ryding_app = coef(ryding_app)["Temp_inc"],
+    est_b_sma = coef(sma_mod)["slope"]
+  )
+}
+
+# Run simulation, extract coefficients from models, & combine with the parameters that generated the data
+Comp_mods <- parms_mat %>%
+  mutate(coefs = pmap(parms_mat[,1:4], extract_coefs)) %>%
+  unnest(coefs) %>% 
+  mutate(across(c(1:4), ~ as.factor(.x)))
+
+Comp_mods %>% pivot_longer(cols = c(coef_resid_app, coef_ryding_app), 
+                           names_to = "Model", values_to = "b_temp_inc") %>% 
+  mutate(Model = str_remove_all(Model, "coef_|_app")) %>% 
+  ## PLOT TOMORROW
+  ggplot(aes(x = Mod_est, y = Temp_b2, color = Mod_est)) + 
+  geom_point() +
+  geom_boxplot() + 
+  geom_hline(yintercept = unique(sim_df_mv$true_beta2), 
+             linetype = "dashed", color = "black")
+  
+
+
+####
+
+
+
+## Generate 3 vars with specified correlations & b_sma value
+gen_3var_cov <- function(b_sma_12, r_12 = .5, r_13 = 0, r_23 = 0) {
+  S1 <- abs(b_sma_12) 
+  S2 <- 1
+  cov_12 <- r_12 * S1 * S2
+  cov_13 <- r_13 * S1 * 1
+  cov_23 <- r_23 * S2 * 1
+  matrix(c(
+    S1^2,    cov_12, cov_13,
+    cov_12,  S2^2,   cov_23,
+    cov_13,  cov_23, 1
+  ), nrow = 3)
+}
+
+parms_mat <- expand_grid(b_sma_12 = c(.22, .33, .44), r_12 = c(.2, .3, .4), r_13 = c(0, -.1, -.2, -.4), r_23 = c(0, -.1, -.2, -.4))
+
+cov_mat <- gen_3var_cov(b_sma_12 = 0.5, r_12 = 0.3, r_13 = -.2, r_23 = -.5)
+data <- mvrnorm(n = 10000, mu = rep(0, 3), Sigma = cov_mat, empirical = TRUE)
+
+morph_temp <- tibble(Wing = data[,1], Mass= data[,2], Temp_inc= data[,3])
+imap(morph_temp, \(col, name){
+  hist(col, main = name)
+})
+# Check empirical correlations
+round(cor(morph_temp), 2)
+
+morph_temp2 <- morph_temp %>% mutate(
+  Temp_bin = cut(Temp_inc, breaks = 15, labels = FALSE, ordered_result = TRUE)) %>% arrange(Temp_inc) %>% 
+  slice_sample(n = 200, by = Temp_bin) %>% 
+  filter(!Temp_bin %in% c(1:3, 12:15))
+
+## How can we compare our 2 models to see which one better recovers truth? 
+# Extract residuals from SMA
+sma_mod <- sma(Wing ~ Mass, data = morph_temp2)
+summary(sma_mod)
+resid_sma <- residuals(sma_mod)
+
+# Run models to compare the 2 approaches
+resid_app <- lm(resid_sma ~ Temp_inc, data = morph_temp2)
+summary(resid_app)
+ryding_app <- lm(Wing ~ Mass + Temp_inc, data = morph_temp2)
+summary(ryding_app)
+
+# Summarize to see how temperature bin maps onto temperature increase
+morph_temp2 %>% summarize(mean_temp_inc = mean(Temp_inc),
+                          Sample_size = n(), .by = Temp_bin)
+
+# Visualize data 
+morph_temp2 %>% ggplot(aes(x = Mass, y = Wing)) + 
+  geom_point() + 
+  stat_ma_line() + 
+  geom_smooth(linetype = "dashed", method = "lm") # Very little difference? 
+
+## Fit SMA models 
+# Keep the slope fixed
+mod_temp_bin <- sma(Wing ~ Mass + Temp_bin, data = morph_temp2)
+coef(mod_temp_bin)
+# Allow the slope to vary with binned temp
+mod_temp_bin_int <- sma(Wing ~ Mass * Temp_bin, data = morph_temp2)
+summary(mod_temp_bin_int)
+
+# Format 'temperature increase' & 'Temp label' columns
+format_sma_parms <- function(sma_mod){
+  coef(sma_mod) %>% 
+    rownames_to_column("Temp_inc") %>% 
+    #mutate(Temp_bin = as.numeric(Temp_bin)) %>%
+    mutate(
+      Temp_inc = str_pad(Temp_inc, side = "left", width = 2, pad = "0"),
+      Temp_inc = str_replace(Temp_inc, pattern = "^([0-9])([0-9])$", replacement = "\\1.\\2"),
+      Temp_label = paste0(Temp_inc, "°C"), 
+      Temp_inc = as.numeric(Temp_inc)) %>%
+    tibble() 
+}
+
+mod_parms <- format_sma_parms(mod_temp_bin)
+mod_parms_int <- format_sma_parms(mod_temp_bin_int)
+
+# Plot -- With interaction or without? 
+# NOTE:: If you allow the slopes to vary you get proportional changes that appear more realistic
+mod_parms_int %>%
+  mutate(x = 0) %>% 
+  ggplot() +
+  #geom_point(data = morph_temp2, aes(x = Mass, Wing), alpha = 0) +
+  geom_abline(aes(intercept = elevation, slope = slope, color = Temp_inc)) +
+  ggrepel::geom_text_repel(aes(x = x, y = elevation, label = Temp_label)) +
+  #xlim(c(0, .1)) + 
+  #ylim(c(2.91, 2.975)) +
+  labs(x = "Log mass", y = "Log wing") + 
+  theme(axis.text = element_blank(),
+        axis.ticks = element_blank()) + 
+  guides(color = "none")
+
+# Plot Temp increase vs relative wing size (this plot represents TRUTH)
+mod_parms_int %>%
+  mutate(Temp_inc = as.numeric(Temp_inc)) %>%
+  ggplot(aes(x = Temp_inc, y = elevation)) +
+  geom_point() + 
+  geom_smooth(method = "lm") + 
+  labs(x = "Temperature increase", y = "Relative wing size")
+
+# Residual approach -- We get the correct inference that wingyness increases with temperature
+morph_temp2 %>% ggplot(aes(x = Temp_inc, y = resid_sma)) + 
+  geom_point() + 
+  geom_smooth(method = "lm")
+
+# Use predict to generate a new dataframe holding body size constant
+newdat <- tibble(Mass = mean(morph_temp2$Mass), Temp_inc = runif(n = 1000, min(morph_temp2$Temp_inc), max(morph_temp2$Temp_inc))) 
+pred <- predict(ryding_app, newdata = newdat, interval = 'confidence')
+ndf <- cbind(newdat, pred) %>% rename(Wing_pred = fit) %>% 
+  tibble()
+
+# Thought it would make sense to see if we recover the slope but doesn't work with no variation in Mass 
+#ndf <- ndf %>% mutate(Mass = Mass + rnorm(nrow(ndf), 0, .01))
+#sma(Wing_pred ~ Mass, data = ndf)
+
+# We get the incorrect prediction that wingyness decreases with increases in temperature. 
+# TO DO: Confirm with Ryding that this is really what she did! 
+ndf %>% ggplot(aes(x = Temp_inc, y = Wing_pred)) + 
+  geom_point(data = morph_temp2, aes(x = Temp_inc, y = Wing), alpha = .4) + 
+  geom_line(color = "blue") +
+  geom_ribbon(data=ndf, aes(x=Temp_inc, ymin=lwr, ymax=upr), 
+              alpha=0.5, fill = "blue") + 
+  labs(y = "Wing_pred (index of wingyness?)")
 
 # EXTRAS ---------------------------------------------------------------------
 stop()
