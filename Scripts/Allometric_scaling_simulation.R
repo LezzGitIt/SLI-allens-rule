@@ -20,7 +20,6 @@ ggplot2::theme_set(theme_cowplot())
 #conflicts_prefer(dplyr::select)
 #conflicts_prefer(dplyr::filter)
 
-
 # Background --------------------------------------------------------------
 
 # b_ols = cov[x,y] / var[x] OR equivalently 
@@ -30,20 +29,6 @@ ggplot2::theme_set(theme_cowplot())
 # NOTE:: From the formulas above, we have 
 # b_sma = (r * (Sy / Sx)) / r # rs cancel out
 
-gen_cov_matrix_from_sma <- function(b_sma, r) {
-  Sx <- 1
-  Sy <- abs(b_sma) * Sx
-  cov_xy <- r * Sx * Sy
-  matrix(c(
-    Sx^2,     cov_xy,
-    cov_xy,   Sy^2
-  ), nrow = 2)
-}
-
-cov_mat <- gen_cov_matrix_from_sma(b_sma = 0.33, r = 0.5)
-test <- mvrnorm(1000, c(0,0), cov_mat)
-sma(test[,2] ~ test[,1])
-cov_mat
 
 # Simulate functions --------------------------------------------------------
 ## Generate functions to create datasets with different amounts of correlation (r), OLS slopes, and SMA slopes, and plot 3x3 grid.
@@ -322,14 +307,8 @@ cor(size_temp_r$mass_log, size_temp_r$res_wm)
 cor(size_temp_r$wing_log, size_temp_r$res_wm)
 
 # In OLS -- Residuals are not correlated with X & highly correlated with Y
-cor(size_temp_r$mass_log, size_temp_r$ols_r) # Not correlated
+round(cor(size_temp_r$mass_log, size_temp_r$ols_r), 2) # Not correlated
 cor(size_temp_r$wing_log, size_temp_r$ols_r) # Highly correlated
-
-# SMA vs OLS regression lines colored by temp
-ggplot(data = size_temp2, aes(x = mass_log, y = wing_log)) + 
-  geom_point(alpha = 1, aes(color = temp)) +
-  geom_smooth(method = "lm", color = "red") +
-  ggpmisc::stat_ma_line(method = "SMA", color = "blue") 
 
 # Comparing residuals
 size_temp_r %>% ggplot(aes(x = res_wm, y = ols_r)) + 
@@ -808,108 +787,7 @@ if(FALSE){
 
 #morph_temp <- tibble(Wing, Mass, Temp_inc)
 
-
-##
-
-### GPT 
-
-library(MASS)
-library(smatr)
-library(tidyverse)
-library(broom)
-
-# Format 'temperature increase' & 'Temp label' columns
-format_sma_parms <- function(sma_mod){
-  coef(sma_mod) %>% 
-    rownames_to_column("Temp_inc") %>% 
-    #mutate(Temp_bin = as.numeric(Temp_bin)) %>%
-    mutate(
-      Temp_inc = str_pad(Temp_inc, side = "left", width = 2, pad = "0"),
-      Temp_inc = str_replace(Temp_inc, pattern = "^([0-9])([0-9])$", replacement = "\\1.\\2"),
-      Temp_label = paste0(Temp_inc, "°C"), 
-      Temp_inc = as.numeric(Temp_inc)) %>%
-    tibble() 
-}
-
-gen_3var_cov <- function(b_sma_12, r_12 = .5, r_13 = 0, r_23 = 0) {
-  S1 <- abs(b_sma_12)
-  S2 <- 1
-  cov_12 <- r_12 * S1 * S2
-  cov_13 <- r_13 * S1 * 1
-  cov_23 <- r_23 * S2 * 1
-  matrix(c(
-    S1^2,    cov_12, cov_13,
-    cov_12,  S2^2,   cov_23,
-    cov_13,  cov_23, 1
-  ), nrow = 3)
-}
-
-parms_mat <- expand_grid(
-  b_sma_12 = c(.22, .33, .44),
-  r_12 = c(.2, .3, .4),
-  r_13 = c(0, -.1, -.2, -.4),
-  r_23 = c(0, -.1, -.2, -.4)
-  # Effect of temperature on wingyness
-) %>% mutate(Temp_eff = case_when( 
-  r_13 > r_23 ~ "Pos", 
-  r_13 == r_23 ~ "No_eff", 
-  r_13 < r_23 ~ "Neg"))
-
-extract_coefs <- function(b_sma_12, r_12, r_13, r_23) {
-  Sigma <- gen_3var_cov(b_sma_12, r_12, r_13, r_23)
-  data <- mvrnorm(n = 10000, mu = rep(0, 3), Sigma = Sigma, empirical = TRUE)
-  morph_temp <- tibble(Wing = data[,1], Mass= data[,2], Temp_inc= data[,3])
-  
-  morph_temp2 <- morph_temp %>% 
-    mutate(Temp_bin = cut(Temp_inc, breaks = 15, labels = FALSE, 
-                          ordered_result = TRUE)) %>%
-    arrange(Temp_inc) %>%
-    slice_sample(n = 200, by = Temp_bin) %>%
-    filter(!Temp_bin %in% c(1:3, 12:15))
-  
-  ## Compare SMA resid vs Ryding approach 
-  sma_mod <- sma(Wing ~ Mass, data = morph_temp2)
-  resid_sma <- residuals(sma_mod)
-  
-  resid_app <- lm(resid_sma ~ Temp_inc, data = morph_temp2)
-  ryding_app <- lm(Wing ~ Mass + Temp_inc, data = morph_temp2)
-  
-  ## Fit SMA models to ensure that temp had desired effect on allometry
-  # Keep the slope fixed
-  mod_temp_bin <- sma(Wing ~ Mass + Temp_bin, data = morph_temp2)
-  # Allow the slope to vary with binned temp
-  mod_temp_bin_int <- sma(Wing ~ Mass * Temp_bin, data = morph_temp2)
-  
-  # Format coefficients
-  mod_parms <- format_sma_parms(mod_temp_bin)
-  mod_parms_int <- format_sma_parms(mod_temp_bin_int)
-  
-  tibble(
-    cor_allometry = cor(mod_parms$Temp_inc, mod_parms$elevation),
-    cor_allometry_int = cor(mod_parms_int$Temp_inc, mod_parms_int$elevation),
-    coef_resid_app = coef(resid_app)["Temp_inc"],
-    coef_ryding_app = coef(ryding_app)["Temp_inc"],
-    est_b_sma = coef(sma_mod)["slope"]
-  )
-}
-
-# Run simulation, extract coefficients from models, & combine with the parameters that generated the data
-Comp_mods <- parms_mat %>%
-  mutate(coefs = pmap(parms_mat[,1:4], extract_coefs)) %>%
-  unnest(coefs) %>% 
-  mutate(across(c(1:4), ~ as.factor(.x)))
-
-Comp_mods %>% pivot_longer(cols = c(coef_resid_app, coef_ryding_app), 
-                           names_to = "Model", values_to = "b_temp_inc") %>% 
-  mutate(Model = str_remove_all(Model, "coef_|_app")) %>% 
-  ## PLOT TOMORROW
-  ggplot(aes(x = Mod_est, y = Temp_b2, color = Mod_est)) + 
-  geom_point() +
-  geom_boxplot() + 
-  geom_hline(yintercept = unique(sim_df_mv$true_beta2), 
-             linetype = "dashed", color = "black")
-  
-
+## 
 
 ####
 
@@ -992,20 +870,6 @@ format_sma_parms <- function(sma_mod){
 mod_parms <- format_sma_parms(mod_temp_bin)
 mod_parms_int <- format_sma_parms(mod_temp_bin_int)
 
-# Plot -- With interaction or without? 
-# NOTE:: If you allow the slopes to vary you get proportional changes that appear more realistic
-mod_parms_int %>%
-  mutate(x = 0) %>% 
-  ggplot() +
-  #geom_point(data = morph_temp2, aes(x = Mass, Wing), alpha = 0) +
-  geom_abline(aes(intercept = elevation, slope = slope, color = Temp_inc)) +
-  ggrepel::geom_text_repel(aes(x = x, y = elevation, label = Temp_label)) +
-  #xlim(c(0, .1)) + 
-  #ylim(c(2.91, 2.975)) +
-  labs(x = "Log mass", y = "Log wing") + 
-  theme(axis.text = element_blank(),
-        axis.ticks = element_blank()) + 
-  guides(color = "none")
 
 # Plot Temp increase vs relative wing size (this plot represents TRUTH)
 mod_parms_int %>%
