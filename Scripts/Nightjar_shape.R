@@ -1,5 +1,7 @@
-# Analysis -- Shape in nightjars ## 
+## Analysis -- Shapeshifting in nightjars ## 
 
+
+# Libraries ---------------------------------------------------------------
 library(tidyverse)
 library(smatr)
 library(cowplot)
@@ -9,6 +11,9 @@ ggplot2::theme_set(theme_cowplot())
 
 load("Rdata/Capri_dfs_07.09.24.Rdata")
 
+
+# Formatting --------------------------------------------------------------
+# Format predictor & responsible variables 
 nj_df <- capriA.red2 %>% 
   rename(Wing = Wing.comb, Mass = Mass.comb) %>%
   drop_na(Wing, Mass) %>%
@@ -19,7 +24,9 @@ nj_df <- capriA.red2 %>%
          wing2_mass = Wing^2 / Mass) %>% 
   select(Species, Wing, Mass, B.Lat, log_wing, log_mass, wing_mass, wing2_mass, B.Tavg) 
 
-# Visualize the three line-fitting methods
+
+# Visualize regression approaches -----------------------------------------
+# Compare three line-fitting methods
 nj_df %>% 
   ggplot(aes(x = log_mass, y = log_wing)) + 
   geom_point(alpha = .6) +
@@ -28,7 +35,7 @@ nj_df %>%
   ggpmisc::stat_ma_line(method = "SMA", linetype = "dotted", se = FALSE, color = "blue") + 
   facet_wrap(~Species)
 
-
+# Examine variance in X & Y
 nj_df %>% group_by(Species) %>% 
   summarise(var_mass = var(log_mass), var_wing = var(log_wing)) %>%
   mutate(ratio = sqrt(var_wing / var_mass))
@@ -37,6 +44,8 @@ nj_df %>% group_by(Species) %>%
 nj_df_l <- nj_df %>% group_split(Species)
 names(nj_df_l) <- c("Nighthawk", "Nightjar", "Whip-poor-will")
 
+
+# SMA models --------------------------------------------------------------
 # Run SMA models & extract the residuals 
 ## NOTE: if you scale first, then the variance of both log_mass & log_wing is 1, & SMA slope = MA slope = 1 × MA slope so these are identical. 
 nj_df_l2 <- map(nj_df_l, \(df){
@@ -58,6 +67,8 @@ map(nj_df_l3, \(df){
                    resid_m = cor(resid_sma, Mass))
 })
 
+
+# OLS models & extract parms ----------------------------------------------
 # Generate Wing mass models, extract parameters via tidy
 parms_df <- map(nj_df_l3, \(df){
   mod_coef_sma <- lm(resid_sma ~ B.Tavg, data = df) %>% tidy() %>% 
@@ -75,7 +86,9 @@ parms_df <- map(nj_df_l3, \(df){
   mutate(LCI95 = estimate - 1.96 * std.error,
          UCI95 = estimate + 1.96 * std.error)
 
-# Plot 
+
+# Plot slope estimates ----------------------------------------------------
+# Slope estimates of temperature's impact on shape in nightjars 
 legend_labs <- c("Wing / Mass", "Wing² / Mass", "Allometric \nresiduals", "Mass as \ncovariate") #, "Allometric \nresiduals MA"
 parms_df %>% filter(term == "B.Tavg") %>% # & !Approach %in% c("Ratio2", "Ryding")) %>% 
   ggplot(aes(x = Species, y = estimate, color = Approach, 
