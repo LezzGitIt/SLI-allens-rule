@@ -131,7 +131,7 @@ $$ {#eq-cov-mat}
 Here, $\sigma_1$, $\sigma_2$, and $\sigma_3$ are the standard deviations of $\log(\text{Appendage})$, $\log(\text{Body size})$, and $\log(\text{Temperature increase})$, respectively. The correlation coefficients $\rho_{12}$, $\rho_{13}$, and $\rho_{23}$ control the pairwise associations among these traits. This simulation implies a symmetric, undirected dependence structure — no variable is treated as a causal parent or response. While this simulation strategy does not encode the directional hypothesis of Allen’s rule (i.e., temperature influencing relative appendage length), it avoids biasing the results toward any specific analytical method. For instance, simulating from a linear model such as:
 
 $$
-\log(\text{Appendage}) \sim \alpha + \beta_1 * \log(\text{Body size}) + \beta_2 * \log(\text{Temperature increase}) + \epsilon
+\log(\text{Appendage}) \sim \alpha + \beta_S * \log(\text{Body size}) + \beta_T * \log(\text{Temperature increase}) + \epsilon
 $$ {#eq-biased}
 
 would structurally advantage methods that include body mass as a covariate. Likewise, simulating a relationship between temperature and SMA residuals would favor residual-based approaches. By contrast, the MVN simulation provides a methodologically agnostic testbed — all methods start from the same joint distribution, and none are privileged by design.
@@ -698,8 +698,11 @@ extract_coefs <- function(Sim_df) {
   ratio2_app <- lm(Wing2_mass ~ Temp_inc, data = Sim_df) # Ratio Wing^2
   
   # SLI
-  Sim_df <- Sim_df %>% calc_sli(b_sli = 0.33)
-  sli_app <- lm(sli_isometry ~ Temp_inc, data = Sim_df)
+  Sim_df <- Sim_df %>% 
+    calc_sli(b_sli = 0.33, rename_col = "sli_isometry") %>% 
+    calc_sli(b_sli = est_b_sma, rename_col = "sli_estimated")
+  sli_iso_app <- lm(sli_isometry ~ Temp_inc, data = Sim_df)
+  sli_est_app <- lm(sli_estimated ~ Temp_inc, data = Sim_df)
   
   ## Fit SMA models that include temperature to ensure that temp had desired effect on allometry
   # Keep the slope fixed
@@ -715,8 +718,8 @@ extract_coefs <- function(Sim_df) {
   tibble(
     cor_allometry = cor(mod_parms$Temp_inc, mod_parms$elevation),
     cor_allometry_int = cor(mod_parms_int$Temp_inc, mod_parms_int$elevation),
-    coef_sma_resid_app = coef(sma_resid_app)["Temp_inc"],
-    coef_sli_app = coef(sli_app)["Temp_inc"],
+    coef_sli_iso_app = coef(sli_iso_app)["Temp_inc"],
+    coef_sli_est_app = coef(sli_est_app)["Temp_inc"],
     coef_ols_resid_app = coef(ols_resid)["Temp_inc"],
     coef_ryding_app = coef(ryding_app)["Temp_inc"],
     coef_ratio = coef(ratio_app)["Temp_inc"],
@@ -738,7 +741,7 @@ Parms_tbl2 <- bind_cols(Parms_mat2, Parms_tbl)
 # Pivot_longer to allow comparison between Ryding & the residual model 
 Parms_tbl3 <- Parms_tbl2 %>% 
   pivot_longer(
-    cols = c(coef_sma_resid_app, coef_sli_app, coef_ols_resid_app, coef_ryding_app, coef_ratio, coef_ratio2), 
+    cols = c(coef_sli_iso_app, coef_sli_est_app, coef_ols_resid_app, coef_ryding_app, coef_ratio, coef_ratio2), 
                names_to = "Model", values_to = "b_temp_inc") %>% 
   mutate(Model = str_remove_all(Model, "coef_|_app"), 
          Model = str_to_sentence(Model))
@@ -814,10 +817,10 @@ After our graphical checks, I feel more confident that the simulation is doing w
 
 ## 5 approaches plot
 
-The 5 approaches (2 SMA approaches, 3 traditional approaches) are all interested in accurately estimating $\beta_1$ from @eq-beta1-5-approaches.
+The 5 approaches (2 SMA approaches, 3 traditional approaches) are all interested in accurately estimating $\beta_T$ from @eq-beta1-5-approaches.
 
 $$
-Wingyness \sim \alpha + \beta_1 * \mathit{Temperature\ increase}
+Wingyness \sim \alpha + \beta_T * \mathit{Temperature\ increase}
 $$ {#eq-beta1-5-approaches}
 
 The difference in the 5 approaches (note that Wing / mass and Wing² / mass are both 'ratio approaches') is how wingyness is measured (as outlined in @sec-Conceptual-background). Note that the 'body size as a covariate' approach would also contain $\beta_2 * \mathit{Body\ size}$ in @eq-beta1-5-approaches.
@@ -1047,11 +1050,11 @@ Dif_sli <- Sli_proportional_pos - (Prop_wingyer * 100)
 Dif_ryding <- pull_percent_proportional("Mass as covariate", "neg") - (Prop_fatter * 100)
 ```
 
-1.  The SLI approach correctly estimates the direction of the simulated effect when temperature increases relative appendage length (i.e., a positive $\beta_1$ in @fig-compare-approaches; 'Wingyier' and 'Much wingyier' in the @fig-eval), but incorrectly estimates the direction of the simulated effect in about `r sli_fatter_wrong`% of hypothetical species when temperature decreases relative appendage length (i.e., 'fatter' species). In species that were simulated as decreasing in size proportionally, the SLI approach misclassifies about `r Dif_sli`% of hypothetical species as getting Wingyier that in reality decreased in relative appendage length (@fig-eval panel b). That being said, it correctly classified all species exhibiting inverse allometry. Thus, the SLI approach appears flexible and generalizeable, but positively biased in situations that are likely common in the real world (e.g., that species decrease in size proportionally with climate warming).
+1.  The SLI approach correctly estimates the direction of the simulated effect when temperature increases relative appendage length (i.e., a positive $\beta_T$ in @fig-compare-approaches; 'Wingyier' and 'Much wingyier' in the @fig-eval), but incorrectly estimates the direction of the simulated effect in about `r sli_fatter_wrong`% of hypothetical species when temperature decreases relative appendage length (i.e., 'fatter' species). In species that were simulated as decreasing in size proportionally, the SLI approach misclassifies about `r Dif_sli`% of hypothetical species as getting Wingyier that in reality decreased in relative appendage length (@fig-eval panel b). That being said, it correctly classified all species exhibiting inverse allometry. Thus, the SLI approach appears flexible and generalizeable, but positively biased in situations that are likely common in the real world (e.g., that species decrease in size proportionally with climate warming).
 
     1.  The 'SMA residuals' approach correctly estimates the direction of the simulated effect when the species exhibit positive allometry 100% of the time, but misidentifies the relationship `r Sma.res_much.wingyier_wrong`% of the time when species exhibit inverse allometry ('Much wingyier' in the @fig-eval). The SMA residuals approach appears to be unbiased when there is no effect of temperature on body shape, as it estimates a positive effect in about 50% of the simulated hypothetical species (@fig-eval panel b). Thus, the 'SMA residuals' approach appears to provide the best indicator of wingyness in species that exhibit positive allometry, which is very common in biology [@shingletonAllometryStudyBiological2010; @youngfleshAbioticConditionsShape2022].
 
-The 'mass as a covariate' approach has been advocated for [@rydingResponseAllometryEvaluate2022] by authors in recent years, and was the most commonly utilized approach to quantify relative appendage length in our literature review [e.g., @rydingLongShorttermResponses2024; @mcqueenThermalAdaptationBest2022]. However, I found that it returns negatively biased estimates of temperature's impact on wingyness ($\beta_1$ in @eq-beta1-5-approaches), to where:
+The 'mass as a covariate' approach has been advocated for [@rydingResponseAllometryEvaluate2022] by authors in recent years, and was the most commonly utilized approach to quantify relative appendage length in our literature review [e.g., @rydingLongShorttermResponses2024; @mcqueenThermalAdaptationBest2022]. However, I found that it returns negatively biased estimates of temperature's impact on wingyness ($\beta_T$ in @eq-beta1-5-approaches), to where:
 
 1.  it only detects the appropriate change in birds that are getting wingyier a little more than half the time (`r Ryding_much.wingyier_right`% and `r Ryding_wingyier_right`% for hypothetical species simulated to get 'Much wingyier' and 'Wingyier', respectively, in @fig-eval panel a).
 
@@ -1059,9 +1062,54 @@ The 'mass as a covariate' approach has been advocated for [@rydingResponseAllome
 
 There are at least two things that I believe are causing the SMA approaches to outperform the OLS and ratio approaches...
 
-## 1. Absolute wing size
+## 1. Absolute appendage length
 
-The 'mass as a covariate' approach claims that by including a metric of body size as a predictor, we are now measuring the impact of temperature on the proportional change in size of the response variable (i.e., wing length in this case). But in reality we are still measuring the impact of mass & temperature on absolute (not relative) wing size. Birds with smaller masses tend to have smaller wings (this does *partially* control for changes in overall body size), and birds in areas getting hotter also have smaller wings. But if an increase in temperature decreases mass only slightly more than it decreases wing (low "Strengths' in the above plot), temperature's decrease in **overall wing size** may mislead us to think that birds get proportionally fatter with increasing temperatures. These are the species simulated as 'wingyier' but are below the dashed zero line in the 'mass as a covariate' facet from @fig-compare-approaches.
+The 'body size as a covariate' approach claims that by including a metric of body size as a predictor, we are now measuring the impact of temperature on the proportional change in size of the response variable (i.e., wing length in this case). But in reality we are still measuring the impact of body size and temperature on absolute (not relative) appendage length. Let's examine this more formally from a causal modeling framework. When both Bergmann's and Allen's rules apply, we expect temperature to have causal effects on both appendage length and body size. While most biologists would agree that body size does not *cause* appendage length, the model $Appendage \sim \beta_T * \mathit{Temperature\ increase} + \beta_S * Size$implicitly treats body size as a causal predictor of appendage length. This corresponds to the following directed acyclic graph (DAG):
+
+```{r}
+#| label: fig-DAG
+#| fig-cap: The directed acyclic graph (DAG) implied by the 'body size as a covariate' approach. 
+
+library(dagitty)
+library(ggdag)
+
+# Specify DAG
+dag_allen <- dagify(
+  Appendage ~ Size + Temperature,
+  Size ~ Temperature,
+  exposure = c("Temperature"), 
+  outcome = "Appendage",
+  labels = c("Temp" = "Temperature")
+)
+
+# More complex DAG acknowledging latent variable size
+# Error terms (not included explicitly): measurement error, transient biological error
+dag_allen2 <- dagify(
+  Mass ~ Size + Temp,
+  Appendage ~ Size + Temp,
+  Size ~ Temp,
+  latent = "Size",
+  exposure = "Temp",
+  outcome = "Appendage",
+  labels = c("Temp" = "Temperature", "Size" = "Latent Body Size")
+)
+
+# Adjustment set 
+adjustmentSets(dag_allen, type = "minimal", effect = "direct") 
+
+# Plot
+tidy_dagitty(dag_allen, layout = "fr") %>% 
+  ggdag_status(text_col = "black",
+               text = TRUE, 
+               edge_type = "link_arc",
+               node_size = 20,
+               text_size = 3, 
+               stylized = TRUE) + 
+  theme_dag() + 
+  guides(fill = "none", color = "none")
+```
+
+If our goal is to estimate the effect of temperature on relative appendage length, we hope that $\beta_T$ captures that. But conditioning on size removes the indirect path from temperature to appendage length that operates via changes in body size. The result is that $\beta_T$ estimates the direct effect of temperature on absolute appendage length, not relative shape. So when both Bergmann’s and Allen’s rules apply, i.e. when increasing temperatures reduce both body size and appendage length, this model often yields a negative estimate of $\beta_T$, even in cases where appendages become relatively longer (species below the dashed line in the 'wingyier' panel in @fig-compare-approaches). The sign and magnitude of $\beta_T$ will depend on the relative strength of the two causal paths, $Temperature \rightarrow Appendage$ and $Temperature \rightarrow Size$ (‘Strengths’ in @fig-compare-approaches).
 
 ## 2. SMA \> OLS regression
 
@@ -1130,7 +1178,7 @@ There are cases when including covariates in an OLS model may be required, or ma
 
 ## Negative allometric scaling
 
-As noted previously, when there is negative allometric scaling, i.e., wing length increases when mass decreases, the SMA residuals approach often does not identify the increase in wingyness (@fig-negative-allometry). Surprisingly, **only the SLI approach returns the correct estimated direction of effect in all cases,** and the ratio approaches return the correct direction of the simulated effect about 85% of the time. Surprisingly, the approaches based on OLS don't perform very well, as they return negatively biased estimates of $\beta_1$ in @eq-beta1-5-approaches in many of the 180 hypothetical species. We believe this is due to a 'supression' effect, resulting from collider bias (i.e. conditioning on a negatively correlated mediator like body size in this case). In short, the positive effect of Temp_increase → Relative appendage is overwhelmed by the path Temp_increase → Body size → Relative appendage, where a temperature increase decreases body size, and body size and appendage length are negatively correlated (i.e., there is inverse allometry). inverse allometry is not particularly common in nature, although has been observed in rare cases [e.g. @weeksSharedMorphologicalConsequences2020]. This only occurs with certain hypothetical species' parameter combinations, and more research is needed.
+As noted previously, when there is negative allometric scaling, i.e., wing length increases when mass decreases, the SMA residuals approach often does not identify the increase in wingyness (@fig-negative-allometry). Surprisingly, **only the SLI approach returns the correct estimated direction of effect in all cases,** and the ratio approaches return the correct direction of the simulated effect about 85% of the time. Surprisingly, the approaches based on OLS don't perform very well, as they return negatively biased estimates of $\beta_T$ in @eq-beta1-5-approaches in many of the 180 hypothetical species. We believe this is due to a 'supression' effect, resulting from collider bias (i.e. conditioning on a negatively correlated mediator like body size in this case). In short, the positive effect of Temp_increase → Relative appendage is overwhelmed by the path Temp_increase → Body size → Relative appendage, where a temperature increase decreases body size, and body size and appendage length are negatively correlated (i.e., there is inverse allometry). inverse allometry is not particularly common in nature, although has been observed in rare cases [e.g. @weeksSharedMorphologicalConsequences2020]. This only occurs with certain hypothetical species' parameter combinations, and more research is needed.
 
 ```{r}
 #| label: Parm-collider-bias
