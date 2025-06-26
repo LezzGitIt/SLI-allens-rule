@@ -31,7 +31,7 @@ These results show that the methodological approach leveraged to measure relativ
 
 # Introduction {#sec-Conceptual-background}
 
-Wildlife appear to be changing their size & shape in response to climate change. Temporal applications of Bergmann's rule predict that body size will decrease with warmer temperatures, while (temporal) Allen's rule claims that appendage length will increase in response to rising temperatures. Thus Allen's rule is about the shape of organisms, and is often interpreted as appendage length *relative* to body size. Framing Allen's rule in terms of *relative* appendage length acknowledges that overall body size and appendage length will often show positive covariance. After conducting a literature review of studies since 2021 [when @rydingShapeshiftingChangingAnimal2021 published their influential review] examining the statistical and methodological approaches employed to test for Allen's rule, I identify three primary approaches that scientists have employed to understand how *relative* appendage length varies with respect to geography or climate. Thus, in addition to modeling absolute appendage length as a function of temperature change, authors have used:
+Wildlife appear to be changing their size & shape in response to climate change. Temporal applications of Bergmann's rule predict that body size will decrease with warmer temperatures, while (temporal) Allen's rule claims that appendage length will increase in response to rising temperatures. Thus Allen's rule is about the shape of organisms, and is often interpreted as appendage length *relative* to body size. Framing Allen's rule in terms of *relative* appendage length acknowledges that absolute body size and appendage length will often show positive covariance. In an accompanying literature review (Skinner, *in prep*) I identify three primary approaches that scientists have employed to understand how *relative* appendage length varies with respect to geography or climate:
 
 1)  Ratio approach: Use the ratio of appendage length to body size as the response variable\
     $\frac{Appendage}{\mathit{Body\ size}} \sim \mathit{Temperature\ increase}$
@@ -47,7 +47,7 @@ All three attempt to control for body size to isolate the changes in *relative* 
 
 However, several studies argue that OLS regression is not appropriate for studies of allometric scaling, because it assumes that $X$ is measured with no error and $Y$ contains all the measurement error [@greenMassLengthResiduals2001; @wartonBivariateLinefittingMethods2006]. This is clearly not the case in studies of relative appendage length, where measurement error is present in both appendage length and body size measurements. Alternative types of regression, like standardized major axis (SMA) regression, are better suited for biological scaling problems as they assume that measurement error is present in both $X$ and $Y$, and thus SMA regression can more accurately estimate the true functional relationship between two variables [@greenMassLengthResiduals2001; @wartonBivariateLinefittingMethods2006; @peigNewPerspectivesEstimating2009; @peigParadigmBodyCondition2010]. Thus, in the context of testing Allen's rule (i.e., detecting relative changes in appendage length), Santoro & Calzada [-@santoroAllometryEvaluateAllens2022] argued that we must base our methods in allometric scaling theory [although this was contested by @rydingResponseAllometryEvaluate2022]. To date, there is no consensus on which approach most accurately estimates the impact of an increase of temperature on body shape (i.e., relative appendage length).
 
-Here, I evaluate how well two new metrics of relative appendage length, the 'SMA residuals' approach and the 'standardized length index (SLI)', are able to accurately capture changes in relative appendage length due to a simulated temperature increase. The SMA residuals approach uses the residuals from an SMA regression of as an index of relative appendage length, whereas the SLI is based on a modified version of the standardized mass index [@peigNewPerspectivesEstimating2009; @peigParadigmBodyCondition2010], but instead measures how long an organisms appendage is relative to its body size. Hereafter, I will refer to these two approaches as 'SMA approaches', as both leverage SMA regression to generate metrics of relative appendage length. I compare the SMA approaches to the 3 approaches regularly found in the literature. I expect that the SMA approaches will perform better than approaches 1-3 above, as it is based in the principles of allometric scaling theory which is well-suited to answering questions regarding spatial and temporal applications of Allen's rule.
+Here, I evaluate how well two new metrics of relative appendage length, generally referred to as the 'standardized length index (SLI)', are able to more accurately capture changes in relative appendage length due to a simulated temperature increase. The SMA residuals approach uses the residuals from an SMA regression of as an index of relative appendage length, whereas the SLI is based on a modified version of the standardized mass index [@peigNewPerspectivesEstimating2009; @peigParadigmBodyCondition2010], but instead measures how long an organisms appendage is relative to its body size. Hereafter, I will refer to these two approaches as 'SMA approaches', as both leverage SMA regression to generate metrics of relative appendage length. I compare the SMA approaches to the 3 approaches regularly found in the literature. I expect that the SMA approaches will perform better than approaches 1-3 above, as it is based in the principles of allometric scaling theory which is well-suited to answering questions regarding spatial and temporal applications of Allen's rule. While I recognize that several authors have modeled absolute appendage length as a function of temperature change (Skinner, *in prep*), I will not address that here as this approach is statistically very straightforward.
 
 # Load libraries
 
@@ -657,6 +657,16 @@ The 'SMA residuals' approach is very similar to the 'OLS residuals' approach, bu
 Model 1: $SMA(Appendage \sim \mathit{Body\ size})$\
 Model 2: $Residuals_{SMA} \sim \mathit{Temperature\ increase}$
 
+```{r}
+#| label: vert-resid-fn
+calc_vert_resid <- function(df, x, sma_mod){
+  slope <- coef(sma_mod)['slope']
+  intercept <- coef(sma_mod)['elevation']
+  df2 <- df %>% mutate(pred = intercept + slope * {{ x }})
+  df2 %>% mutate(vert_resid = {{ x }} - pred)
+}
+```
+
 ## SLI: Standardized length index
 
 Peig & Green [-@peigNewPerspectivesEstimating2009]; [-@peigParadigmBodyCondition2010] revolutionized the way we estimate body condition, using allometric scaling theory to create the standardized mass index [see 3 step process outlined on pages 1886 & 1887 of @peigNewPerspectivesEstimating2009]. We employ a similar process but instead create the standardized length index (SLI), where (appendage) length is on the y-axis. This is very similar to the SMA residuals approach, except that you set the slope $B_{SLI}$ to a value with biological significance. For example, setting $B_{SLI} = 0.33$ compares the appendage length of individual $i$ to a hypothetical species exhibiting isometric scaling with the same body size as individual $i$.
@@ -699,6 +709,8 @@ extract_coefs <- function(Sim_df) {
   ### Compare approaches 
   # Allometric (SMA) residuals approach
   sma_mod <- sma(Wing ~ Mass, data = Sim_df, method = sma_or_ma)
+  Sim_df <- calc_vert_resid(df = Sim_df, x = Mass, sma_mod = sma_mod) 
+  sma_resid <- lm(vert_resid ~ Temp_inc, data = Sim_df)
   est_b_sma <- coef(sma_mod)["slope"]
   
   # OLS residuals 
@@ -736,6 +748,7 @@ extract_coefs <- function(Sim_df) {
   tibble(
     cor_allometry = cor(mod_parms$Temp_inc, mod_parms$elevation),
     cor_allometry_int = cor(mod_parms_int$Temp_inc, mod_parms_int$elevation),
+    coef_vert_resid_app = coef(sma_resid)["Temp_inc"], 
     coef_sli_iso_app = coef(sli_iso_app)["Temp_inc"],
     coef_sli_est_app = coef(sli_est_app)["Temp_inc"],
     coef_ols_resid_app = coef(ols_resid)["Temp_inc"],
@@ -759,7 +772,7 @@ Parms_tbl2 <- bind_cols(Parms_mat2, Parms_tbl)
 # Pivot_longer to allow comparison between Ryding & the residual model 
 Parms_tbl3 <- Parms_tbl2 %>% 
   pivot_longer(
-    cols = c(coef_sli_iso_app, coef_sli_est_app, coef_ols_resid_app, coef_ryding_app, coef_ratio, coef_ratio2), 
+    cols = c(coef_vert_resid_app, coef_sli_iso_app, coef_sli_est_app, coef_ols_resid_app, coef_ryding_app, coef_ratio, coef_ratio2), 
                names_to = "Model", values_to = "b_temp_inc") %>% 
   mutate(Model = str_remove_all(Model, "coef_|_app"), 
          Model = str_to_sentence(Model))
@@ -778,7 +791,7 @@ There should be a positive correlation between the binned temperature increase &
 #| fig-cap: Despite generating datasets where birds should become fatter or wingyier with increasing temperature (x-axis), when the strength of the difference in the simulated relationships is relatively weak the opposite relationship is observed in rare cases.
 
 # Manipulate tbl for plotting the correlations between the intercepts from SMA models (body shape) and temperature increase
-Parms_temp_bs <- Parms_tbl3 %>% filter(Scaling != "Negative") %>%
+Parms_temp_bs <- Parms_tbl3 %>% filter(Scaling != "Negative") %>% 
   pivot_longer(cols = c(cor_allometry, cor_allometry_int), 
                names_to = "SMA_mod", values_to = "Correlation") %>%
   mutate(SMA_mod = if_else(
@@ -825,7 +838,7 @@ if(!is.null(b_sma)){
   Parms_tbl4 %>% ggplot(aes(x = Scaling, y = est_b_sma, color = Scaling)) + 
     geom_boxplot(outliers = FALSE) + 
     geom_point(position = position_jitter(width = .1), color = "black", 
-               alpha = .5) + 
+               alpha = .5) +  
     theme(legend.position = "top") + 
     labs(x = NULL, y = "Estimated SMA slope")
 }
@@ -849,7 +862,7 @@ The difference in the 5 approaches (note that Wing / mass and Wing² / mass are 
 #| label: plot-approaches-fun
 
 x_labs <- c("Sma_resid" = "SMA residuals",
-            "SLI" = "SLI",
+            "SLI" = "SLI", 
             "Ols_resid" = "OLS residuals",
             "Ryding" = "Mass as covariate",
             "Ratio2" = "Wing² / mass",
