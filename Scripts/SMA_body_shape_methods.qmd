@@ -154,16 +154,29 @@ gen_data <- function(b_sma_12 = NULL, r_12, r_13, r_23) {
   morph_temp <- tibble(Wing = data[,1], # Wing = appendage
                        Mass= data[,2], # Mass = body size
                        Temp_inc= data[,3])
-
+  
+  # Calc std deviations of mass & wing
+  sd_mass <- sd(morph_temp$Mass)
+  sd_wing <- sd(morph_temp$Wing)
+  
+  ## Add various sources of error
+  # Add measurement error to mass (3%) and wing (1%)
+  meas_error_mass <- rnorm(3000, 0, sd = sd_mass * 0.03)
+  meas_error_wing <- rnorm(3000, 0, sd = sd_wing * 0.01)
+  # Transient fluctuation (biological error) to mass
+  transient_error_mass <- rnorm(3000, 0, sd = sd_mass * .1)
+  
     morph_temp2 <- morph_temp %>% 
-    mutate(Temp_bin = cut(Temp_inc, breaks = 15, labels = FALSE, 
-                          ordered_result = TRUE)) %>%
-    arrange(Temp_inc) %>%
-    slice_sample(n = 200, by = Temp_bin) %>% 
-    mutate(Temp_bin = case_when(
-      Temp_bin %in% c(1:4) ~ 4, 
-      Temp_bin %in% c(12:15) ~ 12,
-      .default = Temp_bin
+      mutate(Mass = Mass + meas_error_mass + transient_error_mass,
+             Wing = Wing + meas_error_wing) %>% 
+      mutate(Temp_bin = cut(Temp_inc, breaks = 15, labels = FALSE, 
+                            ordered_result = TRUE)) %>%
+      arrange(Temp_inc) %>%
+      slice_sample(n = 200, by = Temp_bin) %>% 
+      mutate(Temp_bin = case_when(
+        Temp_bin %in% c(1:4) ~ 4,  
+        Temp_bin %in% c(12:15) ~ 12,
+        .default = Temp_bin
     ))
     return(morph_temp2)
 }
@@ -242,7 +255,7 @@ size_temp_r <- Ex_df_wingy %>% mutate(res_wm = residuals(mod_wm),
 
 ### SMA Residuals
 
-One important feature of SMA regression is that the $X$ and $Y$ axes can be flipped and the line of best fit will not change. In the plot below we flip the axes, & plot both the OLS (red) & SMA (blue) regression lines of best fit, as well as an individual from our hypothetical species (highlighted in green). Using the SMA (blue) regression line, you can see that the bird would be described as a relatively short-winged bird for its size in plot (A), or a relatively heavy bird for its wing length in plot (B). These are inverse statements, which make sense for any individual. Comparing the green point to the OLS (red) line, on the other hand, we see that these logical & reciprocal statements do not apply.
+One important feature of SMA regression is that it is symmetrical, i.e. the $X$ and $Y$ axes can be flipped and the line of best fit will not change. In the plot below we flip the axes, & plot both the OLS (red) & SMA (blue) regression lines of best fit, as well as an individual from our hypothetical species (highlighted in green). Using the SMA (blue) regression line, you can see that the bird would be described as a relatively short-winged bird for its size in plot (A), or a relatively heavy bird for its wing length in plot (B). These are inverse statements, which make sense for any individual. Comparing the green point to the OLS (red) line, on the other hand, we see that these logical & reciprocal statements do not apply.
 
 ```{r}
 #| label: SMA-ex
@@ -349,6 +362,8 @@ First, determine whether you'd like to constrain the SMA slope to be specific va
 #| label: Set-b_sma
 ## Select whether you'd like to constrain the b_sma values or not. 
 b_sma <- c(.22, .33, .44) # NULL 
+
+?geom_smooth
 ```
 
 # Parameter matrix
@@ -419,9 +434,12 @@ Let's take an example set of parameters that will generate each effect (wingyier
 #| label: Example-parms
 
 # Hold b_sma & the correlation between wing & mass constant so slopes are roughly the same 
+#Filter_parms <- function()
+
 Ex_parms <- Parms_mat2 %>% 
   filter(Scaling == "Isometry") %>%
-  slice_max(n = 1, order_by = tibble(Strength), by = Temp_eff, with_ties = FALSE) %>%  #desc(r_13)
+  slice_max(n = 1, order_by = tibble(Strength), 
+            by = Temp_eff, with_ties = FALSE) %>%  #desc(r_13)
   dplyr::select(-Strength)
 Ex_parms
 ```
@@ -641,9 +659,9 @@ Model 2: $Residuals_{SMA} \sim \mathit{Temperature\ increase}$
 
 ## SLI: Standardized length index
 
-Peig & Green [-@peigNewPerspectivesEstimating2009]; [-@peigParadigmBodyCondition2010] revolutionized the way we estimate body condition, using allometric scaling theory to create the standardized mass index [see 3 step process outlined on pages 1886 & 1887 of @peigNewPerspectivesEstimating2009]. We employ a similar process but instead create the standardized length index (SLI). This is very similar to the SMA residuals approach, except that you set the slope $B_{SLI}$ to a value with biological significance. For example, setting $B_{SLI} = 0.33$ compares the appendage length of individual $i$ to a hypothetical species exhibiting isometric scaling with the same body size as individual $i$.
+Peig & Green [-@peigNewPerspectivesEstimating2009]; [-@peigParadigmBodyCondition2010] revolutionized the way we estimate body condition, using allometric scaling theory to create the standardized mass index [see 3 step process outlined on pages 1886 & 1887 of @peigNewPerspectivesEstimating2009]. We employ a similar process but instead create the standardized length index (SLI), where (appendage) length is on the y-axis. This is very similar to the SMA residuals approach, except that you set the slope $B_{SLI}$ to a value with biological significance. For example, setting $B_{SLI} = 0.33$ compares the appendage length of individual $i$ to a hypothetical species exhibiting isometric scaling with the same body size as individual $i$.
 
-To calculate the SLI for individual $i$ of species $j$, first take the mean of the body size trait in question (e.g., mass) of species $j$, which serves to standardize against the appendage length of individual $i$. We call this $L_0$ as in @peigNewPerspectivesEstimating2009, \[-@peigParadigmBodyCondition2010\].\
+To calculate the SLI for individual $i$ of species $j$, first take the mean of the body size trait in question (e.g., mass) of species $j$, which serves to standardize against the appendage length of individual $i$. We call this $L_0$ as in @peigNewPerspectivesEstimating2009, \[[-@peigParadigmBodyCondition2010]\].\
 \
 $L_0 = mean(log(\mathit{Body\ size}))$
 
@@ -889,7 +907,7 @@ plot_grid(
 #ggsave("Figures/Mod_comparison.png", bg = "white")
 ```
 
-### inverse allometry
+### Inverse allometry
 
 We also wanted to challenge these methods with datasets that are less common but biologically plausible. Thus, we examine hypothetical species exhibiting negative allometric scaling, i.e., where wing length increases when mass decreases, or viceversa.
 
@@ -1029,8 +1047,8 @@ pull_percent <- function(Model, Temp_eff){
 } 
 
 # Naming scheme of created objects: Method, Temp_eff, right_wrong
-Sli_fatter_wrong <- 100 - pull_percent("Sli", "Fatter")
-Sma.res_much.wingyier_wrong <- 100 - pull_percent("Sma_resid", "Much wingyier")
+Sli_fatter_wrong <- 100 - pull_percent("Sli_iso", "Fatter")
+Sma.res_much.wingyier_wrong <- 100 - pull_percent("Sli_est", "Much wingyier")
 Ryding_much.wingyier_right <- pull_percent("Ryding", "Much wingyier")
 Ryding_wingyier_right <- pull_percent("Ryding", "Wingyier")
 
@@ -1043,14 +1061,14 @@ pull_percent_proportional <- function(Model, Direction){
 }
 
 # Proportion classified as wingy
-Sli_proportional_pos <- pull_percent_proportional("SLI", "pos")
+Sli_proportional_pos <- pull_percent_proportional("Sli_iso", "pos")
 # Difference between SLI classification & reality 
 Dif_sli <- Sli_proportional_pos - (Prop_wingyer * 100)
 
 Dif_ryding <- pull_percent_proportional("Mass as covariate", "neg") - (Prop_fatter * 100)
 ```
 
-1.  The SLI approach correctly estimates the direction of the simulated effect when temperature increases relative appendage length (i.e., a positive $\beta_T$ in @fig-compare-approaches; 'Wingyier' and 'Much wingyier' in the @fig-eval), but incorrectly estimates the direction of the simulated effect in about `r sli_fatter_wrong`% of hypothetical species when temperature decreases relative appendage length (i.e., 'fatter' species). In species that were simulated as decreasing in size proportionally, the SLI approach misclassifies about `r Dif_sli`% of hypothetical species as getting Wingyier that in reality decreased in relative appendage length (@fig-eval panel b). That being said, it correctly classified all species exhibiting inverse allometry. Thus, the SLI approach appears flexible and generalizeable, but positively biased in situations that are likely common in the real world (e.g., that species decrease in size proportionally with climate warming).
+1.  The SLI approach correctly estimates the direction of the simulated effect when temperature increases relative appendage length (i.e., a positive $\beta_T$ in @fig-compare-approaches; 'Wingyier' and 'Much wingyier' in the @fig-eval), but incorrectly estimates the direction of the simulated effect in about `r Sli_fatter_wrong`% of hypothetical species when temperature decreases relative appendage length (i.e., 'fatter' species). In species that were simulated as decreasing in size proportionally, the SLI approach misclassifies about `r Dif_sli`% of hypothetical species as getting Wingyier that in reality decreased in relative appendage length (@fig-eval panel b). That being said, it correctly classified all species exhibiting inverse allometry. Thus, the SLI approach appears flexible and generalizeable, but positively biased in situations that are likely common in the real world (e.g., that species decrease in size proportionally with climate warming).
 
     1.  The 'SMA residuals' approach correctly estimates the direction of the simulated effect when the species exhibit positive allometry 100% of the time, but misidentifies the relationship `r Sma.res_much.wingyier_wrong`% of the time when species exhibit inverse allometry ('Much wingyier' in the @fig-eval). The SMA residuals approach appears to be unbiased when there is no effect of temperature on body shape, as it estimates a positive effect in about 50% of the simulated hypothetical species (@fig-eval panel b). Thus, the 'SMA residuals' approach appears to provide the best indicator of wingyness in species that exhibit positive allometry, which is very common in biology [@shingletonAllometryStudyBiological2010; @youngfleshAbioticConditionsShape2022].
 
