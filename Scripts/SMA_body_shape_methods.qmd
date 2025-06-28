@@ -29,25 +29,35 @@ Here, I test whether two new metrics of relative appendage length are able to ac
 
 These results show that the methodological approach leveraged to measure relative appendage length can have drastic effects on results. The assumption made by approaches 1 - 3, that all measurement error lies in $Y$, is non-sensical in studies that are inherently about biological scaling. Thus, approaches that acknowledge measurement error in both $X$ and $Y$ (i.e., both SMA approaches presented here) outperform the approaches that are regularly used in the literature. I highlight that alternative approaches where measurement error in $X$ and $Y$ is directly estimated from repeat morphological measurements are more flexible and will perform better in a greater variety of circumstances. However, the two SMA approaches presented here offer easily-implementable alternatives, and would be a great improvement over the methods regularly used to assess shape-shifting in wildlife at present.
 
-# Introduction {#sec-Conceptual-background}
+# Introduction
 
-Wildlife appear to be changing their size & shape in response to climate change. Temporal applications of Bergmann's rule predict that body size will decrease with warmer temperatures, while (temporal) Allen's rule claims that appendage length will increase in response to rising temperatures. Thus Allen's rule is about the shape of organisms, and is often interpreted as appendage length *relative* to body size. Framing Allen's rule in terms of *relative* appendage length acknowledges that absolute body size and appendage length will often show positive covariance. In an accompanying literature review (Skinner, *in prep*) I identify three primary approaches that scientists have employed to understand how *relative* appendage length varies with respect to geography or climate:
+Wildlife appear to be changing their size and shape in response to climate change. Temporal applications of Bergmann’s rule predict that body size will decrease with rising temperatures, while Allen’s rule posits that appendage length will increase. Because Allen’s rule concerns organismal shape, it is often interpreted in terms of appendage length relative to body size. This framing is important as absolute body size and appendage length are usually positively correlated, so isolating shape requires methods that account for this covariance.
 
-1)  Ratio approach: Use the ratio of appendage length to body size as the response variable\
+In a concurrent literature review (Skinner, in prep), I identify three predominant approaches used to quantify relative appendage length in the context of Allen’s rule:
+
+1)  Ratio approach: Using the ratio of appendage length to body size as the response variable\
     $\frac{Appendage}{\mathit{Body\ size}} \sim \mathit{Temperature\ increase}$
 
-2)  'OLS residuals' approach: Using the residuals from an OLS regression model\
+2)  'Two-step residual regression' approach: Using residuals from an ordinary least squares (or similar) regression of appendage on body size \
     Model 1: $Appendage \sim \mathit{Body\ size}$\
     Model 2: $Residuals_{OLS} \sim \mathit{Temperature\ increase}$
 
-3)  'Body size as a covariate' approach: Include a metric of body size as a covariate in models predicting appendage length\
+3)  'Multivariate regression' approach: Including body size as a covariate in models predicting appendage length \
     $Appendage \sim \mathit{Body\ size} + \mathit{Temperature\ increase}$
 
-All three attempt to control for body size to isolate the changes in *relative* appendage length, but approaches 1 and 2 are known to frequently produce biased results. The ratio approach (e.g., appendage or appendage^2^ divided by body size) is often highly correlated with body size [@greenMassLengthResiduals2001; @jakobEstimatingFitnessComparison1996] and thus doesn't provide a good index of body shape. Despite these known biases, ratios are still used to examine changes in animal shape [e.g., @jirinecMorphologicalConsequencesClimate2021; @dubinerWidespreadRecentChanges2022]. 'The OLS residuals' and the 'Body size as a covariate' approaches are very similar, and produce nearly identical results when there is no correlation between predictor variables [body size and temperature increase in the examples above, @freckletonMisuseResidualsEcology2002]. However, as correlation between predictor variables increases 'the OLS residuals' approach becomes increasingly biased [@freckletonMisuseResidualsEcology2002]. Thus, the 'Body size as a covariate' approach has been the most common approach taken in the literature in recent years [e.g., @mcqueenThermalAdaptationBest2022; @rydingLongShorttermResponses2024; @romanoShrinkingBodySize2025].
+All three approaches attempt to control for body size to isolate changes in relative appendage length. These approaches share another key assumption – that the independent variable $X$ (body size in this case) is measured without error. This assumption is often untenable, particularly in field-based studies of morphology where both traits are prone to measurement error. Hereafter, I term any statistical approach making this assumption as 'classical regression'. Importantly, more sophisticated regression techniques such as generalized least squares, maximum likelihood, or Bayesian approaches make the same assumption regarding the error distribution between $X$ and $Y$ (unless models are explicitly formulated to the contrary).
 
-However, several studies argue that OLS regression is not appropriate for studies of allometric scaling, because it assumes that $X$ is measured with no error and $Y$ contains all the measurement error [@greenMassLengthResiduals2001; @wartonBivariateLinefittingMethods2006]. This is clearly not the case in studies of relative appendage length, where measurement error is present in both appendage length and body size measurements. Alternative types of regression, like standardized major axis (SMA) regression, are better suited for biological scaling problems as they assume that measurement error is present in both $X$ and $Y$, and thus SMA regression can more accurately estimate the true functional relationship between two variables [@greenMassLengthResiduals2001; @wartonBivariateLinefittingMethods2006; @peigNewPerspectivesEstimating2009; @peigParadigmBodyCondition2010]. Thus, in the context of testing Allen's rule (i.e., detecting relative changes in appendage length), Santoro & Calzada [-@santoroAllometryEvaluateAllens2022] argued that we must base our methods in allometric scaling theory [although this was contested by @rydingResponseAllometryEvaluate2022]. To date, there is no consensus on which approach most accurately estimates the impact of an increase of temperature on body shape (i.e., relative appendage length).
+Mass was by far the most commonly used proxy of body size in recent studies of Allen's rule (Skinner in prep), thus it is important to briefly mention an additional source of 'error'. Transient fluctuation 'error' is real biological variation in our *estimate* of body size that do not reflect changes in structural body size \[this has also been called 'biological error', CITE PELABON\]. Thus, when using mass as an estimate of body size, this could be variation due to gut fill, defecation, reproductive or hydration state, etc. that do not reflect relevant changes in structural body size, yet will influence mass measurements. The transient fluctuation 'error' is likely substantially larger than measurement error (CITE Pelabon), especially in the case of mass, although the two cannot be partitioned statistically in most cases (but see CITE Ponzi).
 
-Here, I evaluate how well two new metrics of relative appendage length, generally referred to as the 'standardized length index (SLI)', are able to more accurately capture changes in relative appendage length due to a simulated temperature increase. The SMA residuals approach uses the residuals from an SMA regression of as an index of relative appendage length, whereas the SLI is based on a modified version of the standardized mass index [@peigNewPerspectivesEstimating2009; @peigParadigmBodyCondition2010], but instead measures how long an organisms appendage is relative to its body size. Hereafter, I will refer to these two approaches as 'SMA approaches', as both leverage SMA regression to generate metrics of relative appendage length. I compare the SMA approaches to the 3 approaches regularly found in the literature. I expect that the SMA approaches will perform better than approaches 1-3 above, as it is based in the principles of allometric scaling theory which is well-suited to answering questions regarding spatial and temporal applications of Allen's rule. While I recognize that several authors have modeled absolute appendage length as a function of temperature change (Skinner, *in prep*), I will not address that here as this approach is statistically very straightforward.
+Each of these classical approaches has known limitations. Ratio-based metrics, despite widespread continued use [e.g., @jirinecMorphologicalConsequencesClimate2021; @dubinerWidespreadRecentChanges2022], are often correlated with body size and thus have limited utility as an index of shape [@greenMassLengthResiduals2001; @jakobEstimatingFitnessComparison1996, CITE Ryding 2025]. The 'two-step residual regression' and the 'multivariate regression' approaches are mathematically similar when there is no collinearity between predictor variables (e.g., temperature and body size), but the former becomes increasingly biased as collinearity increases [@freckletonMisuseResidualsEcology2002]. Importantly, both of these approaches will underestimate the true slope when there is unmodeled error in $X$.
+
+Despite the near universal application of classical regression approaches in studies of Allen's rule (Skinner in prep), alternative approaches that allow for measurement error in $X$ may be more appropriate. For example, standardized major axis (SMA) regression EDITS HERE may be better suited for problems of biological scaling as they assume that measurement error is present in both $X$ and $Y$ [@wartonSmatr3Package2012]. The key difference in these types of regression is how they minimize residuals to generate a line of best fit. OLS regression minimizes the residuals on the $Y$ axis, whereas SMA regression minimizes the residuals in both $X$ and $Y$ directions (thus also called 'orthogonal regression'). This makes sense for situations where we don't think that $X$ -\> $Y$ (we wouldn't say that mass causes wing), but instead just want to understand the relationship between $X$ and $Y$ (CITE Smith, 2009). Thus, SMA regression can more accurately estimate the true functional relationship between two variables [@greenMassLengthResiduals2001; @wartonBivariateLinefittingMethods2006; @peigNewPerspectivesEstimating2009; @peigParadigmBodyCondition2010].
+
+The statistical distinctions between OLS and SMA have received attention in several fields including statistics (CITE Smith 2009), evolutionary biology (CITE Hansen, Pelabon), ecology, genetics (CITE Ponzi), and even astrophysics (1996 paper), and thus will not be discussed further here. However, I see important parallels between the quantification of body condition and relative appendage length, and thus I turn to Peig & Green's Standardized Mass Index [SMI, @peigNewPerspectivesEstimating2009; @peigParadigmBodyCondition2010]. The SMI was created to estimate energy reserves in animals independent of structural body size, and has been used as an index of body condition in thousands of papers. In short, their approach used SMA regression to derive a scaling exponent and then standardized each individual's mass to a common body size, effectively removing allometric effects from the measure of body condition.
+
+Inspired by Peig and Green's SMI [@peigNewPerspectivesEstimating2009; @peigParadigmBodyCondition2010], I develop and evaluate a related approach for quantifying relative appendage length. The Standardized Length Index (SLI), like the SMI, leverages SMA regression to isolate departures from allometric expectations. It scales individual appendage length to a common body size within a group (e.g., species or population), based on empirically derived or biologically meaningful scaling slopes. The SLI is similar to OLS residuals but has several key advantages. The SLI 1) maintains the units of the original variable 2) is grounded in allometric scaling theory (CITE Huxley), and thus accounts for the power law relationship (i.e., it implies a multiplicative instead of an additive error function), and 3) is comparable across populations within the same species [@peigNewPerspectivesEstimating2009; @peigParadigmBodyCondition2010].
+
+In this paper, I use simulations to evaluate how well the SLI performs relative to the three classical regression approaches described above. I compare these methods in their ability to recover the true effect of a simulated temperature increase on relative appendage length, under a range of conditions reflecting realistic levels of measurement and transient fluctuation error, trait covariance, and allometric scaling relationships. While I recognize that several authors have modeled absolute appendage length as a function of temperature change (Skinner, *in prep*), I will not address that here as this approach is statistically very straightforward. Finally, while I use Allen's rule here, these analyses and takeaways can apply to many studies examining departures from bivariate EDIT.
 
 # Load libraries
 
@@ -73,36 +83,7 @@ ggplot2::theme_set(theme_cowplot())
 #conflicts_prefer(dplyr::filter)
 ```
 
-# Background: OLS vs SMA
-
-It is important to understand two different types of regression used in the 3 approaches mentioned above: Ordinary least squares (OLS) & Standardized major axis (SMA) regression. The key difference in these types of regression is how they minimize residuals to generate a line of best fit. The figure below visually depicts the minimization of residuals in OLS (A), MA (B), and SMA (C) regressions [figure from @wartonBivariateLinefittingMethods2006; refer to this paper for a detailed summary of SMA regression]. You can ignore the MA regression for now.\
-\
-![Figure from Warton 2006](images/Captura%20de%20pantalla%202025-04-26%20a%20la(s)%2012.08.17.png)\
-\
-OLS regression minimizes the residuals on the $Y$ axis, whereas SMA regression minimizes the residuals in both $X$ & $Y$ directions. This makes sense for situations where we don't think that $X$ -\> $Y$, but instead just want to understand the relationship between $X$ & $Y$. If this is sounding similar to a principal components (PC) analysis with just 2 variables, you're not wrong – the SMA regression line and the PC1 axis are identical in orientation (slope), but the SMA regression line passes through the means of $X$ and $Y$, whereas PC1 goes through the origin of the centered data (mean = 0). So with only 2 dimensions (e.g., length & mass), they’re just different interpretations of the same line.
-
-## Equations {#sec-equations}
-
-As a reminder, the slope of a variable in OLS regression is:
-
--   $\beta_{ols} = cov[X] / cov[Y]$ OR equivalently
-
--   $\beta_{ols} = r * \frac{Sy}{Sx}$ where S is the standard deviation
-
-And the slopes of OLS & SMA regression are also related to each other.
-
--   $\beta_{sma} = sign(r) * \frac{Sy}{Sx}$ , i.e., if r is negative then $\beta_{sma}$ is also negative.
-
-    This is equivalent to:
-
-$$
-\beta_{sma} = \beta_{ols} / r
-$$ {#eq-sma-slope}
-
-NOTE:: From the formulas above, we have:
-
--   $\beta_{sma} = r * \frac{\frac{Sy}{Sx}}{r}$ the rs cancel out, & we have that
--   $\beta_{sma} = \frac{Sy}{Sx}$
+# Methods
 
 ## Simulate from MVN
 
@@ -134,7 +115,7 @@ $$
 \log(\text{Appendage}) \sim \alpha + \beta_S * \log(\text{Body size}) + \beta_T * \log(\text{Temperature increase}) + \epsilon
 $$ {#eq-biased}
 
-would structurally advantage methods that include body mass as a covariate. Likewise, simulating a relationship between temperature and SMA residuals would favor residual-based approaches. By contrast, the MVN simulation provides a methodologically agnostic testbed — all methods start from the same joint distribution, and none are privileged by design.
+would structurally advantage methods that include body mass as a covariate. Likewise, simulating a relationship between temperature and SMA residuals would favor residual-based approaches. By contrast, the MVN simulation provides a methodologically agnostic test bed — all methods start from the same joint distribution, and none are privileged by design.
 
 ## Define key functions
 
@@ -214,23 +195,6 @@ While simulating data from a MVN distribution is statistically preferable, it ma
 
 3.  The simulated ratio of coefficients of variation $\lambda$ in body size ($X$) and appendage length ($Y$) were similar in simulated data sets and the empirical data (see @sec-coef-var).
 
-## Key properties of SMA regression
-
-To illustrate the key properties of SMA regression, let's generate some example data & run some SMA models. We generate an isometric ($\beta_{sma}$ = 0.33) species that becomes relatively 'lankier' with an increase in temperature, i.e. the species decreases more in body size (r_23 = -0.4) relative to appendage length (r_13 = -0.1) for a given increase in temperature.
-
-### Example dataset (lanky)
-
-```{r}
-#| label: Ex-df-mods
-
-set.seed(1)
-Ex_df_wingy <- pmap(tibble(b_sma_12 = .33, r_12 = .3, r_13 = -.1, r_23 = -.4), gen_data)[[1]]
-
-hist(Ex_df_wingy$Temp_inc)
-```
-
-So this tibble contains appendage & body size values from a hypothetical species, as well as simulated amounts of temperature increase. It's important to realize that this is a **single simulation, from a single species** with `r nrow(Ex_df_wingy)` individuals. Down the line we will be simulating roughly 180 datasets (i.e., 180 hypothetical species), each with \~1600 individuals.
-
 ```{r}
 #| label: Define-sma-or-ma
 #| echo: FALSE
@@ -238,121 +202,7 @@ So this tibble contains appendage & body size values from a hypothetical species
 sma_or_ma <- "SMA"
 ```
 
-Use the $smatr$ package [@wartonSmatr3Package2012] to fit an SMA regression model.
-
-```{r}
-#| label: Example-SMA-mods
-
-mod_wm <- sma(Wing ~ Mass, data = Ex_df_wingy, method = sma_or_ma)
-mod_mw <- sma(Mass ~ Wing, data = Ex_df_wingy, method = sma_or_ma)
-
-mod_ols <- lm(Wing ~ Mass, data = Ex_df_wingy)
-size_temp_r <- Ex_df_wingy %>% mutate(res_wm = residuals(mod_wm), 
-                                     res_mw = residuals(mod_mw),
-                                     ols_r = residuals(mod_ols), 
-                                     individual = row_number())
-```
-
-### SMA Residuals
-
-One important feature of SMA regression is that it is symmetrical, i.e. the $X$ and $Y$ axes can be flipped and the line of best fit will not change. In the plot below we flip the axes, & plot both the OLS (red) & SMA (blue) regression lines of best fit, as well as an individual from our hypothetical species (highlighted in green). Using the SMA (blue) regression line, you can see that the bird would be described as a relatively short-winged bird for its size in plot (A), or a relatively heavy bird for its wing length in plot (B). These are inverse statements, which make sense for any individual. Comparing the green point to the OLS (red) line, on the other hand, we see that these logical & reciprocal statements do not apply.
-
-```{r}
-#| label: SMA-ex
-
-## Can flip axes
-Highlight_pt <- size_temp_r %>% 
-  filter(Mass > 2.2 & Mass < 2.4) %>% 
-  slice_min(res_wm) %>%
-  pull(individual)
-
-# Wing ~ mass
-w_m <- size_temp_r %>%
-  ggplot(aes(x = Mass, y = Wing)) + 
-  geom_point(alpha = .6) +
-  geom_point(data = ~filter(.x, individual == Highlight_pt), 
-             size = 5, color = "green") + 
-  geom_smooth(method = "lm", color = "red") +
-  ggpmisc::stat_ma_line(method = sma_or_ma, color = "blue") +
-  labs(x = "Body size", y = "Appendage length")
-
-# Mass ~ wing 
-m_w <- size_temp_r %>%
-  ggplot(aes(x = Wing, y = Mass)) + 
-  geom_point(alpha = .6) +
-  geom_point(data = ~filter(.x, individual == Highlight_pt), 
-             size = 5, color = "green") + 
-  geom_smooth(method = "lm", color = "red") +
-  ggpmisc::stat_ma_line(method = sma_or_ma, color = "blue") +
-  labs(x = "Appendage length", y = "Body size")
-```
-
-```{r}
-#| label: fig-flip-axes
-#| fig-cap: One important feature of SMA regression is that the X and Y axes can be flipped and the line of best fit will not change. In the plots below we flip the axes, & plot both the OLS (red) & SMA (blue) regression lines of best fit, as well as the same individual from our hypothetical species (highlighted in green). 
-ggarrange(w_m, m_w, labels = 'AUTO')
-ggsave("Figures/sma_flip_axes.png", bg = "white")
-```
-
-Another property of SMA regression is that the residuals are equal & oppositely correlated with both $X$ (body size) & $Y$ (appendage).
-
-```{r}
-#| label: SMA-resid-equal-opposite
-
-cor(size_temp_r$Mass, size_temp_r$res_wm)
-cor(size_temp_r$Wing, size_temp_r$res_wm)
-```
-
-In OLS -- the residuals are not correlated with $X$ & highly correlated with $Y$.
-
-```{r}
-#| label: OLS-resid
-
-round(cor(size_temp_r$Mass, size_temp_r$ols_r), 2) # Not correlated
-cor(size_temp_r$Wing, size_temp_r$ols_r) # Highly correlated
-```
-
-### Relationship with OLS slope & correlation
-
-As I said previously, the SMA line of best fit has a slope equal to the OLS slope divided by the correlation coefficient, i.e. @eq-sma-slope. Let's visualize what this looks like with some example data sets. In the following plots, the blue line is the SMA slope & the red line is the OLS slope.
-
-```{r}
-#| label: SMA-vs-OLS-lines
-
-grid_parms <- expand_grid(
-  b_sma_12 = c(.2, .33, .5), r_12 = c(.2, .4, .6), r_13 = 0, r_23 = 0
-  )
-sim_df <- grid_parms %>%
-    mutate(coefs = pmap(grid_parms, gen_data)) %>%
-    unnest(coefs)
-
-# Plot 3x3 grid 
-# Row 1: Hypoallometry, row 2: isometry, row 3: hyperallometry
-plot_SMA_grid <- function(sim_data) {
-  sim_data %>%
-    ggplot(aes(x = Mass, y = Wing)) +
-    geom_point(alpha = 0.6) +
-    # OLS line
-    geom_smooth(method = "lm",se = FALSE, color = "red") + #linetype = "dashed"
-    # SMA line
-    ggpmisc::stat_ma_line(method = sma_or_ma, color = "blue", size = 1) +
-    facet_wrap(~condition, scales = "free") +
-    labs(x = "Body size", y = "Appendage length")
-}
-```
-
-```{r}
-#| label: fig-3x3-plot
-
-sim_df %>% filter(b_sma_12 == .33) %>%
-  mutate(condition = paste0("r = ", r_12)) %>% #"b_sma = ", b_sma_12, ", ", 
-  plot_SMA_grid()
-#ggsave("Figures/corr_sma_ols_slopes.png", bg = "white")
-```
-
-As you can see, for any given allometric scaling relationship there is a bigger mismatch between the OLS & SMA regression lines when there is a low correlation between mass & wing. Indeed, returning to our formula you'll see that the SMA & OLS slopes are identical when r = 1.
-
-$\beta_{sma} = \beta_{ols} / r$ so when r = 1, $\beta_{sma} = \beta_{ols}$
+As I said previously, the SMA line of best fit has a slope equal to the OLS slope divided by the correlation coefficient.
 
 # Simulation
 
@@ -649,39 +499,23 @@ We see that the $\lambda$ values between `r min(lambdas)` - `r max(lambdas)` wit
 
 Ok, assuming that the most important assumptions of the different techniques are met, let's move on to comparing how the various approaches perform at recovering the simulated changes in body shape.
 
-# Introducing the SMA approaches
+## Introducing the SLI: Standardized length index
 
-## SMA residuals approach
-
-The 'SMA residuals' approach is very similar to the 'OLS residuals' approach, but instead using the residuals from an SMA regression model. This allows for the empirical estimation of the functional relationship between appendage length and body size, and interprets residuals from this line as an estimate of wingyness.\
-Model 1: $SMA(Appendage \sim \mathit{Body\ size})$\
-Model 2: $Residuals_{SMA} \sim \mathit{Temperature\ increase}$
-
-```{r}
-#| label: vert-resid-fn
-calc_vert_resid <- function(df, x, sma_mod){
-  slope <- coef(sma_mod)['slope']
-  intercept <- coef(sma_mod)['elevation']
-  df2 <- df %>% mutate(pred = intercept + slope * {{ x }})
-  df2 %>% mutate(vert_resid = {{ x }} - pred)
-}
-```
-
-## SLI: Standardized length index
-
-Peig & Green [-@peigNewPerspectivesEstimating2009]; [-@peigParadigmBodyCondition2010] revolutionized the way we estimate body condition, using allometric scaling theory to create the standardized mass index [see 3 step process outlined on pages 1886 & 1887 of @peigNewPerspectivesEstimating2009]. We employ a similar process but instead create the standardized length index (SLI), where (appendage) length is on the y-axis. This is very similar to the SMA residuals approach, except that you set the slope $B_{SLI}$ to a value with biological significance. For example, setting $B_{SLI} = 0.33$ compares the appendage length of individual $i$ to a hypothetical species exhibiting isometric scaling with the same body size as individual $i$.
-
-To calculate the SLI for individual $i$ of species $j$, first take the mean of the body size trait in question (e.g., mass) of species $j$, which serves to standardize against the appendage length of individual $i$. We call this $L_0$ as in @peigNewPerspectivesEstimating2009, \[[-@peigParadigmBodyCondition2010]\].\
+Peig & Green [-@peigNewPerspectivesEstimating2009]; [-@peigParadigmBodyCondition2010] revolutionized the way we estimate body condition, using allometric scaling theory to create the standardized mass index [see 3 step process outlined on pages 1886 & 1887 of @peigNewPerspectivesEstimating2009]. The goal of @peigNewPerspectivesEstimating2009 was to create We employ a similar process but instead create the standardized length index (SLI), where (appendage) length is on the y-axis. In essence, To calculate the SLI for individual $i$ of species $j$, first take the mean of the body size trait in question (e.g., mass) of species $j$, which serves to standardize against the appendage length of individual $i$. We call this $L_0$ as in @peigNewPerspectivesEstimating2009, \[[-@peigParadigmBodyCondition2010]\].\
 \
 $L_0 = mean(log(\mathit{Body\ size}))$
 
 $SLI_i = \log(\text{Appendage}_i) * \dfrac{L_0}{\log(\text{Body size}_i)^{\beta_{SLI}}}$
 
-Finally, we would model the SLI as a function of temperature increase.
+Finally, one can model the SLI as a function of temperature increase.
 
 $SLI \sim \mathit{Temperature\ increase}$
 
-Note that setting $B_{SLI} = 0.33$ is similar to the approach taken by Youngflesh et al. [-@youngfleshAbioticConditionsShape2022] in creation of their 'wingyness' index, as they explicitly wanted to capture departures from isometry.
+The benefits of the SLI are similar to
+
+We suggest two similar parameterizations of this model, differing only in the scaling slope $B_{SLI}$. One can estimate the functional relationship between $X$ and $Y$ empirically, or set the slope $B_{SLI}$ to a value with biological significance. For example, setting $B_{SLI} = 0.33$ compares the appendage length of individual $i$ to a hypothetical species exhibiting isometric scaling with the same body size as individual $i$. Note that setting $B_{SLI} = 0.33$ is similar to the approach taken by Youngflesh et al. [-@youngfleshAbioticConditionsShape2022] in creation of their 'wingyness' index, as they explicitly wanted to capture departures from isometry.
+
+# Calc SLI function
 
 ```{r}
 #| label: calc-sli-fun
@@ -709,8 +543,6 @@ extract_coefs <- function(Sim_df) {
   ### Compare approaches 
   # Allometric (SMA) residuals approach
   sma_mod <- sma(Wing ~ Mass, data = Sim_df, method = sma_or_ma)
-  Sim_df <- calc_vert_resid(df = Sim_df, x = Mass, sma_mod = sma_mod) 
-  sma_resid <- lm(vert_resid ~ Temp_inc, data = Sim_df)
   est_b_sma <- coef(sma_mod)["slope"]
   
   # OLS residuals 
@@ -748,7 +580,6 @@ extract_coefs <- function(Sim_df) {
   tibble(
     cor_allometry = cor(mod_parms$Temp_inc, mod_parms$elevation),
     cor_allometry_int = cor(mod_parms_int$Temp_inc, mod_parms_int$elevation),
-    coef_vert_resid_app = coef(sma_resid)["Temp_inc"], 
     coef_sli_iso_app = coef(sli_iso_app)["Temp_inc"],
     coef_sli_est_app = coef(sli_est_app)["Temp_inc"],
     coef_ols_resid_app = coef(ols_resid)["Temp_inc"],
@@ -772,7 +603,7 @@ Parms_tbl2 <- bind_cols(Parms_mat2, Parms_tbl)
 # Pivot_longer to allow comparison between Ryding & the residual model 
 Parms_tbl3 <- Parms_tbl2 %>% 
   pivot_longer(
-    cols = c(coef_vert_resid_app, coef_sli_iso_app, coef_sli_est_app, coef_ols_resid_app, coef_ryding_app, coef_ratio, coef_ratio2), 
+    cols = c(coef_sli_iso_app, coef_sli_est_app, coef_ols_resid_app, coef_ryding_app, coef_ratio, coef_ratio2), 
                names_to = "Model", values_to = "b_temp_inc") %>% 
   mutate(Model = str_remove_all(Model, "coef_|_app"), 
          Model = str_to_sentence(Model))
@@ -1279,6 +1110,10 @@ We recognize that modeling $X_{true}$ as latent may be beyond the statistical un
 
 The biological world is complex, and our statistical approaches to handle this complexity have improved greatly in recent decades. For example, our literature review shows that most studies in recent years examined Allen's rule across groups of species, and that models accounting for phylogenetic relationships (e.g., PGLMM) were the most frequently employed model. We highlight that the SMA approaches could easily be generated for an unlimited number of species as long as they are done in a species-specific manner. The output from either of the SMA approaches could then be used as the response variable in a model accounting for phylogenetic relatedness.
 
+# Acknowledgements
+
+I thank Asad Hassan for his help in conceptualizing an unbiased simulation, and Andy Green for helpful comments on the SLI as well as earlier drafts of this article.
+
 # Ignore
 
 No need to continue on... Thanks for reading!
@@ -1287,17 +1122,7 @@ No need to continue on... Thanks for reading!
 
 -   Understand how allometric scaling influences response in the different approaches. When correlation between mass & temp is \< -.4, hyperallometric individuals show the strongest response, but when correlation = -.7 it is much more variable – why?
 
-    -   Change SLI to SLI
-
-    -   SMA residuals not valid, as they are taken orthogonally to line of best fit. Thus, update SMA residuals approach to be two versions of SLI, using the estimated Bsma or setting Bsma = 0.33
-
-    -   See three advantages of SMI over OLS residuals in Peig & Green (2009), this has been validated in SMI context (as corresponding to the true metric of interest), which is a big advantage. SMI is highly correlated (but not identical) to OLS residuals
-
-        -   Maintains units of original variable
-
-        -   Accounts for power law relationship, ie multiplicative instead of additive error function
-
-        -   Comparable across populations within the same species
+    -   Change SALI to SLI
 
     -   Returning to the faceted plot comparing a hyper- & hypo- allometric species (@fig-allometric-relationship-temp-wingy), we can also see that hyperallometric species have the strongest response, irrespective of whether an increase in temperature makes organisms fatter or wingyier. While it's true that a given change in wing or mass will produce a larger change in the other variable due to the steeper slope exhibited in hyperallometric species, I thought fitting the SMA line of best fit would largely remove the effect of scaling. Thus, I thought the SMA residuals approach would show similar results irrespective of the simulated scaling relationship.
 
