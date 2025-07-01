@@ -7,10 +7,21 @@ library(smatr)
 library(cowplot)
 library(broom)
 library(ggpmisc) 
+library(gt)
 ggplot2::theme_set(theme_cowplot())
 
 load("Rdata/Capri_dfs_07.09.24.Rdata")
 
+
+# calc_sli function ------------------------------------------------------
+calc_sli <- function(df, b_sli = 0.33, rename_col = FALSE){
+  # L0 is the average mass, essentially allowing for comparison of wing lengths for a given mass
+  L0 <- mean(df$Mass)
+  df_sli <- df %>% mutate(sli = Wing * (L0 / Mass)^b_sli) %>%
+    arrange(desc(sli))
+  if(rename_col != FALSE){df_sli <- df_sli %>% rename( {{ rename_col }} := sli)}
+  return(df_sli)
+}
 
 # Formatting --------------------------------------------------------------
 # Format predictor & responsible variables 
@@ -22,8 +33,11 @@ nj_df <- capriA.red2 %>%
          log_mass = log(Mass),
          wing_mass = Wing / Mass, 
          wing2_mass = Wing^2 / Mass) %>% 
-  select(Species, Wing, Mass, B.Lat, log_wing, log_mass, wing_mass, wing2_mass, B.Tavg) 
+  select(Species, Wing, Mass, B.Lat, log_wing, log_mass, wing_mass, wing2_mass, B.Tavg) %>% calc_sli(
+    appendage = log_wing, size = log_mass, by.species = TRUE, b_sli = 0.33
+    )
 
+nj_df %>% summarize(mean_sli = mean(sli), .by = Species)
 
 # Visualize regression approaches -----------------------------------------
 # Compare three line-fitting methods
@@ -32,8 +46,7 @@ nj_df %>%
   geom_point(alpha = .6) +
   geom_smooth(method = "lm", linetype = "dashed", se = FALSE, color = "red") +
   ggpmisc::stat_ma_line(method = "MA", se = FALSE, color = "orange") +
-  ggpmisc::stat_ma_line(method = "SMA", linetype = "dotted", se = FALSE, color = "blue") + 
-  facet_wrap(~Species)
+  ggpmisc::stat_ma_line(method = "SMA", linetype = "dotted", se = FALSE, color = "blue") + facet_wrap(~Species)
 
 # Examine variance in X & Y
 nj_df %>% group_by(Species) %>% 
@@ -45,15 +58,56 @@ nj_df_l <- nj_df %>% group_split(Species)
 names(nj_df_l) <- c("Nighthawk", "Nightjar", "Whip-poor-will")
 
 
+# Coefficient of variation ------------------------------------------------
+
+calc_lambda <- function(x, y){
+  cv_x <- sd({{ x }}) / mean({{ x }})
+  cv_y <- sd({{ y }}) / mean({{ y }})
+  (cv_y^2) / (cv_x^2)
+}
+
+# Very low CVs, suggesting that the variance in wing is very low compared to the variance in mass (relative to the means)
+nj_df %>% summarize(N = n(), 
+                    lambda = calc_lambda(x = Mass, y = Wing), 
+                    .by = Species) %>%
+  mutate(lambda = round(lambda, 2))
+0.0296^2 / .102^2 # Example, European nightjar
+
+# Test assumptions --------------------------------------------------------
+# OLS assumptions
+ols_mod_l <- map(nj_df_l, \(df){
+  ols_mod <- lm(log_wing ~ log_mass + B.Tavg, data = df)
+})
+
+# Some departure from homoskedasticity
+map(ols_mod_l, \(ols_mod){
+  plot(ols_mod, which = 1)
+  plot(ols_mod, which = 2)
+})
+
+# SMA assumptions
+sma_mod_l <- map(nj_df_l, \(df){
+  sma_mod <- sma(log_wing ~ log_mass, data = df, method = "SMA")
+})
+
+map(sma_mod_l, \(sma_mod){
+  plot(sma_mod, which = "residual")
+  plot(sma_mod, which = "qq")
+})
+
 # SMA models --------------------------------------------------------------
 # Run SMA models & extract the residuals 
 ## NOTE: if you scale first, then the variance of both log_mass & log_wing is 1, & SMA slope = MA slope = 1 × MA slope so these are identical. 
+
 nj_df_l2 <- map(nj_df_l, \(df){
+  ols_mod <- lm(log_wing ~ log_mass, data = df)
   sma_mod <- sma(log_wing ~ log_mass, data = df, method = "SMA")
   ma_mod <- sma(log_wing ~ log_mass, data = df, method = "MA")
-  df %>% mutate(resid_sma = residuals(sma_mod),
+  df <- df %>% mutate(resid_ols = residuals(ols_mod), 
+                resid_sma = residuals(sma_mod),
                 resid_ma = residuals(ma_mod))
 })
+
 
 # Scale by species 
 nj_df_l3 <- map(nj_df_l2, \(df){
@@ -71,7 +125,9 @@ map(nj_df_l3, \(df){
 # OLS models & extract parms ----------------------------------------------
 # Generate Wing mass models, extract parameters via tidy
 parms_df <- map(nj_df_l3, \(df){
-  mod_coef_sma <- lm(resid_sma ~ B.Tavg, data = df) %>% tidy() %>% 
+  mod_resid_ols <- lm(resid_ols ~ B.Tavg, data = df) %>% tidy() %>% 
+    mutate(Approach = "Resid_ols")
+  mod_resid_sma <- lm(resid_sma ~ B.Tavg, data = df) %>% tidy() %>% 
     mutate(Approach = "Resid_sma")
   #mod_coef_ma <- lm(resid_ma ~ B.Tavg, data = df) %>% tidy() %>% 
    # mutate(Approach = "Resid_ma")
@@ -81,22 +137,29 @@ parms_df <- map(nj_df_l3, \(df){
     mutate(Approach = "Ratio")
   mod_coef_ratio2 <- lm(wing2_mass ~ B.Tavg, data = df) %>% tidy() %>% 
     mutate(Approach = "Ratio2")
-  bind_rows(mod_coef_sma, mod_coef_ols, mod_coef_ratio, mod_coef_ratio2) #, mod_coef_ma
+  mod_coef_sli <- lm(sli ~ B.Tavg, data = df) %>% tidy() %>% 
+    mutate(Approach = "SLI")
+  bind_rows(mod_resid_sma, mod_resid_ols, mod_coef_ols, mod_coef_ratio, mod_coef_ratio2, mod_coef_sli) #, mod_coef_ma
 }) %>% list_rbind(names_to = "Species") %>% 
   mutate(LCI95 = estimate - 1.96 * std.error,
          UCI95 = estimate + 1.96 * std.error)
 
-
 # Plot slope estimates ----------------------------------------------------
 # Slope estimates of temperature's impact on shape in nightjars 
-legend_labs <- c("Wing / Mass", "Wing² / Mass", "Allometric \nresiduals", "Mass as \ncovariate") #, "Allometric \nresiduals MA"
+legend_labs <- c("Wing / Mass", "Wing² / Mass", "SLI estimated", "SLI isometry", "OLS residuals", "Mass as \ncovariate") #, "Allometric \nresiduals MA"
 parms_df %>% filter(term == "B.Tavg") %>% # & !Approach %in% c("Ratio2", "Ryding")) %>% 
+  mutate(Approach = factor(Approach), 
+         Approach = fct_reorder(.f = Approach, .x = estimate, 
+                                .fun = mean, .desc = TRUE)) %>%
   ggplot(aes(x = Species, y = estimate, color = Approach, 
              group = interaction(Species, Approach))) + 
   geom_errorbar(aes(ymin = LCI95, ymax = UCI95),
-                alpha = .8, width = 0, position = position_dodge(width = 0.75)) +
+                alpha = .8, width = 0, 
+                position = position_dodge(width = 0.75)) +
   geom_point(size = 2, position = position_dodge(width = 0.75)) +
   geom_hline(yintercept = 0, linetype = "dashed") + 
-  labs(x = NULL, y = "β temperature on body shape") +
+  labs(x = NULL, y = expression(beta[T] ~ "on wingyness")) +
   scale_color_hue(labels = legend_labs)
-#ggsave("Nightjar_shape.png", bg = "white")
+allometric_scaling_path <- "/Users/aaronskinner/Library/CloudStorage/OneDrive-UBC/Grad_School/Methods_papers/Allometric-scaling/"
+ggsave(paste0(allometric_scaling_path, "Figures/Nightjar_shape.png"), 
+       bg = "white")
