@@ -1,13 +1,16 @@
 ---
-title: "Detecting shape shifting across environmental gradients -- simulations show that methods informed by allometric scaling are superior"
+title: "Detecting shape shifting across environmental gradients -- simulations show promise in a new metric, the standardized length index"
 number-sections: true
 # If you do not want code to show... echo: false
 execute: 
  echo: false
- include: false
+ #include: false
  message: false
  warning: false 
-format: pdf
+format: docx
+include-in-header: 
+      text: |
+        \usepackage{float}
 editor: visual
 bibliography: ../Supp_files/EWPW.bib
 link-citations: true
@@ -26,13 +29,9 @@ editor_options:
 
 Due to its important implications for wildlife responses to climate change, studies of Allen's rule (i.e., that animals have relatively longer appendages in warmer climates to facilitate thermoregulation) have increased in recent decades. While there is general agreement that warm-blooded animals become longer in warmer climates, the methods used to quantify changes in relative appendage length in response to temperature gradients have varied widely. I conduct a literature review of studies examining Allen's rule since 2021 and find that, in addition to modeling absolute (i.e., not relative) appendage length, authors have taken three main approaches: (1) modeling simple ratios (e.g., appendage:mass) as a function of temperature, (2) modeling appendage length as a function of body size and temperature, and (3) conducting a two-step regression by (3a) modeling appendage length as a function of mass, and then (3b) modeling the residuals as a function of temperature.
 
-Here, I test whether two new metrics of relative appendage length are able to accurately capture changes in *relative* appendage length due to a simulated temperature increase. Both approaches leverage standardized major axis (SMA) regression, which has been advocated for in applications involving biological scaling. I compare these two new approaches to the three approaches commonly used in the literature using simulated morphological data from 180 hypothetical species that vary in 1) their response to increasing temperatures, and 2) the strength of appendage length–mass covariation. The two approaches leveraging SMA regression accurately capture changes in *relative* appendage length in the vast majority of simulations, although they each fail in specific situations. I find that ratio approaches (approach 1) overestimate the increase in relative appendage length, while 'multivariate regression' (approach 2) and a two-step residual regression (approach 3) underestimate relative appendage length. Importantly, the 'multivariate regression' approach suffers from collider bias in several of the hypothetical species, a previously overlooked issue in studies of Allen's rule. I find qualitatively similar results in a case study examining relative appendage length across latitudinal gradients in three nightjar species from North America and Europe.
+Here, I test whether a new metric of relative appendage length, called the Standardized Length Index (SLI), is able to accurately capture changes in *relative* appendage length due to a simulated temperature increase. SLI leverages standardized major axis (SMA) regression, which has been advocated for in applications involving biological scaling. I compare SLI to the three approaches commonly used in the literature using simulated morphological data from 180 hypothetical species that vary in 1) their response to increasing temperatures, and 2) the strength of appendage length–mass covariation. The SLI approach accurately capture changes in *relative* appendage length in the vast majority of simulations, although it is positively biased in specific situations. I find that ratio approaches (approach 1) overestimate the increase in relative appendage length, while 'multivariate regression' (approach 2) and a two-step residual regression (approach 3) underestimate relative appendage length. Importantly, the 'multivariate regression' approach suffers from collider bias in several of the hypothetical species, a previously overlooked issue in studies of Allen's rule. I find qualitatively similar results in a case study examining relative appendage length across temperature gradients in three nightjar species from North America and Europe.
 
-These results show that the methodological approach leveraged to examine changes in relative appendage length can have drastic effects on results. Approaches 1 - 3 make the assumption that error exists only in $Y$ (appendage length), which is biologically implausible in studies of allometric scaling, and particularly unrealistic when mass is used as an estimate of structural body size ($X$). Thus, approaches that allow for measurement error in both $X$ and $Y$ (i.e., both SLI approaches presented here) outperform the approaches that are regularly used in the literature.
-
-EDIT
-
-I highlight that alternative approaches where measurement error in $X$ and $Y$ is directly estimated from repeat morphological measurements are more flexible and will perform better in a greater variety of circumstances. However, the two SLI approaches presented here offer easily-implementable alternatives, and would be a great improvement over the methods regularly used to assess shape-shifting in wildlife at present.
+These results show that the methodological approach leveraged to examine changes in relative appendage length can have drastic effects on results. Approaches 1 - 3 make the assumption that error exists only in $Y$ (appendage length), which is biologically implausible in studies of allometric scaling, and particularly unrealistic when mass is used as an estimate of structural body size ($X$). Thus, approaches that allow for measurement error in both $X$ and $Y$ outperform the approaches that are regularly used in the literature. I highlight that alternative approaches where measurement error in $X$ and $Y$ is directly estimated from repeat morphological measurements are more flexible and will perform better in a greater variety of circumstances. However, the SLI approach presented here offer easily-implementable alternatives, and would be a great improvement over the methods regularly used to assess shape-shifting in wildlife at present.
 
 # Introduction
 
@@ -50,11 +49,11 @@ In a concurrent literature review (Skinner, in prep), I identify three predomina
 3)  'Multivariate regression' approach: Including body size as a covariate in models predicting appendage length\
     $Appendage \sim \beta_S * \mathit{Body\ size} + \beta_T * \mathit{Temperature\ increase}$
 
-All three approaches attempt to control for body size to isolate changes in relative appendage length. These approaches share another key assumption – that the independent variable $X$ (body size in this case) is measured without error. This assumption is often untenable, particularly in field-based studies of morphology where both traits are prone to measurement error. Hereafter, I term any statistical approach making this assumption as 'classical regression'. Importantly, more sophisticated regression techniques such as generalized least squares, maximum likelihood, or Bayesian approaches make the same assumption regarding the error distribution between $X$ and $Y$ (unless models are explicitly formulated to the contrary).
+All three approaches attempt to control for body size to isolate changes in relative appendage length. These approaches share another key assumption – that the independent variable $X$ (body size in this case) is measured without error. This assumption is often untenable, particularly in field-based studies of morphology where both traits are prone to measurement error. Hereafter, I term any statistical approach making this assumption as 'classical regression'. Importantly, more sophisticated regression techniques such as generalized least squares, maximum likelihood, or Bayesian approaches make the same assumption regarding the error distribution between $X$ and $Y$ (appendage length in this case), unless models are explicitly formulated to the contrary.
 
-Mass was by far the most commonly used proxy of body size in recent studies of Allen's rule (Skinner in prep), thus it is important to briefly mention an additional source of 'error'. Transient fluctuation 'error' is real biological variation in our *estimate* of body size that do not reflect changes in structural body size \[this has also been called 'biological error', CITE PELABON\]. Thus, when using mass as an estimate of body size, this could be variation due to gut fill, defecation, reproductive or hydration state, etc. that do not reflect relevant changes in structural body size, yet will influence mass measurements. The transient fluctuation 'error' is likely substantially larger than measurement error (CITE Pelabon), especially in the case of mass, although the two cannot be partitioned statistically in most cases (but see CITE Ponzi).
+Mass was by far the most commonly used proxy of body size in recent studies of Allen's rule (Skinner in prep), thus it is important to briefly mention an additional source of 'error'. Transient fluctuation 'error' is real biological variation in our *estimate* of body size that do not reflect changes in structural body size \[this has also been called 'biological error', CITE PELABON\]. Thus, when using mass as an estimate of body size, this could be variation due to gut fill, defecation, reproductive or hydration state, etc. that do not reflect relevant changes in structural body size, yet will influence mass measurements.
 
-Each of these classical approaches has known limitations. Ratio-based metrics, despite widespread continued use [e.g., @jirinecMorphologicalConsequencesClimate2021; @dubinerWidespreadRecentChanges2022], are often correlated with body size and thus have limited utility as an index of shape [@greenMassLengthResiduals2001; @jakobEstimatingFitnessComparison1996, CITE Ryding 2025]. The 'two-step residual regression' and the 'multivariate regression' approaches are mathematically similar when there is no collinearity between predictor variables (e.g., temperature and body size), but the former becomes increasingly biased as collinearity increases [@freckletonMisuseResidualsEcology2002]. Importantly, both of these approaches will underestimate the true slope when there is unmodeled error in $X$.
+Each of these classical approaches has known limitations. Ratio-based metrics, despite widespread continued use [e.g., @jirinecMorphologicalConsequencesClimate2021; @dubinerWidespreadRecentChanges2022], are often correlated with body size and thus have limited utility as an index of shape [@greenMassLengthResiduals2001; @jakobEstimatingFitnessComparison1996, CITE Ryding 2025]. The 'two-step residual regression' and the 'multivariate regression' approaches are mathematically similar when there is no collinearity between predictor variables (e.g., temperature and body size), but the former becomes increasingly biased as collinearity increases [@freckletonMisuseResidualsEcology2002]. Importantly, both of these approaches will underestimate the true slope of the functional relationship between $X$ and $Y$ (i.e., attenuation towards 0) when there is unmodeled measurement or transient fluctuation error in $X$.
 
 Despite the near universal application of classical regression approaches in studies of Allen's rule (Skinner in prep), alternative approaches that allow for measurement error in $X$, as well as $Y$, may be more appropriate. For example, standardized major axis (SMA) regression can more accurately estimate the true functional relationship between two variables as it acknowledges measurement error in both $X$ and $Y$ [@greenMassLengthResiduals2001; @wartonBivariateLinefittingMethods2006; @peigNewPerspectivesEstimating2009; @peigParadigmBodyCondition2010]. The key difference between SMA and classical regression is how they minimize residuals to generate a line of best fit. OLS regression minimizes the residuals on the $Y$ axis, whereas SMA regression minimizes the residuals in both $X$ and $Y$ directions (it is also called 'orthogonal regression'). This makes sense for situations where we don't think that $X$ -\> $Y$ (we wouldn't say that mass causes appendage length), but instead just want to understand the relationship between $X$ and $Y$ (CITE Smith, 2009). The statistical distinctions between OLS and SMA have received attention in several fields including statistics (CITE Smith 2009), evolutionary biology (CITE Hansen, Pelabon), ecology, genetics (CITE Ponzi), and even astrophysics (1996 paper), and thus will not be discussed further here.
 
@@ -66,11 +65,10 @@ Inspired by the logic of Peig and Green's SMI [@peigNewPerspectivesEstimating200
 
 In this paper, I use simulations to evaluate how well the SLI captures changes in relative appendage length due to temperature increases, comparing its performance to the three classical regression approaches described earlier. These comparisons are made across a range of realistic conditions, including varying degrees of measurement and transient biological error, trait covariance, and allometric scaling relationships. While several authors have modeled *absolute* appendage length as a function of temperature (Skinner, in prep), I focus exclusively on approaches that attempt to isolate *relative* shape. Although Allen’s rule provides the motivating context, the insights from this study extend to many questions rooted in biological scaling theory that seek to quantify a trait *relative to body size*.
 
-# Load libraries
-
 ```{r}
 #| label: Libraries
 #| message: false
+
 library(tidyverse)
 library(readxl)
 library(janitor)
@@ -92,11 +90,11 @@ ggplot2::theme_set(theme_cowplot())
 
 # Methods
 
-To evaluate the three classical regression approaches and the newly proposed SLI, I simulate increasing temperatures (in line with climate change), along with 180 hypothetical species that vary in 1) their morphological response to increasing temperatures, and 2) the strength of appendage length–mass covariation. The methods tested are the: ratio approach, two-step residual regression approach, multivariate regression, and the SLI For each species, I simulate \~1700 individuals and test the various methods intraspecifically, so that each method is tested on all 180 species to compare estimated effect of temperature on relative appendage length GPT HELP EDIT.
+To evaluate the three classical regression approaches and the newly proposed SLI, I simulated increasing temperatures (in line with climate change), along with morphological data for 180 hypothetical species. Each species was simulated with \~1,700 individuals, and each method was evaluated by its ability to recover known (simulated) morphological responses within each species. These species varied in their morphological response to temperature, where some species got relatively longer while others got relatively fatter with increasing temperatures, as well as the strength of body size–appendage length covariation. The three classical regression approaches tested were ratios, two-step residual regression, and multivariate regression, which were compared against two parameterizations of the Standardized Length Index (SLI). Finally, I applied all methods to empirical data from three migratory nightjar species.
 
 ## Data simulation
 
-I simulate data for three variables: appendage length, body size, and temperature increase using a multivariate normal (MVN) distribution:
+I simulated three log-transformed variables: appendage length, body size (estimated from mass), and temperature increase. These were jointly drawn from a multivariate normal (MVN) distribution:
 
 $$
 \begin{bmatrix}
@@ -107,7 +105,33 @@ $$
 \sim \mathrm{MVN}(\boldsymbol{\mu}, \Sigma)
 $$ {#eq-mvn}
 
-where $\boldsymbol{\mu} = [3,\ 3,\ 3]^\top$ is the mean vector (on the log scale), and $\Sigma$ is the $3 \times 3$ covariance matrix:
+where $\boldsymbol{\mu} = [3,\ 3,\ 3]^\top$ is the mean vector, and $\Sigma$ is a $3 \times 3$ covariance matrix constructed to yield biologically plausible correlations among variables. This strategy avoids biasing results toward any method. For example, simulating from a directional model, e.g.,
+
+$$
+\log(\text{Appendage}) \sim \alpha + \beta_S * \log(\text{Body size}) + \beta_T * \log(\text{Temperature increase}) + \epsilon
+$$
+
+would advantage methods that explicitly include mass as a covariate. Likewise, simulating a relationship between temperature and residuals would favor residual-based approaches. Instead, all methods start from the same joint distribution, and none are privileged by design.
+
+```{r}
+#| label: Source-key-fns
+#| echo: true
+
+# Read in the most important functions
+source("Scripts/Key_allometry_fns.R")
+```
+
+```{r}
+#| label: Data-generating-function
+#| echo: true
+
+# Examine the data generating function
+gen_data
+```
+
+## Variance-covariance matrix
+
+Specification of the $3 \times 3$ covariance matrix determines the variance within variables and the relationships between variables. $\Sigma$ is defined as
 
 $$
 \Sigma = 
@@ -116,77 +140,16 @@ $$
 \rho_{12} \sigma_1 \sigma_2 & \sigma_2^2 & \rho_{23} \sigma_2 \sigma_3 \\
 \rho_{13} \sigma_1 \sigma_3 & \rho_{23} \sigma_2 \sigma_3 & \sigma_3^2
 \end{bmatrix}
-$$ {#eq-cov-mat}
-
-Here, $\sigma_1$, $\sigma_2$, and $\sigma_3$ are the standard deviations of $\log(\text{Appendage})$, $\log(\text{Body size})$, and $\log(\text{Temperature increase})$, respectively. The correlation coefficients $\rho_{12}$, $\rho_{13}$, and $\rho_{23}$ control the pairwise associations among these traits. This simulation implies a symmetric, undirected dependence structure — no variable is treated as a causal parent or response. While this simulation strategy does not encode the directional hypothesis of Allen’s rule (i.e., temperature influencing relative appendage length), it avoids biasing the results toward any specific analytical method. For instance, simulating from a linear model such as:
-
 $$
-\log(\text{Appendage}) \sim \alpha + \beta_S * \log(\text{Body size}) + \beta_T * \log(\text{Temperature increase}) + \epsilon
-$$ {#eq-biased}
 
-would structurally advantage methods that include body mass as a covariate. Likewise, simulating a relationship between temperature and residuals would favor residual-based approaches. By contrast, the MVN simulation provides a methodologically agnostic test bed — all methods start from the same joint distribution, and none are privileged by design.
-
-## Generate data
-
-```{r}
-#| label: Data-generating-function
-#| echo: true
-
-# Function to generate datasets
-gen_data <- function(b_sma_12 = NULL, r_12, r_13, r_23) {
-  Sigma <- gen_3var_cov(b_sma_12, r_12, r_13, r_23)
-  data <- mvrnorm(n = 3000, mu = c(3, 3, 3), Sigma = Sigma, empirical = TRUE)
-  morph_temp <- tibble(Wing = data[,1], # Wing = appendage
-                       Mass= data[,2], # Mass = body size
-                       Temp_inc= data[,3])
-  
-  # Calc std deviations of mass & wing
-  sd_mass <- sd(morph_temp$Mass)
-  sd_wing <- sd(morph_temp$Wing)
-  
-  ## Add various sources of error
-  # Add measurement error to mass (3%) and wing (1%)
-  meas_error_mass <- rnorm(3000, 0, sd = sd_mass * 0.02)
-  meas_error_wing <- rnorm(3000, 0, sd = sd_wing * 0.02)
-  # Transient fluctuation (biological error) to mass
-  transient_error_mass <- rnorm(3000, 0, sd = sd_mass * .1)
-  
-    morph_temp2 <- morph_temp %>% 
-      mutate(Mass = Mass + meas_error_mass + transient_error_mass,
-             Wing = Wing + meas_error_wing) %>% 
-      mutate(Temp_bin = cut(Temp_inc, breaks = 15, labels = FALSE, 
-                            ordered_result = TRUE)) %>%
-      arrange(Temp_inc) %>%
-      slice_sample(n = 200, by = Temp_bin) %>% 
-      mutate(Temp_bin = case_when(
-        Temp_bin %in% c(1:4) ~ 4,  
-        Temp_bin %in% c(12:15) ~ 12,
-        .default = Temp_bin
-    ))
-    return(morph_temp2)
-}
-```
-
-### Var-cov matrix for 3 vars
-
-The following function generates a var-cov matrix to produce the desired relationships between appendage, mass, and temperature, as well as the SMA slope between appendage and mass. In other words, this function takes the slopes & correlations that we specify (i.e., b_sma_12, r_12, r_13, r_23) and creates a variance-covariance matrix that will produce data using the specified relationships. This function is used in the gen_data() function above. (To be honest, I don't have a clear idea of what is going on here var-cov matrix function, but it does seem to work as far as I can tell...).
+where $\sigma_1$, $\sigma_2$, and $\sigma_3$ are the standard deviations of $\log(\text{Appendage})$, $\log(\text{Body size})$, and $\log(\text{Temperature increase})$, and the correlation coefficients $\rho_{12}$, $\rho_{13}$, and $\rho_{23}$ control the pairwise associations among these traits. Consistent with Bergmann's rule, all temperature-morphology correlations are \< 0 (except in species exhibiting inverse allometry, see @sec-selecting-parms), meaning that temperature increases $\rightarrow$ smaller body size. Some species were simulated to get relatively longer (i.e., the decrease in body size is greater than the decrease in appendage length), some to get fatter, while others were simulated to decrease in appendage length and body size proportionally (i.e., body shape doesn't change).
 
 ```{r}
 #| label: Function-var-cov
 #| echo: true
 
-gen_3var_cov <- function(b_sma_12 = NULL, r_12 = .5, r_13 = 0, r_23 = 0) { 
-  if(!is.null(b_sma_12)) { 
-    S1 <- abs(b_sma_12) 
-  } else { 
-      S1 <- 1 
-  } 
-  S2 <- 1 
-  cov_12 <- r_12 * S1 * S2 
-  cov_13 <- r_13 * S1 * 1 
-  cov_23 <- r_23 * S2 * 1 
-  matrix(c(S1^2, cov_12, cov_13, cov_12, S2^2, cov_23, cov_13, cov_23, 1 ), nrow = 3) 
-}
+# Examine the function used to generate the variance-covariance matrix. This function is used in the gen_data() function above
+gen_3var_cov
 
 # See an example cov matrix using default parameters 
 ex_cov_mat <- gen_3var_cov(b_sma_12 = 0.33) 
@@ -195,36 +158,21 @@ round(ex_cov_mat, 2)
 
 ## Biological realism
 
-While simulating data from a MVN distribution is statistically preferable, it may lack biological realism. Thus, I took the following steps to ensure that the results are biologically relevant.
+This simulation implies a symmetric, undirected dependence structure — no variable is treated as a causal parent or response. While this does not encode the directional hypothesis of Allen’s rule (i.e., temperature influencing relative appendage length), I have taken several steps to ensure biological realism: 1) simulating data from empirically-derived correlations and allometric slopes, 2) adding morphological noise, which is impossible to avoid, 3) conducting sensitivity analyses varying correlations and allometric slopes, and 4) conducting an empirical validation in a case study of nightjar species.
 
-1.  All simulated variables (i.e., appendage length, body size, temperature increase) all with means of 3, and the generation of the covariance matrix was done for statistical reasons instead of based in biological reality. These are important limitations, but I believe this had to be done to ensure that the simulated data met the statistical requirements (e.g., controlling allometry, effect of temperature on body shape, etc.). I attempted to ensure robustness by conducting a sensitivity analysis, varying some simulation values to be more in line with biological reality. For example, in birds wing values (measured in millimeters) are usually larger than mass (measured in grams) for most species. Thus I also tested more realistic log-scale values for wing, simulating wing with a mean of 5 instead of 3. These simulation results are not shown as results were nearly identical.
-
-2.  I compared the same methods in empirical data from 3 species of nightjars and found that the methods showed the same direction and rank order of effect sizes as in the simulated data (see @sec-case-study).
-
-3.  The simulated ratio of coefficients of variation $\lambda$ in body size ($X$) and appendage length ($Y$) were similar in simulated data sets and the empirical data (see @sec-coef-var).
-
-```{r}
-#| label: Define-sma-or-ma
-#| echo: FALSE
-
-# Set regression method to be SMA or MA
-sma_or_ma <- "SMA" 
-```
-
-# Simulation
-
-First, determine whether you'd like to constrain the SMA slope to be specific values. This is a step to ensure that setting b_sma values is not biasing our findings -- constraining the SMA values will fix the OLS slopes given the deterministic relationship between b_sma_12, r_12, and b_ols_12. Results are qualitatively similar when the simulated SMA slopes are not set.
+### Using empirically-derived parameter combinations {#sec-selecting-parms}
 
 ```{r}
 #| label: Set-b_sma
-## Select whether you'd like to constrain the b_sma values or not. 
+
+## Select whether you'd like to constrain the b_sma values or not. This is a step to ensure that setting b_sma values is not biasing our findings -- constraining the SMA values will fix the OLS slopes (see the subsection Sensitivity analyses). 
 b_sma <- c(.22, .33, .44) # NULL  
 ```
 
-# Parameter matrix
-
 ```{r}
 #| label: Define-parameter-matrix
+
+## In the parameter matrix we define the relationships we want to simulate — you can think of each row as a hypothetical species that responds differently to increasing temperatures, and in the strength of appendage length–mass covariation.
 
 # Create combinations of parameters to run through the extract_coefs() function
 Shape <- c("Wingyier", "Proportional", "Fatter")
@@ -232,11 +180,12 @@ Shape <- setNames(Shape, Shape)
 
 r_12 <- c(.15, .3, .45)
 r_13 <- c(0, -.1, -.25, -.4) # Wing temp
+r_23 <- r_13
 Parms_mat <- expand_grid(
   b_sma_12 = b_sma,
   r_12 = r_12, # Wing mass
   r_13 = r_13, # Wing temp
-  r_23 = c(0, -.01, -.025, -.04) # Mass temp
+  r_23 = r_23 # Mass temp
   # Effect of temperature on wingyness
 ) %>% mutate(Temp_eff = case_when( 
   r_13 > r_23 ~ Shape[1], 
@@ -253,10 +202,6 @@ if(!is.null(b_sma)){
 Parms_mat
 ```
 
-In the parameter matrix we define the relationships we want to simulate — you can think of each row as a hypothetical species that responds differently to increasing temperatures, and in the strength of appendage length–mass covariation. Correlations were selected to encompass a broad but realistic range of values in appendage length–mass \[`r min(r_12)` \< $r_{12}$ \< `r max(r_12)`, @greenMassLengthResiduals2001; @goslerFieldDeterminationBody1998\], and temperature-morphology \[both appendage length and mass ranged from `r min(r_13)` \< $r_{13}$ and $r_{23}$ \< `r max(r_13)`, consistent with literature reviews in birds, @ashtonPatternsWithinSpeciesBody2002, and mammals CITE ashton 2000\]. Consistent with Bergmann's rule, individuals get smaller in all species (all temperature-morphology correlations are negative), but some species get longer (i.e., the decrease in body size is greater than the decrease in appendage length), others get fatter, & some species change appendage length & body size proportionally (body shape doesn't change). I also set the intraspecific SMA slope in deterministic fashion to be either `r paste0(b_sma)`, reflecting biologically plausible scaling coefficients [e.g. @youngfleshAbioticConditionsShape2022]. To challenge the different methods with adversarial data sets [@lotterhosSimulationTestsMethods2022], I also simulate hypothetical species with $\beta_{SMA}$ = -0.22, i.e., where as mass decreases appendage length actually increases, as a rare but biologically possible case of inverse allometry [e.g., @weeksSharedMorphologicalConsequences2020]. From the formula $\beta_{SMA} = \beta_{OLS} / r_{12}$, you can see that the only free parameter is $\beta_{OLS}$. Thus mass, wing, and temperature covary in a way that satisfy the specified correlations of $r_{12}$, $r_{13}$, and $r_{23}$, as well as $\beta_{SMA}$, and $\beta_{OLS}$ varies to accommodate the specified $r_{12}$ and $\beta_{SMA}$.
-
-To evaluate the methods on a large range of data sets, we also simulate some species that exhibit inverse allometry [as observed in @weeksSharedMorphologicalConsequences2020],
-
 ```{r}
 #| label: Neg-allometry
 
@@ -272,7 +217,7 @@ Parms_neg <- expand_grid(
 ```
 
 ```{r}
-#| label: Combine-format
+#| label: Combine-format-parms-mat
 
 # Combine & format tibble
 Parms_mat2 <- bind_rows(Parms_mat, Parms_neg) %>%
@@ -284,30 +229,65 @@ if(is.null(b_sma)){
 }
 ```
 
-# Temp impact on body shape: an example
+Data were simulated from correlation structures encompassing a broad but realistic range of appendage length–mass values \[`r min(r_12)` \< $\rho_{12}$ \< `r max(r_12)`, @greenMassLengthResiduals2001; @goslerFieldDeterminationBody1998\], and temperature-morphology values \[`r min(r_13)` \< $\rho_{13}$ and $\rho_{23}$ \< `r max(r_13)`, consistent with literature reviews in birds, @ashtonPatternsWithinSpeciesBody2002, and mammals CITE ashton 2000\]. I also deterministic set the intraspecific SMA slope to be either `r paste0(b_sma)`, reflecting biologically plausible scaling coefficients [e.g. @youngfleshAbioticConditionsShape2022]. To challenge the different methods with adversarial data sets [@lotterhosSimulationTestsMethods2022], hypothetical species with inverse allometric scaling ($\beta_{SMA}$ = -0.22; i.e., where mass and appendage length negatively covary), were simulated as rare but biologically possible [e.g., @weeksSharedMorphologicalConsequences2020].
 
-Let's take an example set of parameters that will generate each effect (wingyier, fatter, or proportional). So the following tibble has 3 hypothetical species that respond distinctly to an increase in temperature.
+It is important to note that, from the formula $\beta_{SMA} = \beta_{OLS} / \rho_{12}$, you can see that $\beta_{OLS}$ is the only free parameter in our simulation. Thus mass, wing, and temperature covary in a way that satisfy the specified correlations of $\rho_{12}$, $\rho_{13}$, and $\rho_{23}$, as well as $\beta_{SMA}$, and $\beta_{OLS}$ varies to accommodate the specified $\rho_{12}$ and $\beta_{SMA}$.
+
+### Additional sources of error
+
+As mentioned in the introduction, estimates of body size and appendage length are always influenced by measurement error, and some measurements are subject to additional types of error. In particular, when mass is used as the proxy for body size, transient fluctuation 'error' should not be ignored given that it is likely substantially larger than measurement error (CITE Pelabon). Thus, I include an equivalent amount of measurement error in both $X$ and $Y$ (2% of the standard deviation of $X$ and $Y$), as well as transient fluctuation 'error' in mass equal to 4% of the standard deviation of $X$.
+
+### Sensitivity analyses
+
+Simulations were repeated 1) without deterministically setting $\beta_{SMA}$, 2) with more realistic log-scale trait means as wing values (mm) are usually larger than mass (g), 3) varying the amount of measurement and transient fluctuation error, and 4) with lower correlations between temperature-morphology relationships. General conclusions changed negligibly in all four sensitivity analyses.
+
+NOTE: I also ran using MA regression instead of SMA regression, and found that MA regression does change the results. However, several sources suggest that SMA regression is the approach that makes the most sense (Warton, 2006; Peig & Green, 2009) given that the units are not on the same scale, so I have ignored this for now. I can easily render this document using MA regression & send your way if that would be helpful.
+
+```{r}
+#| label: Define-sma-or-ma
+#| echo: FALSE
+
+# Set regression method to be SMA or MA
+sma_or_ma <- "SMA" 
+```
+
+### Case study in nightjars
+
+I applied all methodological approaches to data from three migratory nightjar species (n = 3,272), sampled across a (spatial) temperature gradient (Skinner et al., *accepted* *in the Journal of Biogeography*). These species follow Bergmann's rule and vary in the allometric scaling relationship between wing and mass. European nightjars exhibit isometric scaling ($\beta_{SMA}$ = 0.33), whereas nighthawks and whip-poor-wills exhibit hyperallometric scaling ($\beta_{SMA}$ = 0.44 and $\beta_{SMA}$ = 0.40, respectively). However, Skinner et al. (2025) did not examine how temperature influences relative wing length in nightjars. Thus, my goals were to 1) test method performance using real-world data, 2) evaluate the consistency with simulation results, and 3) assess biological conclusions under each methodological approach.
+
+# Simulate full dataset
+
+```{r}
+#| label: Generate-data
+#| echo: true
+#| cache: true
+
+# Simulate data 
+Cols <- Parms_mat2 %>% 
+  dplyr::select(starts_with(c("b_", "r_"))) %>% 
+  # Define measurement error and transient error
+  mutate(meas_error = 0.02,
+         transient_error = 0.04)
+df_morph_l <- pmap(Cols, gen_data)
+
+# Average number of individuals per hypothetical species
+#mean(map_dbl(df_morph_l, nrow))
+```
+
+## Simulation Checks
+
+I conducted graphical checks to ensure that simulations behaved as expected across all hypothetical species. First, when simulating wingyier species, SMA intercepts should increase with temperature, and the opposite should be true when simulating fatter birds. Species decreasing in size proportionally should show no systematic pattern in the intercepts and the amount of temperature increase. See Figure 4 in @shingletonAllometryStudyBiological2010 for additional information regarding interpretation of these temperature-body shape plots (i.e., @fig-temp-body-shape-plot). I use 3 example species
 
 ```{r}
 #| label: Example-parms
 
 # Hold b_sma & the correlation between wing & mass constant so slopes are roughly the same 
-#Filter_parms <- function()
-
 Ex_parms <- Parms_mat2 %>% 
   filter(Scaling == "Isometry") %>%
   slice_max(n = 1, order_by = tibble(Strength), 
             by = Temp_eff, with_ties = FALSE) %>%  #desc(r_13)
   dplyr::select(-Strength)
 Ex_parms
-```
-
-Next, let's visualize allometric scaling relationships with different amounts of temperature increase. We will use this plot to confirm that our simulations are producing the desired effect: Higher temperatures are causing birds to be proprotionally wingyier, or proportionally fatter, depending on the specified values in the parameter matrix.
-
-First we will define a few important functions.
-
-```{r}
-#| label: Prep-data-plotting
 
 # Function to generate example data for plotting
 gen_ex_data <- function(Parms_mat){
@@ -315,6 +295,22 @@ gen_ex_data <- function(Parms_mat){
   Parms_mat %>%
     mutate(coefs = pmap(Cols, gen_data)) %>%
     unnest(coefs)
+}
+```
+
+to produce the following plot:
+
+```{r}
+#| label: run-sma-and-formatting-functions
+
+# Run SMA model with or without interaction
+run_sma_mod <- function(df, interaction = FALSE){
+  if(interaction == FALSE){
+    sma_mod <- sma(Wing ~ Mass + Temp_bin, data = df, method = sma_or_ma)
+  } else{
+    sma_mod <-sma(Wing ~ Mass * Temp_bin, data = df, method = sma_or_ma)
+  }
+  return(sma_mod)
 }
 
 # Format 'temperature increase' & 'Temp label' columns
@@ -328,15 +324,17 @@ format_sma_parms <- function(sma_mod){
       Temp_inc = as.numeric(Temp_inc)) %>%
     tibble() 
 }
+```
 
-## Run the SMA models & format output
-mod_parms <- map(Shape, \(Sim_shp){
+```{r}
+#| label: ex-parms-temperature-body-shape 
+
+## Run the SMA models & format output tbl
+ex_parms_temp_bs <- map(Shape, \(Sim_shp){
   Ex_df_wingy <- gen_ex_data(Ex_parms) %>% filter(Temp_eff == Sim_shp)
   # Allow slopes to vary or force to remain constant 
-  mod_temp_bin <- sma(Wing ~ Mass + Temp_bin, data = Ex_df_wingy, 
-                      method = sma_or_ma)
-  mod_temp_bin_int <- sma(Wing ~ Mass * Temp_bin, data = Ex_df_wingy, 
-                          method = sma_or_ma)
+  mod_temp_bin <- run_sma_mod(df = Ex_df_wingy, interaction = FALSE) 
+  mod_temp_bin_int <- run_sma_mod(df = Ex_df_wingy, interaction = TRUE)
   
   mod_parms <- format_sma_parms(mod_temp_bin) %>% 
     mutate(Slopes_vary = "No")
@@ -347,17 +345,11 @@ mod_parms <- map(Shape, \(Sim_shp){
 }) %>% list_rbind(names_to = "Temp_eff")
 ```
 
-## Temp & body shape plot
-
-The allometric scaling slope determines the rate of increase of the $Y$ variable (appendage length in this case) with an increase in the $X$ variable (body size). The intercept reflects the proportions of the appendage relative to body size such that when slopes are constant, the group with the higher intercept has proportionally larger wings across all body sizes [@shingletonAllometryStudyBiological2010].
-
-So the temperature & body shape plot (@fig-temp-body-shape-plot) confirms that when we simulate birds to get fatter as temperature increases, the wingyiest birds are found at low temperature increases. We find the opposite when we set mass to decrease more than wing length for a given temperature – the wingyiest birds are found at high temperature increases. When the species decreases in size proportionally, note that there is no systematic pattern in the intercepts and the amount of temperature increase. See Figure 4 in Shingleton [-@shingletonAllometryStudyBiological2010] for additional information regarding interpretation of these plots.
-
 ```{r}
 #| label: fig-temp-body-shape-plot
-#| fig-cap: As simulated temperature increases, we simulate birds to get fatter (left panel), wingyier (right panel), or to decrease in size proportionally (center panel). This plot confirms that our simulation has worked as expected. 
+#| fig-cap: The allometric scaling slope determines the rate of increase of appendage length with an increase in the body size. The intercept reflects the proportions of the appendage relative to body size, such that when slopes are constant, the group with the higher intercept has proportionally larger wings across all body sizes. As temperature increases, simulated birds get fatter (left panel), wingyier (right panel), or decrease in size proportionally (center panel). This plot confirms that the simulation is working as expected. 
 
-mod_parms %>%
+ex_parms_temp_bs %>%
   filter(Slopes_vary == "Yes") %>% # & Temp_eff != "Proportional"
   mutate(x = 0) %>% 
   ggplot() +
@@ -370,34 +362,162 @@ mod_parms %>%
   facet_wrap(~Temp_eff, scales = "free_y")
 ```
 
-# Simulate full dataset
-
-Ok! We've confirmed that our functions are working as expected.. Now let's return to the question of interest – Which statistical approach is better at detecting changes in shape as the climate warms?
-
-We simulate data for 180 hypothetical bird species (i.e., every combination of parameters in our parameter matrix) and examine how wing length, an important appendage for thermoregulation [@weeksLongerWingBones2025], changes relative to body mass (a proxy for body size).
+Generally, the simulation has worked, but there are a few data sets where the simulated effect of temperature did not have the intended directional effect on body shape, e.g., points in the 'fatter' category that have a positive correlation (i.e., points above the dashed line in @fig-cor-allometry-values). These are datasets that had a minor difference between the simulated effect of temperature on wing and mass, and by random chance the directional effect on body shape was the opposite intended.
 
 ```{r}
-#| label: Generate-data
-#| cache: true
+#| label: extract-sma-intercepts-function
 
-# Simulate data 
-Cols <- Parms_mat2 %>% 
-  dplyr::select(starts_with(c("b_", "r_"))) 
-df_morph_l <- pmap(Cols, gen_data)
+extract_sma_intercepts <- function(df){
+  ## Fit SMA models that include temperature to ensure that temp had desired effect on allometry
+  # Keep the slope fixed
+  mod_temp_bin <- run_sma_mod(df = df, interaction = FALSE)
+    # Allow the slope to vary with binned temp
+  mod_temp_bin_int <- run_sma_mod(df = df, interaction = TRUE)
 
-# Average number of individuals per hypothetical species
-mean(map_dbl(df_morph_l, nrow))
+  # Format coefficients
+  mod_parms <- format_sma_parms(mod_temp_bin)
+  mod_parms_int <- format_sma_parms(mod_temp_bin_int)
+  
+  # Return tibble with correlation between Temp increase & SMA intercept
+  tibble(
+    cor_allometry = cor(mod_parms$Temp_inc, mod_parms$elevation),
+    cor_allometry_int = cor(mod_parms_int$Temp_inc, mod_parms_int$elevation)
+  )
+}
 ```
 
-# Testing assumptions
+```{r}
+#| label: extract-sma-intercepts
 
-Both OLS & SMA regression have several assumptions, which are often violated in studies of allometry and can bias results [@greenMassLengthResiduals2001; @wartonBivariateLinefittingMethods2006; @arnoldAllometricRelationshipSize2007]. For example, both regression approaches make assumptions that $X$ & $Y$ are linearly related to each other, that the residuals are independent, normally distributed, and homoskedastic.
+sma_intercepts <- map(df_morph_l, \(df){
+  extract_sma_intercepts(df)
+}) %>% list_rbind()
+sma_intercepts2 <- bind_cols(Parms_mat2, sma_intercepts)
+```
 
-## Homoskedasticity & normality
+```{r}
+#| label: fig-cor-allometry-values
+#| fig-cap: Despite generating datasets where birds should become fatter or wingyier with increasing temperature (x-axis), when the strength of the difference in the simulated relationships is relatively weak the opposite relationship is observed in rare cases.
 
-Plot an example residuals vs fitted plot & an example qq plot to test assumptions of homoskedasticity & normality, respectively. After examining all species (see PDFs), I don't generally see anything particularly concerning, although some residuals vs fitted plots are a little more circular than I am used to seeing (but I don't think we are violating assumptions). I also don't see any major differences between different sets of simulation parameters, so I just show a single example of a residuals vs fitted plot & a qq plot.
+# Manipulate tbl for plotting the correlations between the intercepts from SMA models (body shape) and temperature increase
+Parms_temp_bs <- sma_intercepts2 %>% filter(Scaling != "Negative") %>% 
+  pivot_longer(cols = c(cor_allometry, cor_allometry_int), 
+               names_to = "SMA_mod", values_to = "Correlation") %>%
+  mutate(SMA_mod = if_else(
+    SMA_mod == "cor_allometry", "No interaction", "Interaction")
+  ) 
+Parms_temp_bs %>%
+  ggplot(aes(x = Temp_eff, y = Correlation)) + 
+  geom_hline(yintercept = 0, linetype = 'dashed') +
+  geom_boxplot(outliers = FALSE) + 
+  geom_point(position = position_jitter(width = .3), alpha = .3, size = 4,
+             aes(color = Strength, shape = SMA_mod)) + #
+  labs(x = NULL, 
+       y = "Correlation temp increase\n and SMA intercepts", 
+       title = "Effect of temperature on wingyness")
+```
 
-### SMA
+```{r}
+#| label: extract-coefficients-general-function
+
+# Workhorse function to fit models, extract residuals, & extract the estimated effect of temperature increase on relative appendage length
+extract_coefs <- function(Sim_df) {
+  
+  ### Compare approaches 
+  # Allometric (SMA) residuals approach
+  sma_mod <- sma(Wing ~ Mass, data = Sim_df, method = sma_or_ma)
+  est_b_sma <- coef(sma_mod)["slope"]
+  
+  # two-step residual regression 
+  Ols_mod <- lm(Wing ~ Mass, data = Sim_df)
+  resid_ols <- residuals(Ols_mod)
+  ols_resid <- lm(resid_ols ~ Temp_inc, data = Sim_df)
+  
+  # Ryding
+  ryding_app <- lm(Wing ~ Mass + Temp_inc, data = Sim_df)
+  
+  # Ratio
+  Sim_df <- Sim_df %>% mutate(Wing_mass = Wing / Mass, 
+                              Wing2_mass = Wing^2 / Mass)
+  ratio_app <- lm(Wing_mass ~ Temp_inc, data = Sim_df) # Ratio Wing
+  ratio2_app <- lm(Wing2_mass ~ Temp_inc, data = Sim_df) # Ratio Wing^2
+  
+  # SLI
+  Sim_df <- Sim_df %>% 
+    calc_sli(b_sli = 0.33, rename_col = "sli_isometry") %>% 
+    calc_sli(b_sli = est_b_sma, rename_col = "sli_estimated")
+  sli_iso_app <- lm(sli_isometry ~ Temp_inc, data = Sim_df)
+  sli_est_app <- lm(sli_estimated ~ Temp_inc, data = Sim_df)
+  
+  tibble(
+    coef_sli_iso_app = coef(sli_iso_app)["Temp_inc"],
+    coef_sli_est_app = coef(sli_est_app)["Temp_inc"],
+    coef_ols_resid_app = coef(ols_resid)["Temp_inc"],
+    coef_ryding_app = coef(ryding_app)["Temp_inc"],
+    coef_ratio = coef(ratio_app)["Temp_inc"],
+    coef_ratio2 = coef(ratio2_app)["Temp_inc"], 
+    est_b_sma = est_b_sma
+  )
+}
+```
+
+```{r}
+#| label: Format-parms-tbl
+
+# Next, apply the function & combine with the parameters that generated the data. 
+Parms_tbl <- map(df_morph_l, extract_coefs) %>% list_rbind()
+#Parms_mat_pos <- Parms_mat2 %>% filter(Scaling != "Negative") 
+Parms_tbl2 <- bind_cols(Parms_mat2, Parms_tbl)
+```
+
+```{r}
+#| label: Remove-incorrect-corr
+
+Sim_fail <- Parms_tbl2 %>%
+  left_join(sma_intercepts2) %>%
+  filter(Temp_eff == "Fatter" & cor_allometry_int > 0 | Temp_eff == "Fatter" & cor_allometry > 0 | Temp_eff == "Wingyier" & cor_allometry_int < 0 | Temp_eff == "Wingyier" & cor_allometry < 0)
+Parms_tbl3 <- Parms_tbl2 %>% anti_join(Sim_fail)
+```
+
+I remove these `r nrow(Sim_fail)` hypothetical species so the simulated data always matches the desired effect of simulated temperature.
+
+```{r}
+#| label: format-for-plotting
+
+# Format the tibble for plotting 
+# Pivot_longer to allow comparison between Ryding & the residual model 
+Parms_tbl4 <- Parms_tbl3 %>% 
+  pivot_longer(
+    cols = c(coef_sli_iso_app, coef_sli_est_app, coef_ols_resid_app, coef_ryding_app, coef_ratio, coef_ratio2), 
+               names_to = "Model", values_to = "b_temp_inc") %>% 
+  mutate(Model = str_remove_all(Model, "coef_|_app"), 
+         Model = str_to_sentence(Model))
+```
+
+Second, I simulated allometric scaling slopes of `r b_sma`, and -0.22. This plot shows the estimated SMA slopes from each hypothetical species.
+
+```{r}
+#| label: fig-SMA-slopes-maintained
+#| fig-cap: Ensure that the SMA slopes set during simulation were recovered.
+
+# Ensure that the SMA scaling relationships were maintained during simulation
+if(!is.null(b_sma)){
+  Parms_tbl4 %>% ggplot(aes(x = Scaling, y = est_b_sma, color = Scaling)) + 
+    geom_boxplot(outliers = FALSE) + 
+    geom_point(position = position_jitter(width = .1), color = "black", 
+               alpha = .5) +  
+    theme(legend.position = "top") + 
+    labs(x = NULL, y = "Estimated SMA slope")
+}
+```
+
+## Assumptions
+
+I assessed OLS and SMA assumptions (e.g., linearity, independence, homoskedasticity, normality) using residuals vs. fitted plots and QQ plots. I just show a single example of a residuals vs fitted plot & a qq plot.
+
+### Homoskedasticity & normality
+
+#### SMA
 
 ```{r}
 #| label: Test-assumptions-run-sma-mod
@@ -416,7 +536,7 @@ plot(sma_mod_l[[1]], which = "residual")
 plot(sma_mod_l[[1]], which = "qq")
 ```
 
-### OLS
+#### OLS
 
 ```{r}
 #| label: Test-assumptions-run-ols-mod
@@ -433,10 +553,6 @@ ols_mod_l <- map(df_morph_l, \(df){
 plot(ols_mod_l[[1]], which = 1) # residuals vs fitted
 plot(ols_mod_l[[1]], which = 2) # qq plot
 ```
-
-## Export PDFs
-
-The PDFs labeled sma_residual/qq_plots contains the full list of plots for all 180 datasets. Please take a quick look at the 'Assumptions_check' folder to visualize residuals vs fitted and qq plots for all 180 hypothetical species.
 
 ```{r}
 #| label: Test-assumptions-pdfs
@@ -471,7 +587,7 @@ pdf_plot_assumptions(name = "ols_qq_plots", mod = ols_mod_l, plot.type = 2)
 
 ## Key question 1:
 
-My interpretation of qq-plots & residual vs fitted plots suggest that the assumptions of SMA regression (table 5, Warton et al 2006) are mostly being met. Do you agree with that? The results do change significantly if I use MA regression, but I don't think MA regression makes sense given that the units are not on the same scale .
+NOTE:: After examining all species (see PDFs), it seems there is some heteroskedasticity, where residual variance *increases toward the center* of the fitted values and *decreases toward the extremes.* The PDFs labeled sma_residual/qq_plots contains the full list of plots for all 180 datasets. Please take a quick look at the 'Assumptions_check' folder to visualize residuals vs fitted and qq plots for all 180 hypothetical species. Do you think this heteroskedasticity is problematic?
 
 ## SMA-specific assumptions
 
@@ -479,40 +595,11 @@ See Table 5 in Warton et al. @wartonBivariateLinefittingMethods2006 for a full l
 
 ### Assumption of errors
 
-Additionally, SMA regression assumes that error variances of $Y$ and $X$ are proportional to the overall variation in $Y$ and $X$. The $\lambda$ (i.e., the ratio of the errors in $X$ to $Y$) value can be responsible for a large amount of variation that authors attribute to allometric scaling — for example, in a review of allometric scaling studies, Arnold and Green [-@arnoldAllometricRelationshipSize2007] found that 84% of the variation in the allometric slope estimates could be explained by the estimated $\lambda$.
+SMA regression assumes that measurement error variances in $X$ and $Y$ are proportional to trait variances in $X$ and $Y$. Given that we can't estimate the true errors in $X$ and $Y$ without repeated measurements, we follow @wartonBivariateLinefittingMethods2006 and @arnoldAllometricRelationshipSize2007 in using the ratio of empirical coefficients of variation of $X$ and $Y$ (i.e., $\lambda$), as proxies. $\lambda$ can be responsible for a large amount of variation that authors attribute to allometric scaling — for example, in a review of allometric scaling studies, Arnold and Green [-@arnoldAllometricRelationshipSize2007] found that 84% of the variation in the allometric slope estimates could be explained by the estimated $\lambda$. Thus, I compare $\lambda$ in the simulated datasets to those observed in our empirical nightjar dataset to ensure biological plausability.
 
-#### Coefficient of variation {#sec-coef-var}
+## SLI: Standardized length index
 
-Given that we can't estimate the true errors in $X$ and $Y$ without repeated measurements [@wartonBivariateLinefittingMethods2006], we can use the coefficient of variations from the empirical data as an estimate [@arnoldAllometricRelationshipSize2007]. "Note that measurement error variance should be estimated on the scale on which the lines are to be fitted" [@wartonBivariateLinefittingMethods2006]. Arnold and Green [-@arnoldAllometricRelationshipSize2007] second McArdle's (1988) recommendation, that we should use SMA when 1 \< the ratio of errors in Y & X (i.e., $\lambda$) \< 3.
-
-```{r}
-#| label: coefficient-variation-function
-
-calc_lambda <- function(x, y){ 
-  cv_x <- sd({{ x }}) / mean({{ x }}) 
-  cv_y <- sd({{ y }}) / mean({{ y }}) 
-  (cv_y^2) / (cv_x^2) } 
-
-lambdas <- map_dbl(df_morph_l, \(df){ 
-  df %>% summarize(lambda = calc_lambda(x = Mass, y = Wing)) %>% 
-    pull(lambda) %>% 
-    round(2)}
-  ) 
-
-#range(lambdas)
-#mean(lambdas) 
-#sd(lambdas)
-```
-
-### Key question 2:
-
-We see that the $\lambda$ values between `r min(lambdas)` - `r max(lambdas)` with a mean of `r`mean(lambdas)\`. I interpret this as suggesting that the variance in wing is very low compared to the variance in mass (relative to the mean values), which may very well be true based on other studies examining precision of wing and mass in birds [NEED MASS REF, @subasingheRepeatabilityValidityPhenotypic2021]. In this case, do you think it’s still appropriate to use SMA regression (note the $\lambda$ values from the empirical case study of 3 nightjar species, @sec-case-study, are similar)? 
-
-Ok, assuming that the most important assumptions of the different techniques are met, let's move on to comparing how the various approaches perform at recovering the simulated changes in body shape.
-
-## Introducing the SLI: Standardized length index
-
-Peig & Green [-@peigNewPerspectivesEstimating2009]; [-@peigParadigmBodyCondition2010] revolutionized the way we estimate body condition, using allometric scaling theory to create the standardized mass index [see 3 step process outlined on pages 1886 & 1887 of @peigNewPerspectivesEstimating2009]. We employ a similar process but instead create the standardized length index (SLI), where (appendage) length is on the y-axis. In essence, To calculate the SLI for individual $i$ of species $j$, first take the mean of the body size trait in question (e.g., mass) of species $j$, which serves to standardize against the appendage length of individual $i$. We call this $L_0$ as in @peigNewPerspectivesEstimating2009, \[[-@peigParadigmBodyCondition2010]\].\
+Peig & Green [-@peigNewPerspectivesEstimating2009]; [-@peigParadigmBodyCondition2010] revolutionized the way we estimate body condition, using allometric scaling theory to create the standardized mass index [see 3 step process outlined on pages 1886 & 1887 of @peigNewPerspectivesEstimating2009]. We employ a similar process but instead create the standardized length index (SLI), where (appendage) length is on the y-axis. To calculate the SLI for individual $i$ of species $j$, first take the mean of the body size trait in question (e.g., mass) of species $j$, which serves to standardize against the appendage length of individual $i$. We call this $L_0$ as in @peigNewPerspectivesEstimating2009, \[[-@peigParadigmBodyCondition2010]\].\
 \
 $L_0 = mean(log(\mathit{Body\ size}))$
 
@@ -522,171 +609,36 @@ Finally, one can model the SLI as a function of temperature increase.
 
 $SLI \sim \mathit{Temperature\ increase}$
 
-I propose two similar parameterizations of this model, differing only in the scaling slope $B_{SLI}$. One can estimate the functional relationship between $X$ and $Y$ empirically, or set the slope $B_{SLI}$ to a value with biological significance. For example, setting $B_{SLI} = 0.33$ compares the appendage length of individual $i$ to a hypothetical species exhibiting isometric scaling with the same body size as individual $i$. Note that setting $B_{SLI} = 0.33$ is similar to the approach taken by Youngflesh et al. [-@youngfleshAbioticConditionsShape2022] in creation of their 'wingyness' index, as they explicitly wanted to capture departures from isometry.
+I propose two similar parameterizations of this model, differing only in the scaling slope $B_{SLI}$. One can estimate the functional relationship between $X$ and $Y$ empirically, or set the slope $B_{SLI}$ to a value with biological significance. For example, setting $B_{SLI} = 0.33$ compares the appendage length of individual $i$ to a hypothetical species exhibiting isometric scaling with the same body size as individual $i$. Note that setting $B_{SLI} = 0.33$ is similar to the approach taken by @youngfleshAbioticConditionsShape2022 in creation of their 'wingyness' index (although they had empirical support for comparing to isometry as well), as they explicitly wanted to capture departures from isometry.
 
-# Calc SLI function
+# Results
 
-```{r}
-#| label: calc-sli-fun
+## Simulated species
 
-calc_sli <- function(df, b_sli = 0.33, rename_col = FALSE){
-  # L0 is the average mass, essentially allowing for comparison of wing lengths for a given mass
-  L0 <- mean(df$Mass)
-  df_sli <- df %>% mutate(sli = Wing * (L0 / Mass)^b_sli) %>%
-  arrange(desc(sli))
-  if(rename_col != FALSE){df_sli <- df_sli %>% rename( {{ rename_col }} := sli)}
-  return(df_sli)
-}
-```
-
-# Compare approaches
-
-## Extract coefficients function
+### Ratio of coefficients of variation
 
 ```{r}
-#| label: extract-coefficients-function
+#| label: coefficient-variation-function
+#| echo: true
 
-# Workhorse function to fit models, extract residuals, & extract the estimated effect of temperature increase on relative appendage length
-extract_coefs <- function(Sim_df) {
-  
-  ### Compare approaches 
-  # Allometric (SMA) residuals approach
-  sma_mod <- sma(Wing ~ Mass, data = Sim_df, method = sma_or_ma)
-  est_b_sma <- coef(sma_mod)["slope"]
-  
-  # two-step residual regression 
-  Ols_mod <- lm(Wing ~ Mass, data = Sim_df)
-  resid_ols <- residuals(Ols_mod)
-  ols_resid <- lm(resid_ols ~ Temp_inc, data = Sim_df)
-  
-  # Ryding
-  ryding_app <- lm(Wing ~ Mass + Temp_inc, data = Sim_df)
-  
-  # Ratio
-  Sim_df <- Sim_df %>% mutate(Wing_mass = Wing / Mass, 
-                              Wing2_mass = Wing^2 / Mass)
-  ratio_app <- lm(Wing_mass ~ Temp_inc, data = Sim_df) # Ratio Wing
-  ratio2_app <- lm(Wing2_mass ~ Temp_inc, data = Sim_df) # Ratio Wing^2
-  
-  # SLI
-  Sim_df <- Sim_df %>% 
-    calc_sli(b_sli = 0.33, rename_col = "sli_isometry") %>% 
-    calc_sli(b_sli = est_b_sma, rename_col = "sli_estimated")
-  sli_iso_app <- lm(sli_isometry ~ Temp_inc, data = Sim_df)
-  sli_est_app <- lm(sli_estimated ~ Temp_inc, data = Sim_df)
-  
-  ## Fit SMA models that include temperature to ensure that temp had desired effect on allometry
-  # Keep the slope fixed
-  mod_temp_bin <- sma(Wing ~ Mass + Temp_bin, data = Sim_df, method = sma_or_ma)
-  # Allow the slope to vary with binned temp
-  mod_temp_bin_int <- sma(Wing ~ Mass * Temp_bin, data = Sim_df, 
-                          method = sma_or_ma)
-  
-  # Format coefficients
-  mod_parms <- format_sma_parms(mod_temp_bin)
-  mod_parms_int <- format_sma_parms(mod_temp_bin_int)
-  
-  tibble(
-    cor_allometry = cor(mod_parms$Temp_inc, mod_parms$elevation),
-    cor_allometry_int = cor(mod_parms_int$Temp_inc, mod_parms_int$elevation),
-    coef_sli_iso_app = coef(sli_iso_app)["Temp_inc"],
-    coef_sli_est_app = coef(sli_est_app)["Temp_inc"],
-    coef_ols_resid_app = coef(ols_resid)["Temp_inc"],
-    coef_ryding_app = coef(ryding_app)["Temp_inc"],
-    coef_ratio = coef(ratio_app)["Temp_inc"],
-    coef_ratio2 = coef(ratio2_app)["Temp_inc"], 
-    est_b_sma = est_b_sma
-  )
-}
-```
+# Inspect function
+calc_lambda
 
-```{r}
-#| label: Format-parms-tbl
-
-# Next, apply the function & combine with the parameters that generated the data. We then format the tibble for plotting.
-Parms_tbl <- map(df_morph_l, extract_coefs) %>% list_rbind()
-#Parms_mat_pos <- Parms_mat2 %>% filter(Scaling != "Negative") 
-Parms_tbl2 <- bind_cols(Parms_mat2, Parms_tbl)
-
-## Format
-# Pivot_longer to allow comparison between Ryding & the residual model 
-Parms_tbl3 <- Parms_tbl2 %>% 
-  pivot_longer(
-    cols = c(coef_sli_iso_app, coef_sli_est_app, coef_ols_resid_app, coef_ryding_app, coef_ratio, coef_ratio2), 
-               names_to = "Model", values_to = "b_temp_inc") %>% 
-  mutate(Model = str_remove_all(Model, "coef_|_app"), 
-         Model = str_to_sentence(Model))
-```
-
-## Graphical checks
-
-We've simulated data & extracted parameter coefficients for `r nrow(Parms_tbl)` hypothetical species. In the few example species we've looked at, we know that our functions are behaving as expected, but we want to ensure that the simulations behaved as expected for all hypothetical species (i.e., parameter combinations). So we do some graphical checks.
-
-### Check 1
-
-There should be a positive correlation between the binned temperature increase & the intercepts of the SMA regression when we set the simulation to produce wingyier birds at greater temperature increases, & the opposite with fatter birds (as in @fig-temp-body-shape-plot).
-
-```{r}
-#| label: fig-cor-allometry-values
-#| fig-cap: Despite generating datasets where birds should become fatter or wingyier with increasing temperature (x-axis), when the strength of the difference in the simulated relationships is relatively weak the opposite relationship is observed in rare cases.
-
-# Manipulate tbl for plotting the correlations between the intercepts from SMA models (body shape) and temperature increase
-Parms_temp_bs <- Parms_tbl3 %>% filter(Scaling != "Negative") %>% 
-  pivot_longer(cols = c(cor_allometry, cor_allometry_int), 
-               names_to = "SMA_mod", values_to = "Correlation") %>%
-  mutate(SMA_mod = if_else(
-    SMA_mod == "cor_allometry", "No interaction", "Interaction")
+# CVs from simulated hypothetical species
+lambdas_sim <- map_dbl(df_morph_l, \(df){ 
+  df %>% summarize(lambda = calc_lambda(x = Mass, y = Wing)) %>% 
+    pull(lambda) %>% 
+    round(2)}
   ) 
-Parms_temp_bs_p <- Parms_temp_bs %>% #filter(SMA_mod != "Interaction") %>%
-  dplyr::select(-c(Model, b_temp_inc)) %>%
-  distinct() 
-Parms_temp_bs_p %>%
-  ggplot(aes(x = Temp_eff, y = Correlation)) + 
-  geom_hline(yintercept = 0, linetype = 'dashed') +
-  geom_boxplot(outliers = FALSE) + 
-  geom_point(position = position_jitter(width = .3), alpha = .3, size = 4,
-             aes(color = Strength, shape = SMA_mod)) + #
-  labs(x = NULL, 
-       y = "Correlation temp increase\n and SMA intercepts", 
-       title = "Effect of temperature on wingyness")
+
+#range(lambdas_sim)
+#mean(lambdas_sim) 
+#sd(lambdas_sim)
 ```
 
-There are a few data sets where the simulated effect of temperature did not have the intended directional effect on body shape, e.g., points in the 'fatter' category that have a positive slope (i.e., points above the dashed line in @fig-cor-allometry-values). These are datasets that had a minor difference between the simulated effect of temperature on wing and mass, and by random chance the directional effect on body shape was the opposite intended.
+In our hypothetical species, $\lambda$ ranged from `r min(lambdas_sim)` - `r max(lambdas_sim)`, with a mean of `r round(mean(lambdas_sim), 2)`.
 
-```{r}
-#| label: Remove-incorrect-corr
-
-Sim_fail <- Parms_tbl3 %>% 
-  filter(Temp_eff == "Fatter" & cor_allometry_int > 0 | Temp_eff == "Fatter" & cor_allometry > 0 | Temp_eff == "Wingyier" & cor_allometry_int < 0 | Temp_eff == "Wingyier" & cor_allometry < 0)
-Parms_tbl4 <- Parms_tbl3 %>% anti_join(Sim_fail)
-Sim_fail_uniq <- Sim_fail %>% dplyr::select(-c(Model, b_temp_inc)) %>% 
-  distinct()
-```
-
-I remove these `r nrow(Sim_fail_uniq)` hypothetical species so the simulated data always matches the desired effect of simulated temperature.
-
-### Check 2
-
-We simulated SMA slopes to be equal to `r b_sma` , and -0.22. This plot shows the estimated SMA slopes from our simulated data.
-
-```{r}
-#| label: fig-SMA-slopes-maintained
-#| fig-cap: We set the SMA slopes in our simulation -- ensure that these slopes were recovered.
-
-# Ensure that the SMA scaling relationships were maintained during simulation
-if(!is.null(b_sma)){
-  Parms_tbl4 %>% ggplot(aes(x = Scaling, y = est_b_sma, color = Scaling)) + 
-    geom_boxplot(outliers = FALSE) + 
-    geom_point(position = position_jitter(width = .1), color = "black", 
-               alpha = .5) +  
-    theme(legend.position = "top") + 
-    labs(x = NULL, y = "Estimated SMA slope")
-}
-```
-
-After our graphical checks, I feel more confident that the simulation is doing what I think it is. Now let's move onto the question of interest... How do the SLI approaches compare to the approaches regularly used in the literature (i.e., multivariate regression, 'two-step residual regression', & ratio approaches) at recovering the true relationship of increasing temperature on body shape?
-
-## 5 approaches plot
+### Comparing approaches
 
 The 5 approaches (2 SLI approaches, 3 traditional approaches) are all interested in accurately estimating $\beta_T$ from @eq-beta1-5-approaches.
 
@@ -694,7 +646,7 @@ $$
 Wingyness \sim \alpha + \beta_T * \mathit{Temperature\ increase}
 $$ {#eq-beta1-5-approaches}
 
-The difference in the 5 approaches (note that Wing / mass and Wing² / mass are both 'ratio approaches') is how wingyness is measured (as outlined in the introduction). Note that the 'multivariate regression' approach would also contain $\beta_2 * \mathit{Body\ size}$ in @eq-beta1-5-approaches.
+The difference in the 5 approaches (note that Wing / mass and Wing² / mass are both 'ratio approaches') is how wingyness is measured (as outlined in the introduction). Note that the 'multivariate regression' approach would also contain $\beta_S * \mathit{Body\ size}$ in @eq-beta1-5-approaches.
 
 ### Positive allometry
 
@@ -709,7 +661,7 @@ x_labs <- c("Sli_est" = "SLI estimated",
             "Ratio" = "Wing / mass")
 
 ## Plot relationship of interest -- 
-plot_approaches <- function(df, negative = FALSE, ylim = TRUE){
+plot_approaches <- function(df, negative = FALSE, ylim = TRUE, x_txt_size = 9, legend.pos = "right"){
   df <- df %>% mutate(r_12 = as_factor(r_12), 
                       Model = str_replace_all(Model, x_labs))
   if(isFALSE(negative)){df <- df %>% filter(Scaling != "Negative")}
@@ -722,10 +674,11 @@ plot_approaches <- function(df, negative = FALSE, ylim = TRUE){
              alpha = .6, size = 3,
              aes(color = Strength, shape = Scaling, #size = r_12,
                  group = Model)) + 
-  labs(x = NULL, y = expression(beta[1] ~ "on wingyness")) + 
+  labs(x = NULL, y = expression(beta[T] ~ "on wingyness")) + 
   facet_wrap(vars(Temp_eff)) + #, labeller = as_labeller(Facet_labs))
     theme(
-      axis.text.x = element_text(size = 9, vjust = .58, angle = 60)
+      axis.text.x = element_text(size = x_txt_size, vjust = .58, angle = 60), 
+      legend.position = legend.pos
     )
   if(ylim == TRUE){
     plot <- plot + ylim(c(-.25, .25))
@@ -736,16 +689,17 @@ plot_approaches <- function(df, negative = FALSE, ylim = TRUE){
 
 ```{r}
 #| label: fig-compare-approaches
-#| fig-cap: The true simulated effect above each plot, and the impact of temperature increase on wingyness on the y-axis. A positive slope means that birds get wingyer as temperature increases, and a negative slope means that birds get fatter as temperature increases. Each point represents a hypothetical dataset from a hypothetical species. Points are colored by the strength of the true effect in the simulated species, where lighter shades of blue mean a given increase in temperature results in a proportionally fatter (left panel) or wingyier (right panel) bird. 
+#| fig-cap: The true simulated effect above each plot, and the impact of temperature increase on wingyness on the y-axis. A positive slope means that birds get wingyer as temperature increases, and a negative slope means that birds get fatter as temperature increases. Each point represents a hypothetical dataset from a hypothetical species. Points are colored by the strength of the true effect in the simulated species, where lighter shades of blue mean a given increase in temperature results in a proportionally fatter (left panel) or wingyier (right panel) bird. The bird wingyness figure was borrowed from Youngflesh et al (2022), but will be changed before submission of the manuscript. 
 #| fig-width: 11
 #| fig-height: 8
+#| fig-pos: 'H' 
 
 # Plot
-Compare_plot <- plot_approaches(Parms_tbl4, negative = FALSE) #ylim = FALSE
+Compare_plot <- plot_approaches(Parms_tbl4, x_txt_size = 12, negative = FALSE, legend.pos = "top") #ylim = FALSE
 
 # Load PNG, convert to a rasterGrob, shift upwards
 img <- readPNG("Figures/Wingyness_fatty_spectrum.png")
-img_grob <- rasterGrob(img, width = 1, height = .85)
+img_grob <- rasterGrob(img, width = .9, height = .85)
 img_shifted <- ggdraw() + draw_grob(img_grob, y = 0.08)
 
 # Combine wingyness spectrum image with plot
@@ -762,19 +716,18 @@ plot_grid(
 
 ### Inverse allometry
 
-We also wanted to challenge these methods with datasets that are less common but biologically plausible. Thus, we examine hypothetical species exhibiting negative allometric scaling, i.e., where wing length increases when mass decreases, or viceversa.
-
 ```{r}
 #| label: fig-negative-allometry
 #| fig-cap: When species exhibit inverse allometry, a temperature increase results in species increasing in wing and decreasing in mass. These species are clearly much wingyier, yet several of the approaches (importantly, the 'SLI estimated' approach) fail to detect the increase in wingyness. Note that the the y-limits are truncated at -0.25, 0.25 to improve visibility, but the ratio methods have some extreme estimates in both the positive and negative directions.
+#| fig-pos: 'H'
 
 Parms_tbl4 %>%
   plot_approaches(negative = TRUE, ylim = TRUE)
 ```
 
-# Evaluation
+## Evaluation - simulation
 
-We can visually see that certain approaches appear to produce more accurate classifications, but let's make visualization more explicit.
+The ratio approaches generally return positively biased estimates of $\beta_T$, the multivariate regression and the OLS residuals approach return negatively biased estimates of $\beta_T$, whereas the SLI approaches correctly identify the relationship between temperature increase and relative appendage length in most cases.
 
 ```{r}
 #| label: prep-eval-figs
@@ -808,7 +761,7 @@ Proportional_methods_eval <- Parms_tbl5 %>%
          Model = str_replace_all(Model, x_labs))
 
 # Of the hypothetical species that were simulated as 'proportional', what % of the simulated datasets ended up being wingyer (positive) vs fatter (negative)?
-Proportional_true_eff_tbl <- Parms_temp_bs_p %>% 
+Proportional_true_eff_tbl <- Parms_temp_bs %>% 
   filter(Temp_eff == "Proportional") %>% 
   mutate(True_temp_eff = if_else(Correlation > 0, "Wingyer", "Fatter")) %>% 
   tabyl(True_temp_eff)
@@ -824,6 +777,7 @@ Prop_wingyer <- 1 - Prop_fatter
 #| fig-cap: Evaluation of methodological approaches in estimating the true simulated effects of temperature on body shape. In a) the proportion of hypothetical species that were correctly classified, where optimal model performance is a score of 1. In b) when species were simulated to decrease in wing and mass proportionally, hypothetical species get either wingyer or fatter randomly, and thus optimal methodological performance is approximately 0.5 (the black dashed line is the true proportion of hypothetical species that respond to temperature by getting fatter). Note there is no single statistical approach that performs perfectly across all hypothetical species. 
 #| fig-width: 10
 #| fig-height: 7.5
+#| fig-pos: 'H'
 
 # Create bar plot with the percent correctly classified for each temperature effect, similar to what I had for EWPW home ranges
 Prop_correct_p <- Eval_tbl %>%
@@ -847,45 +801,6 @@ Pos_neg_p <- Proportional_methods_eval %>%
 
 ggarrange(Prop_correct_p, Pos_neg_p, labels = "auto") 
 ```
-
-# Case study: Wing shape in migratory nightjars {#sec-case-study}
-
-Let's examine how shape changes in a real data set of 3,272 individuals from three nightjar species collected across a latitudinal / temperature gradient by Skinner et al. (2025, *in press*). Skinner et al. (2025) found that all three species follow Bergmann's rule when examining two metrics of body size: wing length and body mass. These authors also examined allometric scaling and found that European nightjars exhibit isometric scaling ($\beta_{SMA}$ = 0.33) between wing length and body mass, whereas nighthawks and whip-poor-wills exhibit hyperallometric scaling ($\beta_{SMA}$ = 0.44 and $\beta_{SMA}$ = 0.40, respectively). However, Skinner et al. (2025) did not examine how temperature influences body shape in nightjars.. Let's apply our methods to this data set.
-
-First, examine $\lambda$, the ratio of coefficient of variations in wing & mass, from our empirical data (@tbl-cv-nightjars).
-
-```{r}
-#| label: tbl-cv-nightjars
-#| tbl-cap: The ratio of coefficients of variation (lambda) in wing & mass in 3 nightjar species. Empirical data from Skinner et al. (2025).
-
-cv_tab <- structure(list(Species = c("Nightjar", "Whip-poor-will", "Nighthawk"
-), N = c(2416L, 535L, 321L), lambda = c(0.08, 0.16, 0.13)), row.names = c(NA, 
--3L), class = c("tbl_df", "tbl", "data.frame"))
-cv_tab %>% gt() 
-
-```
-
-These low $\lambda$ values are similar to what we observed in our simulated data above, providing additional evidence that our simulated data are biologically plausible. The low $\lambda$ values suggest that the variance in wing is very low compared to the variance in mass (relative to the mean values).
-
-For now, we just read in 'Nightjar_shape.png' with the results that we ran in a different R project (@fig-nightjar-shape-shifting).
-
-```{r}
-#| label: fig-nightjar-shape-shifting
-#| fig-cap: The approach we use to quantify body shape greatly influences our biological conclusions. Points represent the mean parameter estimates and error bars represent 95% confidence interval (using the standard error). A positive slope means that birds get wingyer as temperature increases, and a negative slope means that birds get fatter as temperature increases. We observe the same qualitative pattern as in our simulation study. 
-
-Nj_shape_img <- readPNG("Figures/Nightjar_shape.png")
-Nj_shape_grob <- rasterGrob(Nj_shape_img, width = 1, height = 1)
-
-ggdraw(Nj_shape_grob)
-```
-
-We observe the same rank order pattern that we observed in our simulation study! Relative to the SLI approaches, the 'multivariate regression' approach is negatively biased and the ratio approaches are positively biased in all three species. Biological conclusions vary greatly depending on the approach used – in fact, we conclude that all three species are getting wingyier if we use the Wing / mass ratio, and we conclude that all three species are getting fatter if we use the multivariate regression approach. Given that our simulation study showed that the 'SLI isometry' approach was least biased, produced unbiased estimates of wingyness (as long as the species exhibited positive allometric scaling), I conclude that, with warmer temperatures, nighthawks get wingyer, nightjars get fatter, and whip-poor-wills decrease in size roughly proportionally.
-
-Importantly, the ratio approaches have very high correlations with mass (e.g., Wing / Mass correlations \< -0.9), thus it is not surprising that there are large positive effects of $\beta_T$ on body shape (given that all three species follow Bergmann's rule). Squaring wing (Wing^2^ / mass) reduced correlation with mass (between -0.81 \< $r$ \< -0.66 for the 3 species), suggesting it may be a more effective indicator of shape. Wing^2^ / mass also has more theoretical support as a proxy for the surface area to volume ratio (a squared to a cubic ratio). The residuals from the SMA model were equally and oppositely correlated with mass and wing (between 0.52 \> \|$r$\| \> 0.63 for the 3 species).
-
-# Discussion
-
-The SLI approaches do a better job at identifying the correct relationship of relative appendage length with changes in temperature.
 
 ```{r}
 #| label: percent-right-wrong
@@ -925,17 +840,57 @@ Dif_sli.est <- Sli.est_proportional_pos - (Prop_wingyer * 100)
 Dif_ryding <- pull_percent_proportional("Mass as covariate", "neg") - (Prop_fatter * 100)
 ```
 
-Briefly, the ratio approaches return positively biased estimates of $\beta_T$ in species that were simulated to decrease in size proportionally (i.e., 'proportional' species), as well as those simulated to get fatter with a temperature increase. I will not discuss the ratio approaches further given the
+### SLI approaches
 
-The SLI approaches are the least biased overall, estimating the correct direction of the effect in most situations (@fig-compare-approaches). Both SLI approaches correctly estimate the direction of the simulated effect when temperature increases relative appendage length (i.e., a positive $\beta_T$ in @fig-compare-approaches; 'Wingyier' in the @fig-eval), but incorrectly estimates the direction of the simulated effect in about `r Sli_fatter_wrong`% of hypothetical species when temperature decreases relative appendage length (i.e., 'fatter' species). Both SLI approaches overestimate the increase in relative appendage length in species that were simulated to decrease in size proportionally ('SLI isometry' = `Dif_sli.iso`% overestimation, 'SLI estimated' = `Dif_sli.est`% overestimation; note that in these 'proportional' species about \~ 50% of species will get wingyer, `Prop_wingyer`% in this simulation got wingyer, @fig-eval panel b). The SLI isometry approach correctly classified all species with an exaggerated response to warming (i.e., those exhibiting inverse allometry), whereas 'SLI estimated' approach misidentifies the relationship `r Sli.est_much.wingyier_wrong`% of the time ('Much wingyier' in the @fig-eval). Thus, the SLI isometry approach appears the most flexible and generalizeable of all the approaches we examined, but is slightly positively biased in situations that are likely common in the real world (e.g., that species decrease in size proportionally with climate warming).
+The SLI approaches are the least biased overall, estimating the correct direction of the effect in most situations (@fig-compare-approaches). Both SLI approaches correctly estimate the direction of the simulated effect when temperature increases relative appendage length (i.e., a positive $\beta_T$ in @fig-compare-approaches; 'Wingyier' in the @fig-eval), but incorrectly estimates the direction of the simulated effect in about `r Sli_fatter_wrong`% of hypothetical species when temperature decreases relative appendage length (i.e., 'fatter' species). Both SLI approaches overestimate the increase in relative appendage length in species that were simulated to decrease in size proportionally ('SLI isometry' = `r Dif_sli.iso`% overestimation, 'SLI estimated' = `r Dif_sli.est`% overestimation; note that in these 'proportional' species about \~ 50% of species will get wingyer, `r Prop_wingyer`% in this simulation got wingyer, @fig-eval panel b). The SLI isometry approach correctly classified all species with an exaggerated response to warming (i.e., those exhibiting inverse allometry), whereas 'SLI estimated' approach misidentifies the relationship `r Sli.est_much.wingyier_wrong`% of the time ('Much wingyier' in the @fig-eval).
 
-The 'multivariate regression' approach has been advocated for [@rydingResponseAllometryEvaluate2022] by authors in recent years, and was the most commonly utilized approach to quantify relative appendage length in a concurrent literature review [e.g., @rydingLongShorttermResponses2024; @mcqueenThermalAdaptationBest2022; Skinner et al in prep]. However, I found that it returns negatively biased estimates of temperature's impact on wingyness ($\beta_T$ in @eq-beta1-5-approaches), to where:
+### Multivariate regression
 
-1.  it only detects the appropriate change in birds that are getting wingyier a little more than half the time (`r Ryding_much.wingyier_right`% and `r Ryding_wingyier_right`% for hypothetical species simulated to get 'Much wingyier' and 'Wingyier', respectively, in @fig-eval panel a).
+Multivariate regression only detects the appropriate change in birds that are getting wingyier a little more than half the time (`r Ryding_much.wingyier_right`% and `r Ryding_wingyier_right`% for hypothetical species simulated to get 'Much wingyier' and 'Wingyier', respectively, in @fig-eval panel a). It misidentifies birds that we simulated to decrease in mass and wing proportionally as getting fatter with increasing temperatures (a `r Dif_ryding`% overestimation; @fig-eval panel b).
 
-2.  it misidentifies birds that we simulated to decrease in mass and wing proportionally as getting fatter with increasing temperatures (a `r Dif_ryding`% overestimation; @fig-eval panel b).
+## Case study: Wing shape in migratory nightjars {#sec-case-study}
 
-There are at least two things that I believe are causing the SLI approaches to outperform the classical regression approaches...
+### Coefficient of variation {#sec-coef-var}
+
+In the empirical nightjar data, $\lambda$ ranged from 0.08 - 0.16 (@tbl-cv-nightjars). This suggests that the variance in nightjar wings was low compared to the variance in mass (relative to the mean values), which could be due to higher measurement error in mass, [precision of wing is high in birds, @subasingheRepeatabilityValidityPhenotypic2021], or transient fluctuation error in mass. Importantly, $\lambda$ was similar in the 180 hypothetical species and the 3 nightjars we examined, providing additional evidence that our simulated datasets are biologically plausible. The simulated datasets cover a broader range of $\lambda$, indicating that these results may be relevant to additional evidence of appendage-mass datasets.
+
+```{r}
+#| label: tbl-cv-nightjars
+#| tbl-cap: The ratio of coefficients of variation (lambda) in wing & mass in 3 nightjar species. Empirical data from Skinner et al. (2025).
+
+cv_tab <- structure(list(Species = c("Nightjar", "Whip-poor-will", "Nighthawk"
+), N = c(2416L, 535L, 321L), lambda = c(0.08, 0.16, 0.13)), row.names = c(NA, 
+-3L), class = c("tbl_df", "tbl", "data.frame"))
+cv_tab %>% gt() %>% 
+  tab_options(latex.use_longtable = TRUE)
+```
+
+### Key question 2:
+
+Arnold and Green [-@arnoldAllometricRelationshipSize2007] second McArdle's (1988) recommendation, that we should use SMA when 1 \< the ratio of errors $\lambda$ \< 3. In this case, do you think it’s still appropriate to use SMA regression? 
+
+```{r}
+#| label: fig-nightjar-shape-shifting
+#| fig-cap: The approach used to quantify body shape greatly influences our biological conclusions. Points represent the mean parameter estimates and error bars represent 95% confidence interval (using the standard error). A positive slope means that birds get relatively wingyer as temperature increases, and a negative slope means that birds get relatively fatter as temperature increases. The same qualitative pattern is observed in our simulation study. 
+#| fig-pos: 'H'
+
+Nj_shape_img <- readPNG("Figures/Nightjar_shape.png")
+Nj_shape_grob <- rasterGrob(Nj_shape_img, width = 1, height = 1)
+
+ggdraw(Nj_shape_grob)
+```
+
+### Comparing approaches
+
+I observed the same rank-order pattern in nightjars as in our simulation study: the ‘multivariate regression’ approach consistently yielded more negative estimates than the SLI methods, while the ratio approaches produced more positive estimates across all three species. Biological conclusions vary greatly depending on the approach used – all three species are getting wingyier according to the wing / mass ratio, whereas all three species are getting relatively fatter if using the multivariate regression or OLS residuals approaches. Given that our simulation study showed that the 'SLI isometry' approach was least biased, I conclude that, with warmer temperatures, nighthawks get wingyer, whereas nightjars whip-poor-wills get relatively fatter. In contrast, the SLI isometry approach, which was least biased in my simulations, implies divergent responses: nighthawks are getting wingyer (although the 95% barely overlaps 0) with increasing temperature, whereas nightjars and whip-poor-wills are getting relatively fatter. Importantly, the Wing/Mass ratio was strongly correlated with mass in all three species ($r < -0.9$), which likely drives its positive bias as body size declines with increasing temperatures (i.e., Bergmann’s rule). Squaring wing length before dividing by mass (Wing²/Mass) reduced this correlation ($-0.81 < r < -0.66$), suggesting it may be a more effective, albeit still imperfect, proxy for shape.
+
+# Discussion
+
+The 'SLI isometry' approach appears the most flexible and generalizeable of all the approaches we examined, but is slightly positively biased in situations that are likely common in the real world (e.g., that species decrease in size proportionally with climate warming). The multivariate regression approach returned negatively biased estimates of temperature's impact on wingyness, whereas the ratio approach appeared positively biased. There are at least two things that I believe are causing the SLI approaches to outperform the classical regression approaches...
+
+From our case study of nightjars, is not surprising that there are large positive effects of $\beta_T$ on wingyness (given that all three species follow Bergmann's rule). Wing^2^ / mass also has more theoretical support as a proxy for the surface area to volume ratio (a squared to a cubic ratio).
+
+The 'multivariate regression' approach has been advocated for [@rydingResponseAllometryEvaluate2022, CITE Ryding et al 2025] by authors in recent years, and was the most commonly utilized approach to quantify relative appendage length in a concurrent literature review [e.g., @rydingLongShorttermResponses2024; @mcqueenThermalAdaptationBest2022; Skinner et al in prep]. However, I found that it returns negatively biased estimates of temperature's impact on wingyness ($\beta_T$ in @eq-beta1-5-approaches), to where:
 
 ## 1. Absolute appendage length
 
@@ -944,6 +899,7 @@ The 'multivariate regression' approach claims that by including a metric of body
 ```{r}
 #| label: fig-DAG
 #| fig-cap: The directed acyclic graph (DAG) implied by the 'multivariate regression' approach. 
+#| fig-pos: 'H'
 
 library(dagitty)
 library(ggdag)
@@ -970,7 +926,7 @@ dag_allen2 <- dagify(
 )
 
 # Adjustment set 
-adjustmentSets(dag_allen, type = "minimal", effect = "direct") 
+# adjustmentSets(dag_allen, type = "minimal", effect = "direct") 
 
 # Plot
 tidy_dagitty(dag_allen, layout = "fr") %>% 
@@ -993,11 +949,11 @@ The other thing that is likely occurring is that classical regression approaches
 ```{r}
 #| label: plot_allo_temp-function
 
-plot_allo_temp <- function(df, label = NULL, ...){
+plot_allo_temp <- function(df, label = NULL, alpha = .7, ...){
   p <- ggplot(data = df, aes(x = Mass, y = Wing)) + 
   geom_smooth(method = "lm", color = "red") +
   ggpmisc::stat_ma_line(method = sma_or_ma, color = "blue") +
-  geom_point(alpha = .7, aes(color = Temp_inc)) +
+  geom_point(alpha = alpha, aes(color = Temp_inc)) +
   labs(x = "Log (size)", y = "Log (appendage)", color = "Temperature\n increase", ...) + 
   lims(y = c(xy_lims$min.wing, xy_lims$max.wing), 
        x = c(xy_lims$min.mass, xy_lims$max.mass))
@@ -1014,6 +970,7 @@ plot_allo_temp <- function(df, label = NULL, ...){
 
 ```{r}
 #| label: Generate-ex-hypo-hyper
+
 Ex_parms_hypo_hyper <- Parms_mat2 %>% 
   filter(Scaling != "Isometry" & Temp_eff == "Wingyier" & r_12 == .3) %>%
   slice_max(n = 1, order_by = Strength, by = c(Temp_eff, Scaling), 
@@ -1026,6 +983,7 @@ Ex_df_hypo_hyper_l <- Ex_df_hypo_hyper %>% group_split(Scaling)
 ```{r}
 #| label: fig-allometric-relationship-temp-wingy
 #| fig-cap: The allometric relationships of a single hypothetical species (i.e., each point is an individual bird) that we simulated to get wingyier as temperature increases. The SMA line of best fit is shown in blue, and the OLS regression line in red, and the points are colored by how much temperature has increased for a given individual of the hypothetical species. 
+#| fig-pos: 'H'
 
 # Define common set of X & Y limits 
 xy_lims <- Ex_df_hypo_hyper %>% 
@@ -1035,13 +993,13 @@ xy_lims <- Ex_df_hypo_hyper %>%
             min.mass = min(Mass))
 
 # Plot 
-hypo_p <- plot_allo_temp(df = Ex_df_hypo_hyper_l[[1]], 
+hypo_p <- plot_allo_temp(df = Ex_df_hypo_hyper_l[[1]],
                          title = "Hypoallometric")
 hyper_p <- plot_allo_temp(df = Ex_df_hypo_hyper_l[[2]], label = TRUE) #, 
                           #title = "Hyperallometric")
-ggarrange(hypo_p, hyper_p, common.legend = TRUE)
+#ggarrange(hypo_p, hyper_p, common.legend = TRUE)
 
-#hyper_p
+hyper_p
 #ggsave("Figures/fig-underestimation-ral.png", bg = "white")
 ```
 
@@ -1053,7 +1011,7 @@ There are cases when including covariates in an OLS model may be required, or ma
 
 ## Negative allometric scaling
 
-As noted previously, when there is negative allometric scaling, i.e., wing length increases when mass decreases, the 'SLI estimated' approach often does not identify the increase in wingyness (@fig-negative-allometry). Surprisingly, **only the 'SLI isometry' approach returns the correct estimated direction of effect in all cases,** and the ratio approaches return the correct direction of the simulated effect about 85% of the time. Surprisingly, the multivariate regression and the OLS residuals don't perform very well either, as they return negatively biased estimates of $\beta_T$ in @eq-beta1-5-approaches in many of the 180 hypothetical species. We believe this is due to a 'supression' effect resulting from collider bias (CITE causal modeling literature). Collider bias results from conditioning on a negatively correlated mediator like body size in this case). In short, the positive effect of Temp_increase → Relative appendage is overwhelmed by the path Temp_increase → Body size → Relative appendage, where a temperature increase decreases body size, and body size and appendage length are negatively correlated (i.e., there is inverse allometry). inverse allometry is not particularly common in nature, although has been observed in rare cases [e.g. @weeksSharedMorphologicalConsequences2020]. This suppression effect was observed in about `Ryding_much.wingyier_wrong`% of hypothetical species', so more research is needed to determine when multivariate regression may be appropriate.
+As noted previously, when there is negative allometric scaling, i.e., wing length increases when mass decreases, the 'SLI estimated' approach often does not identify the increase in wingyness (@fig-negative-allometry). Surprisingly, **only the 'SLI isometry' approach returns the correct estimated direction of effect in all cases,** and the ratio approaches return the correct direction of the simulated effect about 85% of the time. Surprisingly, the multivariate regression and the OLS residuals don't perform very well either, as they return negatively biased estimates of $\beta_T$ in @eq-beta1-5-approaches in many of the 180 hypothetical species. We believe this is due to a 'supression' effect resulting from collider bias (CITE causal modeling literature). Collider bias results from conditioning on a negatively correlated mediator like body size in this case). In short, the positive effect of Temp_increase → Relative appendage is overwhelmed by the path Temp_increase → Body size → Relative appendage, where a temperature increase decreases body size, and body size and appendage length are negatively correlated (i.e., there is inverse allometry). inverse allometry is not particularly common in nature, although has been observed in rare cases [e.g. @weeksSharedMorphologicalConsequences2020]. This suppression effect was observed in about `r Ryding_much.wingyier_wrong`% of hypothetical species', so more research is needed to determine when multivariate regression may be appropriate.
 
 ```{r}
 #| label: Parm-collider-bias
@@ -1109,8 +1067,6 @@ No need to continue on... Thanks for reading!
 
 -   Understand how allometric scaling influences response in the different approaches. When correlation between mass & temp is \< -.4, hyperallometric individuals show the strongest response, but when correlation = -.7 it is much more variable – why?
 
-    -   Change SALI to SLI
-
     -   Returning to the faceted plot comparing a hyper- & hypo- allometric species (@fig-allometric-relationship-temp-wingy), we can also see that hyperallometric species have the strongest response, irrespective of whether an increase in temperature makes organisms fatter or wingyier. While it's true that a given change in wing or mass will produce a larger change in the other variable due to the steeper slope exhibited in hyperallometric species, I thought fitting the SMA line of best fit would largely remove the effect of scaling. Thus, I thought the SMA residuals approach would show similar results irrespective of the simulated scaling relationship.
 
         -   The pattern of stronger residual–temperature effects in hyperallometric species is likely a **consequence** of how covariances are structured in this simulation. I don't think that this reflects a true biological phenomena, but a *mathematical property* of the multivariate normal distribution under the simulated covariances.
@@ -1135,8 +1091,6 @@ No need to continue on... Thanks for reading!
 
 -   How will we evaluate these different methods? Could AUC-ROC be viable? Note an AUC-ROC of 0.5 is expected by chance
 
--   Challenge with 'adversarial data sets' (e.g., inverse allometry)
-
 ## To consider:
 
 There are certainly more complete & time-intensive approaches for measuring shape in ecology e.g.,
@@ -1157,15 +1111,50 @@ Box-cox to understand the parameter of the Box-Cox power transformation?
 #boxcox(lm(Wing ~ Mass, data = Ex_df_wingy))
 ```
 
-# Article
-
-Rayner used reduced major axis 1985
-
-PCA 2nd axis
-
-positive allometry
-
 # Extras
+
+## Varied scaling and correlation hold all else constant
+
+It is confusing to me that a species can be hyperallometric (wing decreases quickly with an decrease in mass) and simultaneously get wingyier with an increase in temperature (relative wing increases with an increase in temperature).
+
+```{r}
+#| label: fig-wingy-varied-scaling
+#| fig-cap: In each row the SMA slope is constant and the OLS slope increases with increasing correlation. Increasing correlations result in tighter spreads around the lines of best fit, whereas increasing SMA slopes shifts the orientation of the cloud of points (hypoallometry is more horizontal, hyperallometry is more vertical). Temperature....
+#| fig-width: 11
+#| fig-height: 14
+
+# Temp reduces mass more than wing
+vary_scaling_parms <- Parms_mat2 %>% 
+  filter(Temp_eff == "Wingyier") %>%
+  slice_max(n = 1, order_by = tibble(Strength), 
+            by = c(Scaling, r_12), with_ties = FALSE)
+vary_scaling_parms
+
+# Generate data
+vary_scaling_tbl <- gen_ex_data(vary_scaling_parms) %>% 
+  mutate(Temp_inc = Temp_inc / 3) 
+# Separate into list
+vary_scaling_l <- vary_scaling_tbl %>% group_split(Scaling, r_12)
+# Name list
+names(vary_scaling_l) <- vary_scaling_tbl %>% distinct(Scaling, r_12) %>% 
+  mutate(name = paste(Scaling, r_12, sep = "_")) %>% 
+  pull(name)
+
+# Create plots
+vary_scale_p <- imap(vary_scaling_l, \(df, name){
+  plot_allo_temp(df = df, title = name, alpha = .5)
+})
+
+# 3x3 grid
+ggarrange(
+  plotlist = vary_scale_p[1:9],
+  nrow = 3,
+  ncol = 3,
+  common.legend = TRUE
+)
+```
+
+## Extra text
 
 While some authors have used raw appendage size to test Allen's rule [e.g., @fanBergmannsRuleAllens2019], I would argue that most appendages this is a better test of Bergmann's rule in most cases [although organs tightly tied to thermoregulation may be an exception for some species and contexts - bird bills: @tattersallEvolutionAvianBill2017; @symondsGeographicalVariationBill2010; elephant ears: CITE]. In studies of Allen's rule, I argue that tying multiple metrics together at the level of the individual is critical.
 
