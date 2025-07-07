@@ -136,50 +136,62 @@ if(FALSE){
       ~ with(.x, sd(Wing_log) / sd(Mass_log))) 
 }
 
+format_temp <- function(df){
+  df %>% mutate(
+    Temp_bin = cut(Temp_inc, breaks = 15, labels = FALSE, ordered_result = TRUE)) %>%
+    arrange(Temp_inc) %>%
+    #slice_sample(n = 200, by = Temp_bin) %>% 
+    mutate(Temp_bin = case_when(
+      Temp_bin %in% c(1:4) ~ 4,  
+      Temp_bin %in% c(12:15) ~ 12,
+      .default = Temp_bin
+    ))
+}
+
+
 
 gen_data <- function(n = 3000,
-                     b_avg = 0.33,
+                     b_avg_12 = 0.33,
                      r_12 = 0.3, r_13 = -0.1, r_23 = -0.1,
                      mean_mass = 80, mean_append = 180, mean_temp = 1,
-                     sd_log_mass = 0.10,
-                     sd_log_temp = 0.20,
+                     sd_log_morph = 0.10,
+                     sd_temp = 0.18,
                      meas_error = 0,
                      transient_error_mass = 0,
                      transient_error_append = 0) {
   
   # Generate log-scale covariance matrix
-  cov_out <- gen_cov_mat(b_avg = b_avg,
-                         r_12 = r_12, r_13 = r_13, r_23 = r_23,
-                         sd_log_mass = sd_log_mass,
-                         sd_log_temp = sd_log_temp)
-  Sigma <- cov_out$Sigma
+  Sigma <- gen_cov_mat(b_avg_12 = b_avg_12,
+                       r_12 = r_12, r_13 = r_13, r_23 = r_23,
+                       sd_log_morph = sd_log_morph,
+                       sd_temp = sd_temp)
   
-  mu <- c(log(mean_append), log(mean_mass), log(mean_temp))
+  mu <- c(log(mean_append), log(mean_mass), mean_temp)
   
   sim_log <- MASS::mvrnorm(n, mu = mu, Sigma = Sigma, empirical = TRUE)
-  colnames(sim_log) <- c("log_Append", "log_Mass", "log_Temp")
+  colnames(sim_log) <- c("log_Append", "log_Mass", "Temp")
   
   sim <- as_tibble(sim_log) %>%
     mutate(Append = exp(log_Append),
            Mass = exp(log_Mass),
-           Temp_inc = exp(log_Temp))
+           Temp_inc = Temp)
   
   # Add error on raw scale
   sd_append <- sd(sim$Append)
   sd_mass <- sd(sim$Mass)
   
+  # Morphometrics 
   sim <- sim %>%
     mutate(
       Append = Append + rnorm(n, 0, sd = sd_append * meas_error) +
         rnorm(n, 0, sd = sd_append * transient_error_append),
       Mass = Mass + rnorm(n, 0, sd = sd_mass * meas_error) +
         rnorm(n, 0, sd = sd_mass * transient_error_mass),
-      log_Append = log(Append),
-      log_Mass = log(Mass),
-      log_Temp = log(Temp_inc)
+      Append_log = log(Append),
+      Mass_log = log(Mass)
     )
   
-  return(sim)
+  format_temp(sim)
 }
 
 
@@ -325,14 +337,19 @@ gen_3var_cov_abs <- function(b_avg_12 = 0.33,
   return(Sigma)
 }
 
-gen_cov_mat <- function(b_avg = 0.33,
+gen_cov_mat <- function(b_avg_12 = 0.33,
                         r_12 = 0.3, r_13 = -0.1, r_23 = -0.1,
-                        sd_log_mass = 0.10,
-                        sd_log_temp = 0.20) {
+                        sd_log_mass = 0.07,
+                        vary_sd = TRUE,
+                        sd_temp = 0.20) {
+  
+  if(vary_sd == TRUE){
+    sd_log_mass <- runif(1, 0.05, 0.09)
+  }
   
   # Solve for log-scale SD of appendage
-  b_ols <- (2 * b_avg * r_12) / (r_12 + 1)
-  sd_log_append <- b_ols / r_12 * sd_log_mass
+  b_ols <- (2 * b_avg_12 * r_12) / (r_12 + 1)
+  sd_log_append <- abs(b_ols / r_12 * sd_log_mass)
   
   # Define correlation matrix
   R <- matrix(c(
@@ -342,12 +359,48 @@ gen_cov_mat <- function(b_avg = 0.33,
   ), nrow = 3, byrow = TRUE)
   
   # Corresponding SDs for log(Append), log(Mass), log(Temp)
-  sds <- c(sd_log_append, sd_log_mass, sd_log_temp)
+  sds <- c(sd_log_append, sd_log_mass, sd_temp)
   
   # Compute covariance matrix
   Sigma <- MBESS::cor2cov(cor.mat = R, sd = sds)
-  
+  print(sds[1])
   return(Sigma)
+}
+
+# Testing
+gen_cov_mat <- function(b_avg_12 = 0.33,
+                        r_12 = 0.3, r_13 = -0.1, r_23 = -0.1,
+                        vary = c("mass", "append"),
+                        sd_log_morph = .07,
+                        vary_sd = TRUE,
+                        sd_temp = 0.18) {
+    
+    if(vary_sd == TRUE){
+      sd_log_morph <- runif(1, 0.05, 0.09)
+    }
+  
+  vary <- match.arg(vary)
+  
+  # Compute b_OLS
+  b_ols <- (2 * b_avg_12 * r_12) / (r_12 + 1)
+  
+  if (vary == "mass") {
+    sd_log_mass <- sd_log_morph
+    sd_log_append <- abs(b_ols / r_12 * sd_log_mass)
+  } else {
+    sd_log_append <- sd_log_morph
+    sd_log_mass <- abs(r_12 / b_ols * sd_log_append)
+  }
+  
+  sds <- c(sd_log_append, sd_log_mass, sd_temp)
+  
+  R <- matrix(c(
+    1,     r_12,  r_13,
+    r_12,  1,     r_23,
+    r_13,  r_23,  1
+  ), nrow = 3, byrow = TRUE)
+  
+  MBESS::cor2cov(cor.mat = R, sd = sds)
 }
 
 
