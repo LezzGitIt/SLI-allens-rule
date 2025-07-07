@@ -94,21 +94,21 @@ To evaluate the three classical regression approaches and the newly proposed SLI
 
 ## Data simulation
 
-I simulated three log-transformed variables: appendage length, body size (estimated from mass), and temperature increase. These were jointly drawn from a multivariate normal (MVN) distribution:
+I simulated three variables: appendage length, body size (using mass as a proxy), and temperature increase. These were jointly drawn from a multivariate normal (MVN) distribution:
 
 $$
 \begin{bmatrix}
-\log(\text{Appendage}) \\
-\log(\text{Body size}) \\
-\log(\text{Temperature increase})
+\text{Appendage (mm)} \\
+\text{Body size (g)} \\
+\text{Temperature increase (C)}
 \end{bmatrix}
 \sim \mathrm{MVN}(\boldsymbol{\mu}, \Sigma)
 $$ {#eq-mvn}
 
-where $\boldsymbol{\mu} = [5,\ 3,\ 3]^\top$ is the mean vector, and $\Sigma$ is a $3 \times 3$ covariance matrix constructed to yield biologically plausible correlations among variables. This simulation strategy avoids biasing results toward any method. For example, simulating from a directional model, e.g.,
+where $\boldsymbol{\mu} = [180,\ 80,\ 1.3]^\top$ is the mean vector, and $\Sigma$ is a $3 \times 3$ covariance matrix constructed to yield biologically plausible correlations among variables. This simulation strategy avoids biasing results toward any method. For example, simulating from a directional model, e.g.,
 
 $$
-\log(\text{Appendage}) \sim \alpha + \beta_S * \log(\text{Body size}) + \beta_T * \log(\text{Temperature increase}) + \epsilon
+\text{Appendage} \sim \alpha + \beta_S * \text{Body size} + \beta_T * \text{Temperature increase} + \epsilon
 $$
 
 would advantage methods that explicitly include mass as a covariate. Likewise, simulating a relationship between temperature and residuals would favor residual-based approaches. Instead, data is generated from the same joint distribution (@eq-mvn), and no method is privileged by design.
@@ -142,19 +142,21 @@ $$
 \end{bmatrix}
 $$
 
-where $\sigma_1$, $\sigma_2$, and $\sigma_3$ are the standard deviations of $\log(\text{Appendage})$, $\log(\text{Body size})$, and $\log(\text{Temperature increase})$, respectively, and the correlation coefficients $\rho_{12}$, $\rho_{13}$, and $\rho_{23}$ control the pairwise associations among these traits. Consistent with Bergmann's rule, temperature-morphology correlations were ≤ 0 (except in species exhibiting inverse allometry, see @sec-selecting-parms), and increasing temperatures decreased the size of at least one morphological trait in all simulations. Some species were simulated to get relatively longer (i.e., the decrease in body size is greater than the decrease in appendage length), some to get fatter, while others were simulated to decrease in appendage length and body size proportionally (i.e., body shape doesn't change).
+where $\sigma_1$, $\sigma_2$, and $\sigma_3$ are the standard deviations of $\log(\text{Appendage})$, $\log(\text{Body size})$, and $\log(\text{Temperature increase})$, respectively, and the correlation coefficients $\rho_{12}$, $\rho_{13}$, and $\rho_{23}$ control the pairwise associations among these traits. Consistent with Bergmann's rule, temperature-morphology correlations were ≤ 0 (except in species exhibiting inverse allometry, see @sec-selecting-parms), and increasing temperatures decreased the size of at least one morphological trait in all simulations. Some species were simulated to get relatively longer (i.e., the decrease in body size is greater than the decrease in appendage length), some to get fatter, while others were simulated to decrease in appendage length and body size proportionally so that body shape doesn't change.
 
 ```{r}
 #| label: Function-var-cov
 #| echo: true
 
 # Examine the function used to generate the variance-covariance matrix. This function is used in the gen_data() function above
-# Try .5? 
-gen_3var_cov
+gen_3var_cov_abs
+
+# Define the mean vector (these are equivalent to default arguments)
+means <- c(mean_append = 180, mean_mass = 80, mean_temp = 1)
 
 # See an example cov matrix that would create a species that increases in relativ appendage length
-ex_cov_mat <- gen_3var_cov(b_sma_12 = 0.33, r_12 =.5, r_13 = -.1, r_23 = -.4) 
-round(ex_cov_mat$Sigma, 2)
+ex_cov_mat <- gen_3var_cov_abs(b_avg_12 = 0.33, r_12 =.5, r_13 = -.1, r_23 = -.4) 
+round(ex_cov_mat, 2)
 
 ```
 
@@ -170,7 +172,7 @@ This simulation implies a symmetric, undirected dependence structure — no vari
 #| label: Set-b_sma
 
 ## Select whether you'd like to constrain the b_sma values or not. This is a step to ensure that setting b_sma values is not biasing our findings -- constraining the SMA values will fix the OLS slopes (see the subsection Sensitivity analyses). 
-b_sma <- c(.22, .33, .44) # NULL  
+b_avg <- c(0.22, 0.33, 0.44) # NULL  
 ```
 
 ```{r}
@@ -183,10 +185,10 @@ Shape <- c("Longer", "Proportional", "Fatter")
 Shape <- setNames(Shape, Shape) 
 
 r_12 <- c(.15, .3, .45)
-r_13 <- c(-.1, -.25, -.4) # Wing temp
+r_13 <- c(0, -.15, -.3, -.45) # Wing temp
 r_23 <- r_13 # Mass temp
 Parms_mat <- expand_grid(
-  b_sma_12 = b_sma,
+  b_avg_12 = b_avg,
   r_12 = r_12, # Wing mass
   r_13 = r_13, # Wing temp
   r_23 = r_23 # Mass temp
@@ -196,25 +198,23 @@ Parms_mat <- expand_grid(
   r_13 == r_23 ~ Shape[2], 
   r_13 < r_23 ~ Shape[3]), 
   Strength = abs(r_13 - r_23))
-if(!is.null(b_sma)){
+if(!is.null(b_avg)){
   Parms_mat <- Parms_mat %>% mutate(Scaling = case_when(
-    b_sma_12 < 0.33 ~ "Hypoallometry", 
-    b_sma_12 > 0.33 ~ "Hyperallometry",
-    near(b_sma_12, 0.33) ~ "Isometry"
+    b_avg_12 < 0.33 ~ "Hypoallometry", 
+    b_avg_12 > 0.33 ~ "Hyperallometry",
+    near(b_avg_12, 0.33) ~ "Isometry"
   ))
 }
-# Remove hypothetical species that do not get smaller with increasing temperature
-Parms_mat2 <- Parms_mat %>% filter(!(r_13 == 0 & r_23 == 0))
 ```
 
 ```{r}
 #| label: Inv-allometry
 
 Parms_inv <- expand_grid(
-  b_sma_12 = -0.22,
+  b_avg_12 = -0.22,
   r_12 = c(-.2, -.3, -.4),
-  r_13 = c(.01, .1, .2, .4),
-  r_23 = c(-.1, -.2, -.4)
+  r_13 = c(0, .1, .2, .4),
+  r_23 = c(0, -.1, -.2, -.4)
   # Effect of temperature on wingyness
 ) %>% mutate(Temp_eff = "Much longer", 
              Strength = abs(r_13 - r_23), 
@@ -225,12 +225,16 @@ Parms_inv <- expand_grid(
 #| label: Combine-format-parms-mat
 
 # Combine & format tibble
-Parms_mat2 <- bind_rows(Parms_mat2, Parms_inv) %>%
+Parms_mat2 <- bind_rows(Parms_mat, Parms_inv) %>%
   mutate(Temp_eff = factor(Temp_eff, levels = c("Fatter",  "Proportional", "Longer", "Much longer")), 
            Scaling = factor(Scaling, levels = c("Hypoallometry", "Isometry", "Hyperallometry", "Inverse"))) %>% 
-    relocate(Scaling, .before = b_sma_12)
-if(is.null(b_sma)){
-  Parms_mat2 <- Parms_mat2 %>% dplyr::select(-b_sma_12)
+    relocate(Scaling, .before = b_avg_12)
+
+# Remove hypothetical species that do not get smaller with increasing temperature
+Parms_mat3 <- Parms_mat2 %>% filter(!(r_13 == 0 & r_23 == 0))
+
+if(is.null(b_avg)){
+  Parms_mat3 <- Parms_mat3 %>% dplyr::select(-b_avg_12)
 }
 ```
 
@@ -262,26 +266,49 @@ I applied all methodological approaches to empirical data from three migratory n
 
 ## Simulation Checks - example
 
-I conducted graphical checks to ensure that simulations behaved as expected across all hypothetical species. First, when simulating longer species, SMA intercepts should increase with temperature, and the opposite should be true when simulating fatter birds. Species decreasing in size proportionally should show no systematic pattern in the intercepts and the amount of temperature increase. See Figure 4 in @shingletonAllometryStudyBiological2010 for additional information regarding interpretation of these temperature-body shape plots (i.e., @fig-temp-body-shape-plot). I use 3 example species
+I conducted graphical checks to ensure that simulations behaved as expected across all hypothetical species. I visualized the raw data of an example species.
 
 ```{r}
 #| label: Example-parms
 
-# Hold b_sma & the correlation between wing & mass constant so slopes are roughly the same 
-Ex_parms <- Parms_mat2 %>% 
+# Hold b_sma & the correlation between Wing_log & mass constant so slopes are roughly the same 
+Ex_parms <- Parms_mat3 %>% 
   filter(Scaling == "Isometry") %>%
-  slice_max(n = 1, order_by = tibble(Strength), 
+  slice_max(n = 1, order_by = tibble(Strength, r_12), 
             by = Temp_eff, with_ties = FALSE) %>%  #desc(r_13)
   dplyr::select(-Strength)
-Ex_parms
 
 # Function to generate example data for plotting
-gen_ex_data <- function(Parms_mat){ #, transient_error = 0.04
+gen_ex_data <- function(Parms_mat, transient_error_mass = 0.04){ 
   Cols <- Parms_mat %>% dplyr::select(starts_with(c("b_", "r_")))
   Parms_mat %>%
-    mutate(coefs = pmap(Cols, \(...) gen_data(...))) %>%
+    mutate(coefs = pmap(Cols, \(...) gen_data(..., transient_error_mass = transient_error_mass))) %>%
     unnest(coefs)
 }
+
+Ex_df_wingy <- gen_ex_data(Ex_parms)
+```
+
+```{r}
+#| label: fig-histograms-absolute-data
+#| fig-cap: Distributions of variables simulated from a multivariate normal distribution. 
+
+# Example species histograms of absolute data 
+Ex_df_wingy %>% 
+  filter(Temp_eff == "Proportional") %>%
+  pivot_longer(cols= c(Append, Mass, Temp_inc), names_to = "Variable") %>% 
+  ggplot(aes(x = value)) +
+  geom_density() +
+  facet_wrap(~Variable, scales = "free") + 
+  labs(x = NULL)
+```
+
+Second, when simulating longer species, SMA intercepts should increase with temperature, and the opposite should be true when simulating fatter birds. Species decreasing in size proportionally should show no systematic pattern in the intercepts and the amount of temperature increase. See Figure 4 in @shingletonAllometryStudyBiological2010 for additional information regarding interpretation of these temperature-body shape plots (i.e., @fig-temp-body-shape-plot). I use 3 example species
+
+```{r}
+#| label: Vis-ex-parms
+
+Ex_parms
 ```
 
 to produce @fig-temp-body-shape-plot
@@ -294,9 +321,9 @@ to produce @fig-temp-body-shape-plot
 # Run SMA model with or without interaction
 run_sma_mod <- function(df, interaction = FALSE){
   if(interaction == FALSE){
-    sma_mod <- sma(Wing ~ Mass + Temp_bin, data = df, method = sma_or_ma)
+    sma_mod <- sma(Append_log ~ Mass_log + Temp_bin, data = df, method = sma_or_ma)
   } else{
-    sma_mod <-sma(Wing ~ Mass * Temp_bin, data = df, method = sma_or_ma)
+    sma_mod <-sma(Append_log ~ Mass_log * Temp_bin, data = df, method = sma_or_ma)
   }
   return(sma_mod)
 }
@@ -319,8 +346,7 @@ format_sma_parms <- function(sma_mod){
 
 ## Run the SMA models & format output tbl
 ex_parms_temp_bs <- map(Shape, \(Sim_shp){
-  Ex_df_wingy <- gen_ex_data(Ex_parms) %>% 
-    filter(Temp_eff == Sim_shp)
+  Ex_df_wingy <- Ex_df_wingy %>% filter(Temp_eff == Sim_shp)
   # Allow slopes to vary or force to remain constant 
   mod_temp_bin <- run_sma_mod(df = Ex_df_wingy, interaction = FALSE) 
   mod_temp_bin_int <- run_sma_mod(df = Ex_df_wingy, interaction = TRUE)
@@ -346,7 +372,7 @@ ex_parms_temp_bs %>%
   ggplot() +
   geom_abline(aes(intercept = elevation, slope = slope, color = Temp_inc)) +
   ggrepel::geom_text_repel(aes(x = x, y = elevation, label = Temp_label)) +
-  labs(x = "Log mass", y = "Log wing") + 
+  labs(x = "Log mass", y = "Log appendage") + 
   theme(axis.text = element_blank(),
         axis.ticks = element_blank()) + 
   guides(color = "none") + 
@@ -363,23 +389,12 @@ The simulation has worked in the hypothetical species shown here, but there are 
 #| cache: true
 
 # Simulate data 
-Cols <- Parms_mat2 %>% 
+Cols <- Parms_mat3 %>% 
   dplyr::select(starts_with(c("b_", "r_")))
-df_morph_l <- pmap(Cols, gen_data)
+df_morph_l <- pmap(Cols, \(...) gen_data(..., meas_error = 0, transient_error_mass = 0, transient_error_append = 0))
 
 # Average number of individuals per hypothetical species
 #mean(map_dbl(df_morph_l, nrow))
-```
-
-## Backtransform data 
-
-```{r}
-#| label: plot-backtransform-hist
-
-# There is too much variation
-df_morph_l[[1]] %>%
-  ggplot() +
-  geom_density(aes(x = Mass))
 ```
 
 ## Simulation Checks - full dataset
@@ -414,7 +429,7 @@ extract_sma_intercepts <- function(df){
 sma_intercepts <- map(df_morph_l, \(df){
   extract_sma_intercepts(df)
 }) %>% list_rbind()
-sma_intercepts2 <- bind_cols(Parms_mat2, sma_intercepts)
+sma_intercepts2 <- bind_cols(Parms_mat3, sma_intercepts)
 ```
 
 ```{r}
@@ -449,34 +464,34 @@ extract_coefs <- function(Sim_df) {
   
   ### Compare approaches 
   # Allometric (SMA) residuals approach
-  sma_mod <- sma(Wing ~ Mass, data = Sim_df, method = sma_or_ma)
+  sma_mod <- sma(Append_log ~ Mass_log, data = Sim_df, method = sma_or_ma)
   est_b_sma <- coef(sma_mod)["slope"]
   
   # two-step residual regression 
-  Ols_mod <- lm(Wing ~ Mass, data = Sim_df)
+  Ols_mod <- lm(Append_log ~ Mass_log, data = Sim_df, na.action = na.exclude)
   resid_ols <- residuals(Ols_mod)
-  ols_resid <- lm(resid_ols ~ Temp_inc, data = Sim_df)
+  ols_resid_app <- lm(scale(resid_ols) ~ Temp_inc, data = Sim_df)
   
   # Ryding
-  ryding_app <- lm(Wing ~ Mass + Temp_inc, data = Sim_df)
+  ryding_app <- lm(scale(Append_log) ~ Mass_log + Temp_inc, data = Sim_df, na.action = na.exclude)
   
   # Ratio
-  Sim_df <- Sim_df %>% mutate(Wing_mass = Wing / Mass, 
-                              Wing2_mass = Wing^2 / Mass)
-  ratio_app <- lm(Wing_mass ~ Temp_inc, data = Sim_df) # Ratio Wing
-  ratio2_app <- lm(Wing2_mass ~ Temp_inc, data = Sim_df) # Ratio Wing^2
+  Sim_df <- Sim_df %>% mutate(Append_mass = Append_log / Mass_log, 
+                              Append2_mass = Append_log^2 / Mass_log)
+  ratio_app <- lm(scale(Append_mass) ~ Temp_inc, data = Sim_df, na.action = na.exclude) # Ratio Append
+  ratio2_app <- lm(scale(Append2_mass) ~ Temp_inc, data = Sim_df, na.action = na.exclude) # Ratio Append^2
   
   # SLI
   Sim_df <- Sim_df %>% 
     calc_sli(b_sli = 0.33, rename_col = "sli_isometry") %>% 
     calc_sli(b_sli = est_b_sma, rename_col = "sli_estimated")
-  sli_iso_app <- lm(sli_isometry ~ Temp_inc, data = Sim_df)
-  sli_est_app <- lm(sli_estimated ~ Temp_inc, data = Sim_df)
+  sli_iso_app <- lm(scale(sli_isometry) ~ Temp_inc, data = Sim_df, na.action = na.exclude)
+  sli_est_app <- lm(scale(sli_estimated) ~ Temp_inc, data = Sim_df, na.action = na.exclude)
   
   tibble(
     coef_sli_iso_app = coef(sli_iso_app)["Temp_inc"],
     coef_sli_est_app = coef(sli_est_app)["Temp_inc"],
-    coef_ols_resid_app = coef(ols_resid)["Temp_inc"],
+    coef_ols_resid_app = coef(ols_resid_app)["Temp_inc"],
     coef_ryding_app = coef(ryding_app)["Temp_inc"],
     coef_ratio = coef(ratio_app)["Temp_inc"],
     coef_ratio2 = coef(ratio2_app)["Temp_inc"], 
@@ -490,8 +505,8 @@ extract_coefs <- function(Sim_df) {
 
 # Next, apply the function & combine with the parameters that generated the data. 
 Parms_tbl <- map(df_morph_l, extract_coefs) %>% list_rbind()
-#Parms_mat_pos <- Parms_mat2 %>% filter(Scaling != "Inverse") 
-Parms_tbl2 <- bind_cols(Parms_mat2, Parms_tbl)
+#Parms_mat_pos <- Parms_mat3 %>% filter(Scaling != "Inverse") 
+Parms_tbl2 <- bind_cols(Parms_mat3, Parms_tbl)
 ```
 
 ```{r}
@@ -528,7 +543,7 @@ Second, I simulated allometric scaling slopes of `r b_sma`, and -0.22. This plot
 #| fig-pos: 'H'
 
 # Ensure that the SMA scaling relationships were maintained during simulation
-if(!is.null(b_sma)){
+if(!b_avg_12){
   Parms_tbl4 %>% ggplot(aes(x = Scaling, y = est_b_sma, color = Scaling)) + 
     geom_boxplot(outliers = FALSE) + 
     geom_point(position = position_jitter(width = .1), color = "black", alpha = .5) +  
@@ -551,7 +566,7 @@ I assessed OLS and SMA assumptions (e.g., linearity, independence, homoskedastic
 
 # SMA models list
 sma_mod_l <- map(df_morph_l, \(df){
-  sma_mod <- sma(Wing ~ Mass, data = df, method = sma_or_ma)
+  sma_mod <- sma(Append_log ~ Mass_log, data = df, method = sma_or_ma)
 }) 
 ```
 
@@ -570,7 +585,7 @@ plot(sma_mod_l[[1]], which = "qq")
 
 # OLS models list
 ols_mod_l <- map(df_morph_l, \(df){
-  ols_mod <- lm(Wing ~ Mass + Temp_inc, data = df)
+  ols_mod <- lm(Append_log ~ Mass_log + Temp_inc, data = df)
 })
 ```
 
@@ -659,14 +674,14 @@ calc_lambda
 
 # CVs from simulated hypothetical species
 lambdas_sim <- map_dbl(df_morph_l, \(df){ 
-  df %>% summarize(lambda = calc_lambda(x = Mass, y = Wing)) %>% 
+  df %>% summarize(lambda = calc_lambda(x = Mass, y = Append)) %>% 
     pull(lambda) %>% 
     round(2)}
   ) 
 
-#range(lambdas_sim)
-#mean(lambdas_sim) 
-#sd(lambdas_sim)
+range(lambdas_sim) # .05 - .19
+mean(lambdas_sim) # .1
+sd(lambdas_sim) # .057
 ```
 
 In our hypothetical species, $\lambda$ ranged from `r min(lambdas_sim)` - `r max(lambdas_sim)`, with a mean of `r round(mean(lambdas_sim), 2)`.
@@ -679,7 +694,7 @@ $$
 \mathit{Relative\ appendage\ length} \sim \alpha + \beta_T * \mathit{Temperature\ increase}
 $$ {#eq-betaT-5-approaches}
 
-The difference in the 5 approaches (note that Wing / mass and Wing² / mass are both 'ratio approaches') is how relative appendage length is measured (as outlined in the introduction). Note that the response variable would be the absolute appendage length in the 'multivariate regression' approach, and the model would also contain $\beta_S * \mathit{Body\ size}$ in @eq-betaT-5-approaches.
+The difference in the 5 approaches (note that Appendage / mass and Appendage² / mass are both 'ratio approaches') is how relative appendage length is measured (as outlined in the introduction). Note that the response variable would be the absolute appendage length in the 'multivariate regression' approach, and the model would also contain $\beta_S * \mathit{Body\ size}$ in @eq-betaT-5-approaches.
 
 ### Positive allometry
 
@@ -690,8 +705,8 @@ x_labs <- c("Sli_est" = "SLI estimated",
             "Sli_iso" = "SLI isometry",
             "Ols_resid" = "OLS residuals",
             "Ryding" = "Mass as covariate",
-            "Ratio2" = "Wing² / mass",
-            "Ratio" = "Wing / mass")
+            "Ratio2" = "Appendage² / mass",
+            "Ratio" = "Appendage / mass")
 
 ## Plot relationship of interest -- 
 plot_approaches <- function(df, negative = FALSE, ylim = TRUE, x_txt_size = 9, legend.pos = "right"){
@@ -753,7 +768,7 @@ img_shifted <- ggdraw() + draw_grob(img_grob, y = 0.08)
 #| fig-pos: 'H' 
 
 # Plot using custom function
-Compare_plot <- plot_approaches(Parms_tbl4, x_txt_size = 12, negative = FALSE, legend.pos = "top") #ylim = FALSE
+Compare_plot <- plot_approaches(Parms_tbl4, x_txt_size = 12, negative = FALSE, legend.pos = "top", ylim = FALSE) #ylim = FALSE
 
 # Combine wingyness spectrum image with plot
 plot_grid(
@@ -775,7 +790,7 @@ plot_grid(
 #| fig-pos: 'H'
 
 Parms_tbl4 %>%
-  plot_approaches(negative = TRUE, ylim = TRUE)
+  plot_approaches(negative = TRUE, ylim = FALSE)
 ```
 
 ## Evaluation - simulation
@@ -909,7 +924,7 @@ Multivariate regression only detects the appropriate change in birds that are ge
 
 ### Coefficient of variation {#sec-coef-var}
 
-In the empirical nightjar data, $\lambda$ ranged from 0.08 - 0.16 (@tbl-cv-nightjars). This suggests that the variance in nightjar wings was low compared to the variance in mass (relative to the mean values), which could be due to higher measurement error in mass [precision of wing measurements is high in birds, @subasingheRepeatabilityValidityPhenotypic2021], or transient fluctuation error in mass. Importantly, $\lambda$ was similar in the `r nrow(Parms_mat2)` hypothetical species and the 3 nightjars we examined, providing additional evidence that our simulated datasets are biologically plausible. The simulated datasets cover a broader range of $\lambda$, indicating that these results may be relevant to additional appendage-mass datasets.
+In the empirical nightjar data, $\lambda$ ranged from 0.08 - 0.16 (@tbl-cv-nightjars). This suggests that the variance in nightjar wings was low compared to the variance in mass (relative to the mean values), which could be due to higher measurement error in mass [precision of wing measurements is high in birds, @subasingheRepeatabilityValidityPhenotypic2021], or transient fluctuation error in mass. Importantly, $\lambda$ was similar in the `r nrow(Parms_mat3)` hypothetical species and the 3 nightjars we examined, providing additional evidence that our simulated datasets are biologically plausible. The simulated datasets cover a broader range of $\lambda$, indicating that these results may be relevant to additional appendage-mass datasets.
 
 ```{r}
 #| label: tbl-cv-nightjars
@@ -1012,12 +1027,12 @@ Second, classical regression assumes all error resides in the response variable,
 #| label: plot_allo_temp-function
 
 plot_allo_temp <- function(df, alpha = .7, lm_line = TRUE, label = NULL, ...){
-  p <- ggplot(data = df, aes(x = Mass, y = Wing))
+  p <- ggplot(data = df, aes(x = Mass_log, y = Append_log))
   if(lm_line == TRUE){p <- p + geom_smooth(method = "lm", color = "red") } 
   p <- p + ggpmisc::stat_ma_line(method = sma_or_ma, color = "blue") +
   geom_point(alpha = alpha, aes(color = Temp_inc)) +
   labs(x = "Log (size)", y = "Log (appendage)", color = "Temperature\n increase", ...) + 
-  lims(y = c(xy_lims$min.wing, xy_lims$max.wing), 
+  lims(y = c(xy_lims$min.Append, xy_lims$max.Append), 
        x = c(xy_lims$min.mass, xy_lims$max.mass))
   
   if(!is.null(label)){
@@ -1033,7 +1048,7 @@ plot_allo_temp <- function(df, alpha = .7, lm_line = TRUE, label = NULL, ...){
 ```{r}
 #| label: Generate-ex-hypo-hyper
 
-Ex_parms_hypo_hyper <- Parms_mat2 %>% 
+Ex_parms_hypo_hyper <- Parms_mat3 %>% 
   filter(Scaling != "Isometry" & Temp_eff == "Longer" & r_12 == .3) %>%
   slice_max(n = 1, order_by = Strength, by = c(Temp_eff, Scaling), 
             with_ties = FALSE)
@@ -1043,16 +1058,16 @@ Ex_df_hypo_hyper_l <- Ex_df_hypo_hyper %>% group_split(Scaling)
 ```
 
 ```{r}
-#| label: fig-allometric-relationship-temp-wingy
+#| label: fig-allometric-relationship-temp-ral
 #| fig-cap: The allometric relationships of a single hypothetical species (i.e., each point is an individual bird) that we simulated to get relatively longer as temperature increases. The SMA line of best fit is shown in blue, and the OLS regression line in red, and the points are colored by how much temperature has increased for a given individual of the hypothetical species. 
 #| fig-pos: 'H'
 
 # Define common set of X & Y limits 
 xy_lims <- Ex_df_hypo_hyper %>% 
-  summarize(max.wing = max(Wing), 
-            min.wing = min(Wing), 
-            max.mass = max(Mass), 
-            min.mass = min(Mass))
+  summarize(max.append = max(Append_log), 
+            min.append = min(Append_log), 
+            max.mass = max(Mass_log), 
+            min.mass = min(Mass_log))
 
 # Plot 
 hypo_p <- plot_allo_temp(df = Ex_df_hypo_hyper_l[[1]],
@@ -1069,8 +1084,8 @@ hyper_p
 #| label: fig-sli-pos-bias
 #| fig-cap: The 'SLI isometry' approach results in positively biased estimates of temperature's impact on relative appendage length in certain simulation scenarios. In particular, this approach incorrectly classifies species with hypoallometric scaling slopes (blue line) that were simulated to get fatter (with increasing temperatures) as having relatively longer apendages. The points and blue line are from the hypoallometric species, which in the 'SLI isometry' approach is being reprojected as if it were isometric (represented by the orange line). The points are colored by how much temperature has increased for a given individual of the hypothetical species. 
 
-Ex_parms_prop <- Parms_mat2 %>% 
-  filter(Scaling %in% c("Isometry", "Hypoallometry") & Temp_eff == "Fatter" & r_13 == -.4 & r_12 == .45) %>% 
+Ex_parms_prop <- Parms_mat3 %>% 
+  filter(Scaling %in% c("Isometry", "Hypoallometry") & Temp_eff == "Fatter" & r_13 == -.45 & r_12 == .45) %>% 
   slice_head(n = 1, by = Scaling)
 Ex_df_prop <- gen_ex_data(Ex_parms_prop) %>% 
   mutate(Temp_inc = Temp_inc / 3)
@@ -1113,14 +1128,14 @@ Importantly, a positive bias likely exists in species simulated to have relative
 #| fig-cap: The orange line represents the functional relationship between size and appendage length if size had no transient (biological) 'error', whereas the blue line is slightly attenuated due to transient error. Note that the transient error was exaggerated to half of a standard deviation of size in this example. The red OLS line is shown for reference.  
 #| fig-pos: 'H'
 
-Ex_iso_prop <- Parms_mat2 %>% 
+Ex_iso_prop <- Parms_mat3 %>% 
   filter(Temp_eff == "Proportional" & 
            Scaling == "Hyperallometry" & 
            r_12 == .45) %>% 
   slice_min(order_by = r_13) #with_ties = FALSE
 # Generate datasets with and without transient error
-Ex_no_te <- gen_ex_data(Ex_iso_prop, transient_error = 0)
-Ex_te <- gen_ex_data(Ex_iso_prop, transient_error = .5)
+Ex_no_te <- gen_ex_data(Ex_iso_prop, transient_error_mass = 0, transient_error_wing = 0)
+Ex_te <- gen_ex_data(Ex_iso_prop, transient_error_mass = .5, transient_error_wing = 0)
 
 Ex_te %>% 
   plot_allo_temp(alpha = .5, lm_line = TRUE) + 
@@ -1163,7 +1178,7 @@ Surprisingly, the multivariate regression and the OLS residuals don't perform ve
 #| eval: false
 
 Parms_tbl5 %>% filter(Temp_eff == "Much longer" & Est_correct == FALSE) %>% 
-  dplyr::select(b_sma_12, r_12, r_13, r_23, Strength) %>% 
+  dplyr::select(b_avg_12, r_12, r_13, r_23, Strength) %>% 
   distinct() 
 ```
 
@@ -1171,7 +1186,7 @@ Parms_tbl5 %>% filter(Temp_eff == "Much longer" & Est_correct == FALSE) %>%
 #| label: fig-neg-allometric-temp_wingy
 #| fig-cap: Hypothetical species exhibiting inverse allometry. The 'SLI estimated' approach does not capture the relationship between an increase in temperature and relative appendage length. 
 
-Ex_parms_neg <- Parms_mat2 %>% 
+Ex_parms_neg <- Parms_mat3 %>% 
   filter(Scaling == "Inverse" & Strength == 0.8) %>%
   slice_max(n = 1, order_by = Strength, by = Temp_eff, with_ties = FALSE)
 Ex_df_neg <- gen_ex_data(Ex_parms_neg)
@@ -1240,7 +1255,7 @@ It is confusing to me that a species can be hyperallometric (wing decreases quic
 #| fig-height: 14
 
 # Temp reduces mass more than wing
-vary_scaling_parms <- Parms_mat2 %>% 
+vary_scaling_parms <- Parms_mat3 %>% 
   filter(Temp_eff == "Longer") %>%
   slice_max(n = 1, order_by = tibble(Strength), 
             by = c(Scaling, r_12), with_ties = FALSE)
