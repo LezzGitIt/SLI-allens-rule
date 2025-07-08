@@ -12,6 +12,10 @@ ggplot2::theme_set(theme_cowplot())
 
 load("Rdata/Capri_dfs_07.09.24.Rdata")
 
+# Read in the most important functions
+allometric_scaling_path <- "/Users/aaronskinner/Library/CloudStorage/OneDrive-UBC/Grad_School/Methods_papers/Allometric-scaling/"
+#source(paste0(allometric_scaling_path, "Scripts/Key_allometry_fns.R"))
+
 
 # calc_sli function ------------------------------------------------------
 calc_sli <- function(df, b_sli = 0.33, rename_col = FALSE){
@@ -23,6 +27,17 @@ calc_sli <- function(df, b_sli = 0.33, rename_col = FALSE){
   return(df_sli)
 }
 
+capriA.red2 %>% 
+  mutate(Wing = log(Wing.comb), 
+         Mass = log(Mass.combBT)) %>% 
+           summarize(
+            mn.wing = mean(Wing, na.rm = T), 
+            sd.wing = sd(Wing, na.rm = T), 
+            mn.mass = mean(Mass, na.rm = T),
+            sd.mass = sd(Mass, na.rm = T), 
+            b_sma = sd.wing / sd.mass,
+            .by = Species)
+
 # Formatting --------------------------------------------------------------
 # Format predictor & responsible variables 
 nj_df <- capriA.red2 %>% 
@@ -33,11 +48,7 @@ nj_df <- capriA.red2 %>%
          log_mass = log(Mass),
          wing_mass = Wing / Mass, 
          wing2_mass = Wing^2 / Mass) %>% 
-  select(Species, Wing, Mass, B.Lat, log_wing, log_mass, wing_mass, wing2_mass, B.Tavg) %>% calc_sli(
-    appendage = log_wing, size = log_mass, by.species = TRUE, b_sli = 0.33
-    )
-
-nj_df %>% summarize(mean_sli = mean(sli), .by = Species)
+  dplyr::select(Species, Wing, Mass, B.Lat, log_wing, log_mass, wing_mass, wing2_mass, B.Tavg)
 
 # Visualize regression approaches -----------------------------------------
 # Compare three line-fitting methods
@@ -95,19 +106,21 @@ map(sma_mod_l, \(sma_mod){
   plot(sma_mod, which = "qq")
 })
 
-# SMA models --------------------------------------------------------------
-# Run SMA models & extract the residuals 
+# Prep data --------------------------------------------------------------
 ## NOTE: if you scale first, then the variance of both log_mass & log_wing is 1, & SMA slope = MA slope = 1 × MA slope so these are identical. 
 
+
 nj_df_l2 <- map(nj_df_l, \(df){
+  # extract residuals
   ols_mod <- lm(log_wing ~ log_mass, data = df)
   sma_mod <- sma(log_wing ~ log_mass, data = df, method = "SMA")
-  ma_mod <- sma(log_wing ~ log_mass, data = df, method = "MA")
+  est_b_sma <- coef(sma_mod)['slope']
   df <- df %>% mutate(resid_ols = residuals(ols_mod), 
-                resid_sma = residuals(sma_mod),
-                resid_ma = residuals(ma_mod))
+                      resid_sma = residuals(sma_mod)) %>%
+    # Calculate SLI
+    calc_sli(b_sli = 0.33, rename_col = "sli_isometry") %>% 
+    calc_sli(b_sli = est_b_sma, rename_col = "sli_estimated")
 })
-
 
 # Scale by species 
 nj_df_l3 <- map(nj_df_l2, \(df){
@@ -122,13 +135,11 @@ map(nj_df_l3, \(df){
 })
 
 
-# OLS models & extract parms ----------------------------------------------
+# Run models & extract parms ----------------------------------------------
 # Generate Wing mass models, extract parameters via tidy
 parms_df <- map(nj_df_l3, \(df){
   mod_resid_ols <- lm(resid_ols ~ B.Tavg, data = df) %>% tidy() %>% 
     mutate(Approach = "Resid_ols")
-  mod_resid_sma <- lm(resid_sma ~ B.Tavg, data = df) %>% tidy() %>% 
-    mutate(Approach = "Resid_sma")
   #mod_coef_ma <- lm(resid_ma ~ B.Tavg, data = df) %>% tidy() %>% 
    # mutate(Approach = "Resid_ma")
   mod_coef_ols <- lm(Wing ~ Mass + B.Tavg, data = df) %>% tidy() %>% 
@@ -137,9 +148,11 @@ parms_df <- map(nj_df_l3, \(df){
     mutate(Approach = "Ratio")
   mod_coef_ratio2 <- lm(wing2_mass ~ B.Tavg, data = df) %>% tidy() %>% 
     mutate(Approach = "Ratio2")
-  mod_coef_sli <- lm(sli ~ B.Tavg, data = df) %>% tidy() %>% 
-    mutate(Approach = "SLI")
-  bind_rows(mod_resid_sma, mod_resid_ols, mod_coef_ols, mod_coef_ratio, mod_coef_ratio2, mod_coef_sli) #, mod_coef_ma
+  mod_sli_iso <- lm(sli_isometry ~ B.Tavg, data = df) %>% tidy() %>%
+    mutate(Approach = "Sli_iso")
+  mod_sli_est <- lm(sli_estimated ~ B.Tavg, data = df) %>% tidy() %>%
+    mutate(Approach = "Sli_est")
+  bind_rows(mod_sli_iso, mod_sli_est, mod_resid_ols, mod_coef_ols, mod_coef_ratio, mod_coef_ratio2) #, mod_coef_ma
 }) %>% list_rbind(names_to = "Species") %>% 
   mutate(LCI95 = estimate - 1.96 * std.error,
          UCI95 = estimate + 1.96 * std.error)
@@ -160,6 +173,6 @@ parms_df %>% filter(term == "B.Tavg") %>% # & !Approach %in% c("Ratio2", "Ryding
   geom_hline(yintercept = 0, linetype = "dashed") + 
   labs(x = NULL, y = expression(beta[T] ~ "on wingyness")) +
   scale_color_hue(labels = legend_labs)
-allometric_scaling_path <- "/Users/aaronskinner/Library/CloudStorage/OneDrive-UBC/Grad_School/Methods_papers/Allometric-scaling/"
+
 ggsave(paste0(allometric_scaling_path, "Figures/Nightjar_shape.png"), 
        bg = "white")
