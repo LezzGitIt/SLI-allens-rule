@@ -40,7 +40,7 @@ r_13 <- c(0, -.15, -.3, -.5, -.7) # Wing temp
 r_23 <- r_13 # Mass temp
 
 ## Select whether you'd like to constrain the b_sma values or not. This is a step to ensure that setting b_sma values is not biasing our findings -- constraining the SMA values will fix the OLS slopes (see the subsection Sensitivity analyses). 
-b_avg_12 <- c(0.22, 0.33, 0.44) # NULL  
+b_avg_12 <- c(0.22, 0.33, 0.44) # NULL
 ```
 
 # Abstract
@@ -53,7 +53,7 @@ These results show that the methodological approach leveraged to examine changes
 
 # Defining 'error':
 
-## Key question: 
+## Key question:
 
 I've found the terminology in the statistical literature around the different types of 'error', and the partitioning of this error between $X$ and $Y$ confusing. In this paper I define 3 types of error:
 
@@ -114,6 +114,10 @@ library(scales)
 library(smatr)
 library(MASS) 
 library(ggpmisc) # Plots MA or SMA lines of best fit
+library(blavaan)
+library(lavaanPlot)
+library(DiagrammeRsvg)
+library(rsvg)
 ggplot2::theme_set(theme_cowplot())
 #library(scales) 
 #library(conflicted)
@@ -439,7 +443,7 @@ color_vec <- alpha(color_vec, 0.1)
 
 ::: {#fig-hist-raw-values}
 ```{r}
-
+#| label: Plot-density-curves
 # Plot density curves transparent
 df_morph_comb %>%
   pivot_longer(cols = c(Append, Mass, Temp_inc), 
@@ -600,7 +604,7 @@ Parms_tbl3 <- Parms_tbl2 %>% anti_join(Sim_fail)
 
 I remove these `r nrow(Sim_fail)` hypothetical species so the simulated data always matches the desired effect of simulated temperature.
 
-### Key question: 
+### Key question:
 
 From my description of the data simulation, particularly how temperature-morphology relationships were simulated (@sec-selecting-parms), plus these temp-body shape plots, does the classification of 'fatter', 'longer', and 'proportional' seem right? The conclusions reached in the results really depend on knowing the true (simulated) change in body shape.
 
@@ -1301,29 +1305,73 @@ Importantly, a negative bias likely exists in species simulated to become relati
 
 ## An alternative approach
 
-While SMA regression can improve our inference in studies involving biological scaling [@wartonBivariateLinefittingMethods2006; @greenMassLengthResiduals2001], the assumptions of SMA regression can also be limiting. Importantly, when these assumptions are violated SMA regression also leads to biased estimates of allometric scaling coefficients [@smithUseMisuseReduced2009; @arnoldAllometricRelationshipSize2007; @wartonBivariateLinefittingMethods2006]. An alternative approach is to model true body size as a latent trait that is not directly observed, but estimated through the shared variance between mass (loading $\lambda_1$) and appendage length (loading $\lambda_2$), along with their respective error terms. Factor loadings are estimated from the data and indicate the extent to which each trait reflects the common latent factor (i.e., structural body size). This is conceptually similar to SMA regression in that both traits are treated symmetrically, and their shared variance is modeled without privileging one as the predictor. The latent factor represents structural size, and variance is partitioned between shared structure and trait-specific deviations. Temperature is included as a predictor of appendage length, while latent size is modeled through a factor structure shared with mass. This partitions appendage variation into components attributable to body size and components uniquely associated with temperature.
+While SMA regression can improve our inference in studies involving biological scaling [@wartonBivariateLinefittingMethods2006; @greenMassLengthResiduals2001], the assumptions of SMA regression can also be limiting. Importantly, when these assumptions are violated SMA regression also leads to biased estimates of allometric scaling coefficients [@smithUseMisuseReduced2009; @arnoldAllometricRelationshipSize2007; @wartonBivariateLinefittingMethods2006].
+
+### Latent factor model
+
+An alternative approach is to model the true structural body size as a latent trait that is not directly observed, but estimated through the shared variance between several traits (mass, body length, appendages, etc.) that are 'caused' by the true body size. Factor loadings are estimated from the data and indicate the extent to which each trait reflects the common latent factor, i.e., the structural body size. This is conceptually similar to SMA regression in that traits are treated symmetrically, such that neither mass or length is specified as the predictor. The latent factor represents structural size, and variance is partitioned between shared structure and trait-specific deviations. Bergmann's rule is estimated as temperature's effect on latent body size, while Allen's rule is estimated as the direct effect of temperature on appendage. This partitions appendage length variation into components attributable to body size and components uniquely associated with temperature.
+
+### Path diagram
+
+```{r}
+#| label: path-diagram
+model <- '
+  # latent size
+  Size =~  Appendage_1 + Appendage_2 + Appendage_3 + Mass
+  
+  # latent measurement model for mass 
+  Mass =~ M1 + M2 + M3
+  
+  # Structural model (Bergmann’s & Allen’s rule)
+  Size ~ Temperature
+  Appendage_1 ~ Temperature
+  Appendage_2 ~ Temperature
+  Appendage_3 ~ Temperature
+'
+
+vars <- c("Appendage_1", "Appendage_2", "Appendage_3", "M1", "M2", "M3", "Temperature")
+fake_cov <- diag(7)
+colnames(fake_cov) <- vars
+rownames(fake_cov) <- vars
+
+# Fake fit
+fit <- lavaan::sem(model, sample.cov = fake_cov, sample.nobs = 100, do.fit = FALSE)
+
+gr <- lavaanPlot(model = fit, coefs = FALSE, stand = FALSE, graph_options = list(rankdir = "BT"))
+
+svg <- export_svg(gr)
+svg_clean <- charToRaw(enc2utf8(svg))
+rsvg::rsvg_pdf(svg_clean, "Figures/path_diagram.pdf")
+```
+
+![Path diagram showing a hypothetical model that could be used to test Allen's rule for any number of appendages. Ovals represent latent variables and rectangles represent measured variables. Intercepts and residual errors are implied and thus not shown. M1 - M3 represent multiple measurements of mass at an appropriate time scale. The measurement model could be extended to any of the appendage variables as well, but transient fluctations in mass are almost surely greater, and therefore more important to account for.](../Figures/path_diagram.pdf)
 
 Let $i$ index individuals, such that the observed traits of individual $i$ are modeled as: $$
-\text{Mass}_{i} = \lambda_1 \cdot \text{Size}_{i} + \epsilon_{i}
+\text{Mass}_{i} = \lambda_{mass} \cdot \text{Size}_{i} + \epsilon_{i}
 $$ {#eq-mass-latent-factor-model}
 
 $$
-\text{Appendage}_{i} = \lambda_2 \cdot \text{Size}_i + \delta_{i}
+\text{Appendage}_{i,n} = \lambda_n \cdot \text{Size}_{i,n} + \delta_{i,n}
 $$ {#eq-appendage-latent-factor-model}
 
 -   $\text{Size}_i$ is a latent variable representing true structural size.
--   $\lambda_1$, $\lambda_2$ are factor loadings (scaling relationships).
--   $\epsilon_{i}$ and $\delta_i$ captures all variation in mass and appendage, respectively, that is not captured by latent $\text{Size}_i$
+-   $\lambda_{mass}$ is the factor loading for mass
+-   $\lambda_1... \lambda_n$ are factor loadings for any number of appendages, $n$.
+-   $\epsilon_{i}$ and $\delta_{i,n}$ captures all variation in mass and appendage length, respectively, that is not captured by latent $\text{Size}$
 
-Thus we can use $\delta_i$ as our estimate of relative appendage length, which is then estimated as to test Allen's rule:
+Thus the residual $\delta_{i,n}$ is essentially our estimate of relative appendage length for appendage $n$, which is then estimated as to test Allen's rule:
 
 $$
-\delta_i \sim \mathcal{N}(\beta_T \cdot \text{Temp}_i, \sigma^2)
+\delta_{i,n} \sim \mathcal{N}(\beta_T \cdot \text{Temp}_i, \sigma^2)
 $$ {#eq-latent-shape-model}
 
-where $\beta_T$ is the estimand of interest and $\sigma^2$ represents residual variation in relative appendage length that is not explained by temperature. With repeated measurements at the appropriate time scale, additional hierarchical levels can be added to this model to further partition residual error. For example, consecutive measurements from different observers, devices, or field stations, but on the same subject, can be used to quantify measurement error (ME), while repeated measurements across a few days can help estimate transient fluctuations (TF) in mass (and appendage, if relevant). In this case, the latent factor model of mass (@eq-mass-latent-factor-model) transforms into $\text{Mass}_{ij} = \lambda_1 \cdot \text{Size}_i + \epsilon^{ME}_{ij} + \epsilon^{TF}_{ij} + \epsilon_{ij}$ where $Mass_{ij}$ is the mass of individual $i$ on measurement $j$ and $\epsilon_{ij}$ soaks up any additional variation in mass not explained by latent size or repeat measurements (i.e., ME and TF). Partitioning extraneous variance in mass and appendage can help achieive better estimates of latent size and ultimately $\delta_i$, our index of relative appendage length. If unaccounted for, these sources of error are absorbed into the residual variance of the shape model (@eq-latent-shape-model), attenuating the estimated effect of temperature on relative appendage length ($\beta_T$).
+where $\beta_T$ is the estimand of interest (the direct effect of temperature on appendage) and $\sigma^2$ represents residual variation in relative appendage length that is not explained by temperature.
 
-This latent variable structural equation model has not been used (at least in recent years, Skinner in prep) in the context of Allen's rule, but provides several key advantages. The model 1) accounts for allometric scaling without directional causality (i.e. that mass causes appendage), 2) partitions error and trait-specific noise and residual error, and, most importantly 3) provides clean inference on temperature's effect on relative appendage length. When estimated in a Bayesian framework, this class of models jointly estimates all parameters and naturally propagates uncertainty through all model levels. The framework is also easily extended to incorporate additional biological complexity, such as phylogenetic structure, random effects, or spatial and temporal autocorrelation.
+#### Measurement model
+
+With repeated measurements at the appropriate time scale, additional hierarchical levels can be added to this model to further partition residual error. For example, consecutive measurements from different observers, devices, or field stations, but on the same subject, can be used to quantify measurement error (ME), while repeated measurements across a few days can help estimate transient fluctuations (TF) in mass (and appendage, if relevant). In this case, the latent factor model of mass (@eq-mass-latent-factor-model) transforms into $\text{Mass}_{ij} = \lambda_{mass} \cdot \text{Size}_i + \epsilon^{ME}_{ij} + \epsilon^{TF}_{ij} + \epsilon_{ij}$ where $Mass_{ij}$ is the mass of individual $i$ on measurement $j$ and $\epsilon_{ij}$ soaks up any additional variation in mass not explained by latent size or repeat measurements (i.e., ME and TF). Partitioning extraneous variance in mass and appendage can help achieve better estimates of latent size and ultimately $\delta_{i,n}$, our index of relative appendage length. If unaccounted for, these sources of error are absorbed into the residual variance of the shape model (@eq-latent-shape-model), attenuating the estimated effect of temperature on relative appendage length ($\beta_T$).
+
+While path analysis has been used on rare occasions in studies of Allen's rule in recent years [e.g., @liAppendageSizesThree2024] (CITE XU), size has not been estimated as a latent variable (Skinner in prep). However, this approach provides several key advantages, as the model 1) accounts for allometric scaling without directional causality (i.e. that mass causes appendage length), 2) incorporates size information from an arbitrary number of traits, 3) partitions error and trait-specific noise and residual error, and, 4) jointly estimates temperature's impact on latent body size (Bergmann's rule) and relative appendage length (Allen's rule) for $n$ appendages. This model naturally propagates uncertainty through all model levels (especially if estimated in a Bayesian framework), and can easily be extended to incorporate additional biological complexity, such as phylogenetic structure, random effects, or spatial and temporal autocorrelation.
 
 ### Key question:
 
@@ -1411,7 +1459,7 @@ Box-cox to understand the parameter of the Box-Cox power transformation?
 
 # Extras
 
-## Tracking recent changes 
+## Tracking recent changes
 
 For tracking purposes
 
