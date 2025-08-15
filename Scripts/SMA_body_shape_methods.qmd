@@ -12,7 +12,7 @@ include-in-header: # package float allows you to specify 'H' instead of 'h'
       text: |
         \usepackage{float} 
 editor: visual
-bibliography: ../Supp_files/EWPW2.bib
+bibliography: ../Supp_files/EWPW.bib
 link-citations: true
 csl: ../Supp_files/methods-in-ecology-and-evolution.csl
 knitr:
@@ -272,7 +272,7 @@ if(is.null(b_avg_12)){
 
 ### Additional sources of error
 
-As mentioned in the introduction, estimates of body size and appendage length are always influenced by measurement error, and some measurements are subject to additional types of error. In particular, when mass is used as the proxy for body size, transient fluctuation 'error' should not be ignored given that it is likely substantially larger than measurement error (CITE Ponzi?). Thus, I include an equivalent amount of measurement error in both $X$ and $Y$ (2% of the standard deviation of $X$ and $Y$), as well as transient fluctuation 'error' in mass equal to 10% of the standard deviation of $X$.
+As mentioned in the introduction, estimates of body size and appendage length are always influenced by measurement error, and some measurements are subject to additional types of error. In particular, when mass is used as the proxy for body size, transient fluctuation 'error' should not be ignored given that it is likely substantially larger than measurement error. Thus, I include an equivalent amount of measurement error in both $X$ and $Y$ (2% of the standard deviation of $X$ and $Y$), as well as transient fluctuation 'error' in mass equal to 10% of the standard deviation of $X$.
 
 ### Sensitivity analyses
 
@@ -1150,23 +1150,26 @@ tidy_dagitty(dag_allen, layout = "fr") %>%
 
 This DAG implies that the total effect of temperature on appendage length consists of a direct path $Temperature \rightarrow Appendage$ and an indirect path that operates via changes in body size, $Temperature \rightarrow Size \rightarrow Appendage$. Conditioning on size removes the indirect path, so that $\beta_T$ estimates the direct effect of temperature on absolute appendage length. Returning to the question posed by this model, when mass is fixed, temperature's impact on absolute appendage length is negative (@fig-condition-on-mass). This explains the negative bias in $\beta_T$ in species simulated to decrease in appendage length proportionally with mass, and even to get relatively longer (points below the dashed line in the 'Proportional' and 'Longer' panels in @fig-compare-approaches).
 
-The sign and magnitude of $\beta_T$ will depend on the relative strength of the two causal paths. The bias is greatest when the correlation between mass and appendage is low, as the model attributes less variance in absolute appendage length to mass and more to temperature (@fig-neg-bias-mvr-proportional, @fig-neg-bias-mvr-longer). In species decreasing in size proportionally, the stronger the empirical temperature-morphology correlation, the greater the negative bias in $\beta_T$ (@fig-neg-bias-mvr-proportional). In species simulated to get relatively longer, the negative bias is greatest at more negative temperature-appendage correlations (@fig-neg-bias-mvr-longer).
+The sign and magnitude of $\beta_T$ will depend on the relative strength of the two causal paths. The bias is greatest when the correlation between mass and appendage is low, as the model attributes less variance in absolute appendage length to mass and more to temperature (@fig-neg-bias-mvr-proportional, @fig-neg-bias-mvr-longer). In species decreasing in size proportionally, the stronger the empirical temperature-morphology correlation, the greater the negative bias in $\beta_T$ (@fig-neg-bias-mvr-proportional). In species simulated to get relatively longer, the negative bias is greatest at more negative temperature-appendage correlations, and when there is a relatively large effect of temperature on mass (compared to the the effect of temperature on appendage; low 'Strengths' in @fig-neg-bias-mvr-longer).
 
 ```{r}
 #| label: fig-neg-bias-mvr-proportional
-#| fig-cap: In species simulated to decrease in relative appendage length proportionally, multivariate regression was negatively biased. The negative bias was more extreme as the temperature-morphology correlation became more negative, and as the correlation between appendage and mass decreased. The allometric scaling slope did not influence bias.
+#| fig-cap: In species simulated to decrease in appendage length proportionally with mass, multivariate regression was negatively biased. The negative bias was more extreme as the temperature-morphology correlation became more negative, and as the correlation between appendage and mass decreased. The allometric scaling relationship (depicted by point shape) did not influence the amount of bias.
 
 Parms_tbl4 %>% filter(Temp_eff == "Proportional" & Model == "Ryding") %>% 
   #select(Scaling, r_12, r_23, r_13, b_temp_inc) %>%
   ggplot(aes(x = r_13, y = b_temp_inc, color = factor(r_12))) + 
-  geom_point(aes(shape = Scaling), alpha = .6, size = 3) +
+  geom_jitter(aes(shape = Scaling), alpha = .6, size = 3, width = 0.02) +
   geom_smooth(method = "lm", se = TRUE, alpha = 0.2,
               formula = y ~ poly(x, 2)) + 
-  labs(x = "Temperature-morphology correlation", y = expression(beta[T])) 
+  labs(x = "Temperature-morphology correlation", y = expression(beta[T]),
+       color = "Mass- \nappendage \ncorrelation") + 
+  guides(shape = "none")
 ```
 
 ```{r}
 #| label: fig-neg-bias-mvr-longer
+#| fig-cap: In species simulated to get relatively longer, the negative bias is greatest at more negative temperature-appendage correlations. The color of points depicts the difference between temperature's effect on wing and its effect on mass. The size of points shows the correlation between appendage and mass, highlighting that negative bias is more extreme when the correlation between mass and appendage is low.
 
 # The correlation between 'Strength' and 'r_13' is pretty low (< 0.4)
 Parms_tbl4 %>% filter(Temp_eff == "Longer" & Model == "Ryding") %>% 
@@ -1175,24 +1178,46 @@ Parms_tbl4 %>% filter(Temp_eff == "Longer" & Model == "Ryding") %>%
   geom_point(aes(color = Strength, size = r_12), alpha = .6) +
   geom_smooth(method = "lm", se = TRUE, alpha = 0.2,
               formula = y ~ poly(x, 2))+ 
-  labs(x = "Temperature-appendage correlation", y = expression(beta[T])) 
+  labs(x = "Temperature-appendage correlation", y = expression(beta[T]), 
+       size = "Mass- \nappendage \ncorrelation") 
 ```
 
 The bias observed in species simulated to get 'much longer' is a particularly poignant example of this phenomena. In cases where the temperature-appendage correlation was 0, but temperature-mass correlation \< 0, temperature still drives longer appendages indirectly by reducing mass. Thus, the total effect of temperature on *absolute* (as well as relative) appendage length is positive, but this is entirely through the indirect path of $Temperature \rightarrow Mass \rightarrow Appendage$. The multivariate model attempts to estimate the effect of temperature while holding mass constant (removing the only pathway through which temperature influences appendage length), and the model ends up assigning a spurious negative coefficient to temperature due to the combination of conditioning on a mediator (i.e., mass) and negative correlation between mass and temperature.
 
 ```{r}
 #| label: fig-condition-on-mass
-#| fig-cap: Relationship between temperature and appendage length when mass is stratified into quartiles to visualize the interaction between temperature and body size. Although temperature has no direct effect on appendage size in the simulation, it indirectly increases appendage length by reducing body mass. Conditioning on mass in a multivariate model removes this indirect effect and induces a spurious negative association between temperature and appendage size.
+#| fig-cap: Relationship between temperature and appendage length when log(mass) is stratified into quartiles to visualize the interaction between temperature and body size. Although temperature has no direct effect on appendage size in the simulation, it indirectly increases appendage length by reducing body mass. Conditioning on mass in a multivariate model removes this indirect effect and induces a spurious negative association between temperature and appendage size.
 
-Ex_df_neg2 <- Parms_mat3 %>% filter(Scaling == "Inverse" & r_13 == 0 & r_12 == -.4) %>% slice_max(n = 1, order_by = Strength, by = Temp_eff, with_ties = FALSE) %>% gen_ex_data()
+# Generate example df 
+Ex_df_neg2 <- Parms_mat3 %>% 
+  filter(Scaling == "Inverse" & r_13 == 0 & r_12 == -.4) %>% 
+  slice_max(n = 1, order_by = Strength, by = Temp_eff, with_ties = FALSE) %>%
+  gen_ex_data()
 
-#Appendage length vs Temp, stratified by mass
-Ex_df_neg2 %>% ggplot(aes(x = Temp_inc, y = Append_log)) + 
-  geom_point(aes(color = Mass_log), alpha = 0.3) + 
-  geom_smooth(method = "lm", se = FALSE, color = "black") + 
-  facet_wrap(~ cut_number(Mass_log, n = 4)) + 
-  scale_color_viridis_c() + 
-  labs(title = "Appendage length vs Temp, stratified by mass")
+# Create labels df
+df_labs <- Ex_df_neg2 %>%
+  mutate(Mass_bin = cut_number(Mass_log, n = 4)) %>%
+  distinct(Mass_bin) %>%
+  mutate(
+    lab = Mass_bin %>%
+      as.character() %>%
+      gsub("\\(|\\]|\\[", "", .) %>%
+      strsplit(",") %>%
+      sapply(function(x) paste("log(Mass) =", x[1], "–", x[2]))
+  )
+
+# map labels vector
+lab_map <- setNames(df_labs$lab, df_labs$Mass_bin)
+
+# Plot
+Ex_df_neg2 %>%
+  mutate(Mass_bin = cut_number(Mass_log, n = 4)) %>%
+  ggplot(aes(x = Temp_inc, y = Append_log)) +
+  geom_point(aes(color = Mass_log), alpha = 0.3) +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +
+  facet_wrap(~ Mass_bin, labeller = labeller(Mass_bin = lab_map)) +
+  scale_color_viridis_c() +
+  labs(x = "Temperature increase", y = "log(Appendage)", color = "Mass")
 
 # Slightly positive overall effect of temperature, but negative when conditioning on mass
 #summary(lm(Append_log ~ Temp_inc, data = Ex_df_neg2))
@@ -1217,8 +1242,8 @@ plot_allo_temp <- function(df, alpha = .7, lm_line = TRUE, label = NULL, ...){
   
   if(!is.null(label)){
     # x_pos <- quartile(Mass, .05, 1) # relative position
-    p <- p + annotate("text", x = .05, y = 2.4, label = "I", size = 6, color = "black") +
-  annotate("text", x = 6.0, y = 3.8, label = "II", size = 6, color = "black")
+    p <- p + annotate("text", x = 4.23, y = 5.13, label = "I", size = 6, color = "red") +
+  annotate("text", x = 4.52, y = 5.25, label = "II", size = 6, color = "red")
   }
   
   return(p)
@@ -1239,7 +1264,7 @@ Ex_df_hypo_hyper_l <- Ex_df_hypo_hyper %>% group_split(Scaling)
 
 ```{r}
 #| label: fig-allometric-relationship-temp-ral
-#| fig-cap: The allometric relationships of a single hypothetical species (i.e., each point is an individual of the species) that we simulated to get relatively longer as temperature increases. The SMA line of best fit is shown in blue, and the OLS regression line in red, and the points are colored by how much temperature has increased for a given individual of the hypothetical species. 
+#| fig-cap: The allometric relationships of a single hypothetical species (i.e., each point is an individual of the species) that we simulated to get relatively longer as temperature increases. The SMA line of best fit is shown in blue, and the OLS regression line in red, and the points are colored by how much temperature has increased for a given individual of the hypothetical species. Sections of the plot labeled with "I" and "II" are areas where OLS and SMA differ in their classification of individuals as relatively fat or relatively long (i.e., the sign of residuals is flipped).
 #| fig-pos: 'H'
 
 # Define common set of X & Y limits 
@@ -1250,8 +1275,8 @@ xy_lims <- Ex_df_hypo_hyper %>%
             min.mass = min(Mass_log))
 
 # Plot 
-hypo_p <- plot_allo_temp(df = Ex_df_hypo_hyper_l[[1]],
-                         title = "Hypoallometric")
+#hypo_p <- plot_allo_temp(df = Ex_df_hypo_hyper_l[[1]],
+                         #title = "Hypoallometric")
 hyper_p <- plot_allo_temp(df = Ex_df_hypo_hyper_l[[2]], label = TRUE, lm_line = TRUE) #, 
                           #title = "Hyperallometric")
 #ggarrange(hypo_p, hyper_p, common.legend = TRUE)
@@ -1260,7 +1285,7 @@ hyper_p
 #ggsave("Figures/fig-underestimation-ral.png", bg = "white")
 ```
 
-Classical regression always underestimates the functional relationship between mass and appendage (as long as $r$ \< 1). Relative to SMA, this leads to an overestimation of negative residuals in small individuals (i.e., points in the bottom left quadrant of the plot - labeled with a black "I"), and an overestimation of positive residuals in large individuals (top right quadrant of the plot - labeled with a black "II"). If we assume that the temporal analog of Bergmann's rule applies to most species, then temperature increases will push individuals towards the bottom left quadrant of the plot – exactly where classical regression overestimates the negative residuals. In other words, classical regression approaches suggest that the individuals in Section I are relatively fat (i.e., negative residuals), whereas SMA labels them as having relatively long appendages.
+Classical regression always underestimates the functional relationship between mass and appendage (as long as $r$ \< 1). Relative to SMA, this leads to an overestimation of negative residuals in small individuals (i.e., points in the bottom left quadrant of the plot - labeled with a "I"), and an overestimation of positive residuals in large individuals (top right quadrant of the plot - labeled with a "II"). If we assume that the temporal analog of Bergmann's rule applies to most species, then temperature increases will push individuals towards the bottom left quadrant of the plot – exactly where classical regression overestimates the negative residuals. In other words, classical regression approaches suggest that the individuals in Section I are relatively fat (i.e., negative residuals), whereas SMA labels them as having relatively long appendages.
 
 ## Estimating vs assigning the SLI scaling slope
 
@@ -1307,26 +1332,26 @@ Importantly, a negative bias likely exists in species simulated to become relati
 
 While SMA regression can improve our inference in studies involving biological scaling [@wartonBivariateLinefittingMethods2006; @greenMassLengthResiduals2001], the assumptions of SMA regression can also be limiting. Importantly, when these assumptions are violated SMA regression also leads to biased estimates of allometric scaling coefficients [@smithUseMisuseReduced2009; @arnoldAllometricRelationshipSize2007; @wartonBivariateLinefittingMethods2006].
 
-### Latent factor model
+### Structural equation model with latent size
 
-An alternative approach is to model the true structural body size as a latent trait that is not directly observed, but estimated through the shared variance between several traits (mass, body length, appendages, etc.) that are 'caused' by the true body size. Factor loadings are estimated from the data and indicate the extent to which each trait reflects the common latent factor, i.e., the structural body size. This is conceptually similar to SMA regression in that traits are treated symmetrically, such that neither mass or length is specified as the predictor. The latent factor represents structural size, and variance is partitioned between shared structure and trait-specific deviations. Bergmann's rule is estimated as temperature's effect on latent body size, while Allen's rule is estimated as the direct effect of temperature on appendage. This partitions appendage length variation into components attributable to body size and components uniquely associated with temperature.
-
-### Path diagram
+An alternative approach is to model the true structural body size as a latent trait that is not directly observed, but estimated through the shared variance between the traits mass and length. These factor loadings are estimated from the data and indicate the extent to which each trait reflects the common latent factor of structural body size. This is conceptually similar to SMA regression in that traits are treated symmetrically, such that no trait(s) is specified as the predictor variable. The higher order latent factor represents structural size, and variance is partitioned between shared structure and trait-specific deviations.
 
 ```{r}
 #| label: path-diagram
+
+if(FALSE){
+  
 model <- '
   # latent size
-  Size =~  Appendage_1 + Appendage_2 + Appendage_3 + Mass
+  Size =~  Length + Mass
   
-  # latent measurement model for mass 
+  # latent measurement model for mass & length
+  Length =~ Appendage_1 + Appendage_2 + Appendage_3
   Mass =~ M1 + M2 + M3
   
   # Structural model (Bergmann’s & Allen’s rule)
   Size ~ Temperature
-  Appendage_1 ~ Temperature
-  Appendage_2 ~ Temperature
-  Appendage_3 ~ Temperature
+  Length ~ Temperature
 '
 
 vars <- c("Appendage_1", "Appendage_2", "Appendage_3", "M1", "M2", "M3", "Temperature")
@@ -1342,40 +1367,92 @@ gr <- lavaanPlot(model = fit, coefs = FALSE, stand = FALSE, graph_options = list
 svg <- export_svg(gr)
 svg_clean <- charToRaw(enc2utf8(svg))
 rsvg::rsvg_pdf(svg_clean, "Figures/path_diagram.pdf")
+}
 ```
 
-![Path diagram showing a hypothetical model that could be used to test Allen's rule for any number of appendages. Ovals represent latent variables and rectangles represent measured variables. Intercepts and residual errors are implied and thus not shown. M1 - M3 represent multiple measurements of mass at an appropriate time scale. The measurement model could be extended to any of the appendage variables as well, but transient fluctations in mass are almost surely greater, and therefore more important to account for.](../Figures/path_diagram.pdf)
+```{r}
+#| label: path-diagrammeR
 
-Let $i$ index individuals, such that the observed traits of individual $i$ are modeled as: $$
+library(DiagrammeR)
+
+gr <- grViz("
+digraph SEM {
+  graph [rankdir = BT]
+  graph [layout = dot, splines = line]  // force straight edges
+
+  # node shapes
+  node [shape = oval, style = filled, fillcolor = LightGray]
+  Size
+  Length
+  Mass
+
+  node [shape = box, style = filled, fillcolor = LightGray]
+  M1 M2 M3 A1 A2 A3 Temperature
+
+  # measurement model
+  Size -> Length
+  Size -> Mass
+  Mass -> M1
+  Mass -> M2
+  Mass -> M3
+  Length -> A1
+  Length -> A2
+  Length -> A3
+
+  # structural model with labels
+  Temperature -> Size [label = 'Bergmanns \nRule']
+  Temperature -> Length [label = 'Allens \nRule']
+}
+")
+
+svg <- export_svg(gr)
+svg_clean <- charToRaw(enc2utf8(svg))
+rsvg::rsvg_pdf(svg_clean, "Figures/path_diagram.pdf")
+```
+
+![Path diagram showing a hypothetical model that could be used to test Allen's rule for any number of appendages. Ovals represent latent variables and rectangles represent measured variables. M1 - M3 represent multiple measurements of mass at an appropriate time scale; A1 - A3 represent three distinct appendages (e.g., tarsus, wing, and bill length). Repeat measurements could also be taken for appendage variables, but transient fluctuations in mass are almost certainly more important to account for. Intercepts and residual errors are implied and thus not shown.](../Figures/path_diagram.pdf)
+
+Let $i$ index individuals, such that the mass and length of individual $i$ are modeled as: $$
 \text{Mass}_{i} = \lambda_{mass} \cdot \text{Size}_{i} + \epsilon_{i}
 $$ {#eq-mass-latent-factor-model}
 
 $$
-\text{Appendage}_{i,n} = \lambda_n \cdot \text{Size}_{i,n} + \delta_{i,n}
+\text{Length}_{i} = \lambda_{length} \cdot \text{Size}_{i} + \delta_{i}
 $$ {#eq-appendage-latent-factor-model}
 
 -   $\text{Size}_i$ is a latent variable representing true structural size.
--   $\lambda_{mass}$ is the factor loading for mass
--   $\lambda_1... \lambda_n$ are factor loadings for any number of appendages, $n$.
--   $\epsilon_{i}$ and $\delta_{i,n}$ captures all variation in mass and appendage length, respectively, that is not captured by latent $\text{Size}$
-
-Thus the residual $\delta_{i,n}$ is essentially our estimate of relative appendage length for appendage $n$, which is then estimated as to test Allen's rule:
-
-$$
-\delta_{i,n} \sim \mathcal{N}(\beta_T \cdot \text{Temp}_i, \sigma^2)
-$$ {#eq-latent-shape-model}
-
-where $\beta_T$ is the estimand of interest (the direct effect of temperature on appendage) and $\sigma^2$ represents residual variation in relative appendage length that is not explained by temperature.
+-   $\lambda_{mass}$ and $\lambda_{length}$ are the factor loadings for mass and lengthiness, respectively
+-   $\epsilon_{i}$ and $\delta_{i}$ captures all variation in latent mass and length, respectively, that is not captured by latent $\text{Size}$. Importantly, $\delta_{i}$ is our measure of relative lengthiness, i.e. length adjust for body size.
 
 #### Measurement model
 
-With repeated measurements at the appropriate time scale, additional hierarchical levels can be added to this model to further partition residual error. For example, consecutive measurements from different observers, devices, or field stations, but on the same subject, can be used to quantify measurement error (ME), while repeated measurements across a few days can help estimate transient fluctuations (TF) in mass (and appendage, if relevant). In this case, the latent factor model of mass (@eq-mass-latent-factor-model) transforms into $\text{Mass}_{ij} = \lambda_{mass} \cdot \text{Size}_i + \epsilon^{ME}_{ij} + \epsilon^{TF}_{ij} + \epsilon_{ij}$ where $Mass_{ij}$ is the mass of individual $i$ on measurement $j$ and $\epsilon_{ij}$ soaks up any additional variation in mass not explained by latent size or repeat measurements (i.e., ME and TF). Partitioning extraneous variance in mass and appendage can help achieve better estimates of latent size and ultimately $\delta_{i,n}$, our index of relative appendage length. If unaccounted for, these sources of error are absorbed into the residual variance of the shape model (@eq-latent-shape-model), attenuating the estimated effect of temperature on relative appendage length ($\beta_T$).
+In this model, mass and length (or “lengthiness”) are also latent variables, with each individual’s true mass and lengthiness reflected in the shared variance among their manifest indicators (M1–M3 and A1–A3, respectively). Paramaterizing length as latent is a parsimonious way to use information from any number of appendage variables (e.g., ear, hind foot, total body length). Paramaterizing mass as latent accounts for imperfect measurement due to transient fluctuations or true measurement error (assuming repeat measurements at an appropriate time scale). Note that any appendage variable with repeat measurements could also be parameterized as latent, which could be important in small species or traits with small dimensions [e.g., bill width; @theriotHarnessingNaturalHistory2023].
 
-While path analysis has been used on rare occasions in studies of Allen's rule in recent years [e.g., @liAppendageSizesThree2024] (CITE XU), size has not been estimated as a latent variable (Skinner in prep). However, this approach provides several key advantages, as the model 1) accounts for allometric scaling without directional causality (i.e. that mass causes appendage length), 2) incorporates size information from an arbitrary number of traits, 3) partitions error and trait-specific noise and residual error, and, 4) jointly estimates temperature's impact on latent body size (Bergmann's rule) and relative appendage length (Allen's rule) for $n$ appendages. This model naturally propagates uncertainty through all model levels (especially if estimated in a Bayesian framework), and can easily be extended to incorporate additional biological complexity, such as phylogenetic structure, random effects, or spatial and temporal autocorrelation.
+In this case, the latent factor model of mass (@eq-mass-latent-factor-model) becomes
+
+$$
+\text{Mass}_{ij} = \lambda_{mass} \cdot \text{Size}_i + \epsilon^{TF}_{ij} + \epsilon_{ij} 
+$$ {#eq-measurement-error-model}
+
+where $Mass_{ij}$ is the mass of individual $i$ on measurement $j$, $\epsilon^{TF}_{ij}$ captures transient fluctuations, and $\epsilon_{ij}$ soaks up any additional variation in mass not explained by latent size or repeat measurements. Partitioning residual variance in mass can improves estimates of latent size and ultimately ultimately $\delta_{i}$ (@eq-appendage-latent-factor-model), our index of relative lengthiness.
+
+#### Structural model
+
+The structural model is defined by our question of interest - temperature's effect on relative length (Allen's rule), such that $\delta_{i}$ is estimated as:
+
+$$
+\delta_{i} \sim \mathcal{N}(\beta_T \cdot \text{Temp}_i, \sigma^2)
+$$ {#eq-latent-shape-model}
+
+where $\beta_T$ is the estimand of interest (the direct effect of temperature on relative length) and $\sigma^2$ is residual variation in relative length not explained by temperature. Conveniently, this model also estimates temperature's effect on latent size (i.e., Bergmann's rule).
+
+While path analysis has occasionally been used in studies of Allen’s rule in recent years [e.g., @liAppendageSizesThree2024; @frohlichAllometryRevealsTradeoffs2023; @xuEcologicalPredictorsInterspecific2023], size has not been estimated as a latent variable (Skinner in prep). However, this approach offers several advantages: 1) it accounts for allometric scaling without assuming directional causality (i.e. that mass causes appendage length), 2) incorporates size information from an arbitrary number of traits, 3) It distinguishes variance due to transient fluctuations / measurement error from residual error (@eq-measurement-error-model), reducing bias in our estimand of interest $\beta_T$, and, 4) jointly estimates temperature's impact on latent body size (Bergmann's rule) and relative length (Allen's rule). This model naturally propagates uncertainty through all model levels (especially if estimated in a Bayesian framework), and can easily be extended to incorporate additional biological complexity, such as phylogenetic structure, random effects, or spatial and temporal autocorrelation.
+
+This framework naturally propagates uncertainty through all model levels - especially when estimated in a Bayesian framework - and can easily be extended to incorporate additional biological complexity such as phylogenetic structure, random effects, or spatial and temporal autocorrelation [e.g., @frohlichAllometryRevealsTradeoffs2023].
 
 ### Key question:
 
-Does this model and formulation structure make sense to you?
+Does this latent factor model and formulation structure make sense to you?
 
 ## Conclusions
 
@@ -1545,7 +1622,7 @@ Lack of fit in a model can come from three primary phenomena: measurement error,
 
 From our case study of nightjars, is not surprising that there are large positive effects of $\beta_T$ on relative appendage length (given that all three species follow Bergmann's rule). Wing^2^ / mass also has more theoretical support as a proxy for the surface area to volume ratio (a squared to a cubic ratio).
 
-While some authors have used raw appendage size to test Allen's rule [e.g., @fanBergmannsRuleAllens2019], I would argue that most appendages this is a better test of Bergmann's rule in most cases [although organs tightly tied to thermoregulation may be an exception for some species and contexts - bird bills: @tattersallEvolutionAvianBill2017; @symondsGeographicalVariationBill2010; elephant ears: CITE]. In studies of Allen's rule, I argue that tying multiple metrics together at the level of the individual is critical.
+While some authors have used raw appendage size to test Allen's rule [e.g., @fanBergmannsRuleAllens2019], I would argue that most appendages this is a better test of Bergmann's rule in most cases [although organs tightly tied to thermoregulation may be an exception for some species and contexts - bird bills: @tattersallEvolutionAvianBill2017; @symondsGeographicalVariationBill2010; elephant ears: @williams1990heat]. In studies of Allen's rule, I argue that tying multiple metrics together at the level of the individual is critical.
 
 Allen's rule is often interpreted as appendage length *relative* to body size, which acknowledges that overall body size and appendage length will generally show positive covariance due to principles of biological scaling [@shingletonAllometryStudyBiological2010]. In fact, interpreting Allen's rule as relative appendage length is the only way that Bergmann's and Allen's rules can be true simultaneously for a species exhibiting positive allometry (i.e., body size and appendage size positively covary). For the rest of this section, I will refer to body size as mass (although as noted above there are many metrics that can approximate body size), as this is the metric commonly used to represent body size in studies of Allen's rule. Positive allometry is very common in nature, as larger organisms tend to weigh more and require longer appendages to transport this increased weight. For example, lift in bird wings is FILL IN and thus the laws of physics tend to result in species with positive allometry [@raynerFormFunctionAvian1988].
 
