@@ -15,7 +15,7 @@ ggplot2::theme_set(theme_cowplot())
 Atlantic_birds <- read_csv("/Users/aaronskinner/Library/CloudStorage/OneDrive-UBC/Academia/Datasets_external/Ecology/Atlantic_bird_traits/ATLANTIC_BIRD_TRAITS_completed_2018_11_d05.csv")
 
 # Run parameters ----------------------------------------------------------
-min_n_obs       <- 300    # minimum observations per species to be included
+min_n_obs       <- 150    # minimum observations per species to be included
 year_cutoff     <- 1990   # exclude records from this year and before
 p_bergmann      <- 0.05   # p-value threshold: Bergmann / Allen response classification
 p_age_sex       <- 0.10   # p-value threshold: age / sex covariate inclusion
@@ -381,8 +381,10 @@ sem_parms <- map(Atl_birds_l4, \(df) {
   )
   tibble(
     term      = "B.Tavg",
-    estimate  = c(res$coef_sem_wing,  res$coef_sem_tarsus),
-    std.error = c(res$se_sem_wing,    res$se_sem_tarsus),
+    estimate  = c(res$coef_sem_wing,       res$coef_sem_tarsus),
+    std.error = c(res$se_sem_wing,         res$se_sem_tarsus),
+    lambda    = c(res$lambda_sem_wing,     res$lambda_sem_tarsus),
+    se_lambda = c(res$se_lambda_sem_wing,  res$se_lambda_sem_tarsus),
     p.value   = NA_real_,
     Approach  = c("SEM_wing", "SEM_tarsus")
   )
@@ -392,6 +394,85 @@ sem_parms <- map(Atl_birds_l4, \(df) {
          UCI95 = estimate + 1.96 * std.error)
 
 parms_df <- bind_rows(parms_df, sem_parms)
+
+# SEM diagnostics: factor loadings  ---------------------------------------
+# lambda = loading of each appendage on latent Size.
+# It captures how much of that appendage's variance is shared with mass.
+#
+# Boundary cases:
+#   low lambda  → appendage barely tracks body size; little collider bias to
+#                 correct, but the latent factor is poorly constrained (high SE).
+#   high lambda → appendage is dominated by size variation; the direct Temp
+#                 effect has little independent variance left (also high SE).
+#   optimal     → intermediate lambda gives best precision.
+#
+# If the SEM guard (|coef| > 1.5) discards a species, lambda is NA.
+
+sem_diag <- sem_parms %>%
+  filter(!is.na(lambda)) %>%
+  left_join(Spp_keep2 %>% dplyr::select(species_, Direction), by = "species_") %>%
+  mutate(
+    appendage = if_else(Approach == "SEM_wing", "Wing", "Tarsus"),
+    species   = str_replace(species_, "_", " "),
+    ci_width  = UCI95 - LCI95
+  )
+
+# Lambda vs SE of temperature coefficient
+p_lambda_se <- ggplot(sem_diag, aes(x = lambda, y = std.error, color = appendage)) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "grey50") +
+  geom_point(size = 2) +
+  geom_smooth(se = FALSE, method = "loess", span = 1.5, linewidth = 0.8) +
+  scale_color_manual(values = c("Wing" = "steelblue", "Tarsus" = "coral3")) +
+  annotate("text", x = -Inf, y = 0.52, hjust = -0.1, size = 3,
+           label = "SE = 0.5", color = "grey40") +
+  labs(x = expression(lambda ~ "(factor loading on latent Size)"),
+       y = "SE of temperature coefficient",
+       color = NULL)
+
+# Lambda vs coefficient estimate (with 95% CI error bars)
+p_lambda_coef <- ggplot(sem_diag, aes(x = lambda, y = estimate, color = appendage)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
+  geom_errorbar(aes(ymin = LCI95, ymax = UCI95), width = 0, alpha = 0.35) +
+  geom_point(size = 2) +
+  scale_color_manual(values = c("Wing" = "steelblue", "Tarsus" = "coral3")) +
+  labs(x = expression(lambda ~ "(factor loading on latent Size)"),
+       y = "Temperature coefficient",
+       color = NULL)
+
+# Lambda and its own SE: species where the loading is imprecise
+p_lambda_uncertainty <- ggplot(sem_diag, aes(x = lambda, y = se_lambda, color = appendage)) +
+  geom_point(size = 2) +
+  scale_color_manual(values = c("Wing" = "steelblue", "Tarsus" = "coral3")) +
+  labs(x = expression(lambda ~ "(factor loading on latent Size)"),
+       y = expression("SE of" ~ lambda),
+       color = NULL)
+
+plot_grid(p_lambda_se, p_lambda_coef, p_lambda_uncertainty, nrow = 1)
+
+# Strong relationship between the uncertainty in factor loadings and the uncertainty in the temperature coefficient 
+sem_diag %>% filter(se_lambda < 10) %>%
+  ggplot(aes(x = se_lambda, y = std.error, color = appendage)) +
+  geom_point(size = 2) +
+  scale_color_manual(values = c("Wing" = "steelblue", "Tarsus" = "coral3")) +
+  labs(x = expression("SE of" ~ lambda),
+       y = "SE of temperature coefficient",
+       color = NULL)
+
+# Not a strong relationship with sample size and SE of lambda, although all the ones with very high lambda SEs have low sample size
+sem_diag %>% #filter(se_lambda < 5) %>%
+  left_join(Spp_metadata2[,c("species_", "num_obs")]) %>%
+  ggplot(aes(x = num_obs, y = se_lambda, color = appendage)) +
+  geom_point(size = 2) +
+  scale_color_manual(values = c("Wing" = "steelblue", "Tarsus" = "coral3")) +
+  geom_vline(xintercept = 150, linetype = "dashed") +
+  labs(x = "Sample size",
+       y = expression("SE of" ~ lambda),
+       color = NULL)
+
+# Tabulate: which species have high-SE SEM estimates?
+sem_diag %>%
+  dplyr::select(species_, appendage, lambda, se_lambda, estimate, std.error, LCI95, UCI95, Direction) %>%
+  arrange(appendage, desc(se_lambda))
 
 # Plot slope estimates ----------------------------------------------------
 ## Slope estimates of temperature's impact on shape
