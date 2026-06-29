@@ -8,6 +8,8 @@ library(smatr)
 library(cowplot)
 library(ggpubr)
 library(naniar)
+library(lavaan)
+source("Scripts/Key_causal_fns.R")
 ggplot2::theme_set(theme_cowplot())
 
 Atlantic_birds <- read_csv("/Users/aaronskinner/Library/CloudStorage/OneDrive-UBC/Academia/Datasets_external/Ecology/Atlantic_bird_traits/ATLANTIC_BIRD_TRAITS_completed_2018_11_d05.csv") 
@@ -45,24 +47,24 @@ Atlantic_birds3 <- Atlantic_birds2 %>%
          wing_mass = wing / mass, 
          wing2_mass = wing^2 / mass)
 
-# Inspect -----------------------------------------------------------------
-# Possible measurements: Body length, wing, mass, tarsus, tail
+# Morphology -------------------------------------------------------------
+# Inspect possible measurements: Body length, wing, mass, tarsus, tail
 Atlantic_birds3 %>% 
   dplyr::select(
-   tarsus, wing, tail, mass, body_length, wingspan_mm, head_length_total_mm, bill_width_mm, bill_depth_mm # starts_with("Bill_")
+   tarsus, wing, tail, mass, body_length, wingspan_mm, head_length_total_mm, bill_width_mm, bill_depth_mm, age, sex # starts_with("Bill_")
   ) %>%
   naniar::gg_miss_var(show_pct = TRUE)
+
+# Filter NA morphologies
+Atlantic_birds4 <- Atlantic_birds3 %>%
+  filter(!is.na(mass) & !is.na(wing) & !is.na(tarsus)) %>% 
+  filter( year > 1990 & !is.na(B.Tavg)) %>% #sex == "Male" & age == "Adult" &
+  dplyr::select(species_, wing, tarsus, tail, mass, log_wing, log_tarsus, log_tail, log_mass, wing_mass, wing2_mass, B.Tavg, latitude, locality, year, age, sex)
+table(Atlantic_birds4$year)
 
 # 780 species total
 Atlantic_birds3 %>% pull(species_) %>% 
   unique()
-
-# Filter dataset --------------------------------------------------------
-Atlantic_birds4 <- Atlantic_birds3 %>%
-  filter(!is.na(mass) & !is.na(wing) & !is.na(tail)) %>% 
-  filter(sex == "Male" & age == "Adult" & year > 1990) %>%
-  dplyr::select(species_, wing, mass, tail, log_wing, log_mass, wing_mass, wing2_mass, B.Tavg, latitude, locality, year) 
-table(Atlantic_birds4$year)
 
 # Filter species based on latitudinal range and number of observations
 Spp_summary <- Atlantic_birds4 %>%
@@ -73,7 +75,7 @@ Spp_summary <- Atlantic_birds4 %>%
             num_locality = length(unique(locality)),
             .by = species_)
 Spp_include <- Spp_summary %>% 
-  filter(num_obs > 50) %>% 
+  filter(num_obs > 100) %>% 
   arrange(desc(num_obs))
 
 # Create list 
@@ -85,26 +87,88 @@ Atl_birds_l <- Atlantic_birds4 %>%
 names(Atl_birds_l) <- map_chr(Atl_birds_l, ~unique(pull(.x, species_)))
 length(Atl_birds_l)
 
+# Age & sex --------------------------------------------------------------
+Atlantic_birds4 %>% tabyl(age)
+Atlantic_birds4 %>% tabyl(sex)
+
+# Test effect of a grouping variable (iv = "age" or "sex") on a morphometric DV.
+# Filters Unknown/NA for iv, includes per-group sample counts in the output.
+test_group_effect <- function(df_list, dv, iv) {
+  map(df_list, \(df) {
+    df_filt <- df %>% filter(.data[[iv]] != "Unknown" & !is.na(.data[[iv]]))
+    if (nrow(df_filt) < 10 || length(unique(df_filt[[iv]])) < 2) return(NULL)
+
+    n_counts <- df_filt %>%
+      count(.data[[iv]], name = "n") %>%
+      mutate(lbl = paste0("n_", tolower(.data[[iv]]))) %>%
+      dplyr::select(lbl, n) %>%
+      pivot_wider(names_from = lbl, values_from = n)
+
+    fmla <- as.formula(paste(dv, "~ B.Tavg +", iv))
+    tidy(lm(fmla, data = df_filt)) %>%
+      filter(str_starts(term, iv)) %>%
+      mutate(dv = dv) %>%
+      bind_cols(n_counts)
+  }) %>%
+    list_rbind(names_to = "species_")
+}
+
+# Age and sex effects on mass, wing, and tarsus
+Age_tbl <- bind_rows(
+  test_group_effect(Atl_birds_l, dv = "mass",   iv = "age"),
+  test_group_effect(Atl_birds_l, dv = "wing",   iv = "age"),
+  test_group_effect(Atl_birds_l, dv = "tarsus", iv = "age")
+) %>% mutate(sig = p.value < 0.10) %>% 
+  filter(n_juvenile > 20)
+
+Sex_tbl <- bind_rows(
+  test_group_effect(Atl_birds_l, dv = "mass",   iv = "sex"),
+  test_group_effect(Atl_birds_l, dv = "wing",   iv = "sex"),
+  test_group_effect(Atl_birds_l, dv = "tarsus", iv = "sex")
+) %>% mutate(sig = p.value < 0.10) %>% 
+  filter(n_female > 20)
+
+# Inspect: which species × DV combinations are significant?
+Age_tbl %>% filter(sig) %>% dplyr::select(species_, dv, estimate, p.value, n_juvenile, n_adult)
+Sex_tbl %>% filter(sig) %>% dplyr::select(species_, dv, estimate, p.value, n_female, n_male)
+
+# Species with significant age / sex effects by DV (used in Berg's models below)
+sig_age_mass <- Age_tbl %>% filter(dv == "mass", sig) %>% pull(species_)
+sig_sex_mass <- Sex_tbl %>% filter(dv == "mass", sig) %>% pull(species_)
+sig_age_wing <- Age_tbl %>% filter(dv == "wing", sig) %>% pull(species_)
+sig_sex_wing <- Sex_tbl %>% filter(dv == "wing", sig) %>% pull(species_)
+
 # Berg's relationship -------------------------------------------
-## To identify possible species to include in shape analysis, first examine the relationship between morphology and temperature. 
+## For each species, age/sex included as covariates where they significantly affect the DV;
+## those species' data are also filtered to non-Unknown observations for that variable.
 
-# Run model with mass
-mass_mod <- map(Atl_birds_l, \(df){
-  tidy(lm(mass ~ B.Tavg, data = df)) 
-}) %>% list_rbind(names_to = "species_") %>% 
-  mutate(dv = "mass") %>% 
-  filter(term == "B.Tavg") 
+berg_model <- function(df, dv, sig_age_spp, sig_sex_spp) {
+  sp   <- unique(df$species_)
+  df_  <- df
+  covs <- character(0)
+  if (sp %in% sig_age_spp) {
+    df_  <- df_ %>% filter(age != "Unknown" & !is.na(age))
+    covs <- c(covs, "age")
+  }
+  if (sp %in% sig_sex_spp) {
+    df_  <- df_ %>% filter(sex != "Unknown" & !is.na(sex))
+    covs <- c(covs, "sex")
+  }
+  rhs  <- paste(c("B.Tavg", covs), collapse = " + ")
+  tidy(lm(as.formula(paste(dv, "~", rhs)), data = df_)) %>%
+    filter(term == "B.Tavg") %>%
+    mutate(dv = dv)
+}
 
-# Run model with wing
-wing_mod <- map(Atl_birds_l, \(df){
-  tidy(lm(wing ~ B.Tavg, data = df)) 
-}) %>% list_rbind(names_to = "species_") %>% 
-  mutate(dv = "wing") %>% 
-  filter(term == "B.Tavg") 
+mass_mod <- map(Atl_birds_l, berg_model, dv = "mass",
+                sig_age_spp = sig_age_mass, sig_sex_spp = sig_sex_mass) %>%
+  list_rbind(names_to = "species_")
 
-Bergs <- bind_rows(mass_mod, wing_mod) 
+wing_mod <- map(Atl_birds_l, berg_model, dv = "wing",
+                sig_age_spp = sig_age_wing, sig_sex_spp = sig_sex_wing) %>%
+  list_rbind(names_to = "species_")
 
-#Bergs %>% filter(species_ == "Conopophaga_melanops")
+Bergs <- bind_rows(mass_mod, wing_mod)
 
 # Keep species with significant response ----------------------------------
 # Select species with a (marginally) significant relationship between temperature and either wing or mass 
@@ -117,7 +181,7 @@ Spp_keep <- Bergs %>%
 
 # Classify the direction of the effect and which trait is significant
 Spp_keep2 <- Spp_keep %>% 
-  mutate(sig = p.value < 0.1) %>% 
+  mutate(sig = p.value < 0.05) %>% 
   group_by(species_) %>% 
   summarise(
     n_sig = sum(sig),
@@ -136,12 +200,13 @@ Spp_keep2 <- Spp_keep %>%
       TRUE ~ "Check"
     )
   )
+Spp_keep2 %>% tabyl(Direction)
 
-Atlantic_birds4 <- Atlantic_birds3 %>% 
+Atlantic_birds5 <- Atlantic_birds4 %>% 
   filter(species_ %in% unique(Spp_keep2$species_))
 
 # Calculate correlations, and SMA and OLS slopes
-Slopes_tbl <- Atlantic_birds4 %>% 
+Slopes_tbl <- Atlantic_birds5 %>%
   summarize(b_sma = sd(log_wing, na.rm = T) / sd(log_mass, na.rm = T),
             b_ols = cor(wing, mass) * b_sma,
             .by = species_)
@@ -155,15 +220,15 @@ Spp_metadata
 
 # Visualize regression approaches -----------------------------------------
 ## Temp - mass relationship, very small effects
-Atlantic_birds4 %>% 
-  ggplot(aes(x = B.Tavg, y = log_mass, color = species_)) + 
-  geom_point() + 
-  geom_smooth(method = "lm") + 
+Atlantic_birds5 %>%
+  ggplot(aes(x = B.Tavg, y = log_mass, color = species_)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
   guides(color = "none")
 
-# Compare SMA vs OLS line-fitting methods for allometry 
+# Compare SMA vs OLS line-fitting methods for allometry
 ## NOTE: In general that OLS slopes are near 0
-Atlantic_birds4 %>% 
+Atlantic_birds5 %>%
   ggplot(aes(x = log_mass, y = log_wing, color = species_)) + 
   geom_point(alpha = .2) +
   geom_smooth(method = "lm", linetype = "dashed", se = FALSE, alpha = .3) +
@@ -175,7 +240,7 @@ Atlantic_birds4 %>%
 # Some authors note that SMA should only be used if there is a correlation between the two morphological variables. This makes sense because SMA does not distinguish between scatter (correlation) and the functional relationship between X and Y. See Smith (2009) paper. 
 
 # Create list 
-Atl_birds_l2 <- Atlantic_birds4 %>% group_split(species_)
+Atl_birds_l2 <- Atlantic_birds5 %>% group_split(species_)
 
 # Name list
 names(Atl_birds_l2) <- map_chr(Atl_birds_l2, ~unique(pull(.x, species_)))
@@ -192,25 +257,32 @@ Cors_tbl <- map(Atl_birds_l2, \(df){
 
 Spp_metadata2 <- Spp_metadata %>% left_join(Cors_tbl)
 
-# 17 species have significant correlation between mass and wing!!
-Spp_keep2 <- Spp_metadata2 %>% filter(p_mw < .06) %>% 
+# 7 species have significant correlation between mass and wing!!
+Spp_keep_vec <- Spp_metadata2 %>% 
+  filter(p_mw < .06) %>% 
   pull(species_)
-Spp_keep2
+Spp_keep_vec
 
 # Keep just species with significant correlation
-Atl_birds_l2 <- Atl_birds_l2[Spp_keep2]
+#Atl_birds_l2 <- Atl_birds_l2[Spp_keep_vec]
 
 # Create shape metrics ----------------------------------------------------
 Atl_birds_l3 <- map(Atl_birds_l2, \(df){
-  # extract residuals
-  ols_mod <- lm(log_wing ~ log_mass, data = df)
-  sma_mod <- sma(log_wing ~ log_mass, data = df, method = "SMA")
-  est_b_sma <- coef(sma_mod)['slope']
-  df <- df %>% mutate(resid_ols = residuals(ols_mod), 
-                      resid_sma = residuals(sma_mod)) %>%
-    # Calculate SLI
-    calc_sli(b_sli = 0.33, Append = wing, rename_col = "sli_isometry") %>% 
-    calc_sli(b_sli = est_b_sma, Append = wing, rename_col = "sli_estimated")
+  ols_wing     <- lm(log_wing ~ log_mass, data = df)
+  sma_wing     <- sma(log_wing ~ log_mass, data = df, method = "SMA")
+  ols_tarsus   <- lm(log_tarsus ~ log_mass, data = df)
+  sma_tarsus   <- sma(log_tarsus ~ log_mass, data = df, method = "SMA")
+  b_sma_wing   <- coef(sma_wing)['slope']
+  b_sma_tarsus <- coef(sma_tarsus)['slope']
+  df %>%
+    mutate(resid_ols        = residuals(ols_wing),
+           resid_sma        = residuals(sma_wing),
+           resid_ols_tarsus = residuals(ols_tarsus),
+           resid_sma_tarsus = residuals(sma_tarsus)) %>%
+    calc_sli(b_sli = 0.33,          Append = wing,   rename_col = "sli_isometry") %>%
+    calc_sli(b_sli = b_sma_wing,    Append = wing,   rename_col = "sli_estimated") %>%
+    calc_sli(b_sli = 0.33,          Append = tarsus, rename_col = "sli_tarsus_iso") %>%
+    calc_sli(b_sli = b_sma_tarsus,  Append = tarsus, rename_col = "sli_tarsus_est")
 })
 
 # Scale by species 
@@ -243,99 +315,93 @@ parms_df <- map(Atl_birds_l4, \(df){
   mod_sli_est <- lm(sli_estimated ~ B.Tavg, data = df) %>% tidy() %>%
     mutate(Approach = "Sli_est")
   bind_rows(mod_sli_iso, mod_sli_est, mod_resid_ols, mod_coef_ols, mod_coef_ratio, mod_coef_ratio2) #, mod_coef_ma
-}) %>% list_rbind(names_to = "species_") %>% 
+}) %>% list_rbind(names_to = "species_") %>%
   mutate(LCI95 = estimate - 1.96 * std.error,
          UCI95 = estimate + 1.96 * std.error)
 
+# Add SEM: use Atl_birds_l4 (already z-scored per species), no internal rescaling
+sem_parms <- map(Atl_birds_l4, \(df) {
+  res <- fit_lavaan_sem(
+    df,
+    mass_name    = "log_mass",
+    append_names = c("log_wing", "log_tarsus"),
+    temp_name    = "B.Tavg",
+    labels       = c("wing", "tarsus")
+  )
+  tibble(
+    term      = "B.Tavg",
+    estimate  = c(res$coef_sem_wing,  res$coef_sem_tarsus),
+    std.error = c(res$se_sem_wing,    res$se_sem_tarsus),
+    p.value   = NA_real_,
+    Approach  = c("SEM_wing", "SEM_tarsus")
+  )
+}) %>%
+  list_rbind(names_to = "species_") %>%
+  mutate(LCI95 = estimate - 1.96 * std.error,
+         UCI95 = estimate + 1.96 * std.error)
+
+parms_df <- bind_rows(parms_df, sem_parms)
+
 # Plot slope estimates ----------------------------------------------------
-## Slope estimates of temperature's impact on shape 
-# Custom label
-legend_labs <- c("wing / mass", "wing² / mass", "OLS residuals", "mass as \ncovariate", "SLI estimated", "SLI isometry") #, "Allometric \nresiduals MA"
+## Slope estimates of temperature's impact on shape
 
-# Prep plot
+approach_labels <- c(
+  "Ratio"    = "wing / mass",
+  "Ratio2"   = "wing² / mass",
+  "Resid_ols"= "OLS residuals",
+  "Ryding"   = "mass as covariate",
+  "SEM_wing" = "SEM (wing)",
+  "Sli_est"  = "SLI estimated",
+  "Sli_iso"  = "SLI isometry"
+)
+
 Num_spp <- length(unique(parms_df$species_))
-parms_df_p <- parms_df %>% filter(term == "B.Tavg") %>%
-  left_join(Spp_metadata2[,c("species_", "Direction", "Sig_trait")]) %>% 
+
+# Exclude SEM_tarsus from this wing-focused plot
+parms_df_p <- parms_df %>%
+  filter(term == "B.Tavg", Approach != "SEM_tarsus") %>%
+  left_join(Spp_metadata2[, c("species_", "Direction", "Sig_trait")]) %>%
   mutate(Approach = factor(Approach),
-         species = str_replace(species_, "_", "\n")) 
+         species  = str_replace(species_, "_", "\n")) %>% 
+  # Remove large standard errors that make plotting challenging
+  filter(std.error < .5)
 
-## GPT
-shape_scale <- c("Both" = 15, "Mass" = 16, "Neither" = 17)
+shape_scale <- c("Both" = 15, "Mass" = 16, "Neither" = 17, "Wing" = 18)
 
-plot_shape <- function(df, title = NULL, legend = TRUE, drop_y = FALSE){
-  p <- df %>%
-    mutate(Sig_trait = str_to_sentence(Sig_trait)) %>%
-    ggplot(aes(x = species, y = estimate, color = Approach, 
-               group = interaction(species, Approach))) + 
-    geom_errorbar(aes(ymin = LCI95, ymax = UCI95),
-                  alpha = .8, width = 0, 
-                  position = position_dodge(width = 0.75)) +
-    geom_point(aes(shape = Sig_trait), 
-               size = 2, position = position_dodge(width = 0.75)) +
-    geom_hline(yintercept = 0, linetype = "dashed") + 
-    labs(x = NULL, y = expression(beta[T] ~ "on wingyness"), 
-         title = title) +
-    theme(
-      axis.text.x = element_text(vjust = .58, angle = 60), 
-      legend.position = "top"
-    ) + scale_shape_manual(values = shape_scale) + 
-    scale_color_hue(labels = legend_labs) 
-  
-  if(drop_y){
-    p <- p + theme(
-      axis.title.y = element_blank()
-    )
-  }
-  if(!legend) p <- p + theme(legend.position = "none")
-  return(p)
-}
-
-Shape_plots <- imap(Direction_effect, \(direction, name){
-  parms_filt <- parms_df_p %>% filter(Direction == direction)
-  drop_y <- direction %in% c("Inverse", "Mixed") # or however you want
-  plot <- plot_shape(df = parms_filt, title = name, drop_y = drop_y)
-  return(plot)
-})
-
-
-
-
-# Custom plotting function 
-shape_scale <- c("Both" = 15, "Mass" = 16, "Neither" = 17)
-plot_shape <- function(df, title = NULL, legend = TRUE){
-  p <- df %>%
-    mutate(Sig_trait = str_to_sentence(Sig_trait)) %>%
-    ggplot(aes(x = species, y = estimate, color = Approach, 
-               group = interaction(species, Approach))) + 
-    geom_errorbar(aes(ymin = LCI95, ymax = UCI95),
-                  alpha = .8, width = 0, 
-                  position = position_dodge(width = 0.75)) +
-    geom_point(aes(shape = Sig_trait), 
-               size = 2, position = position_dodge(width = 0.75)) +
-    geom_hline(yintercept = 0, linetype = "dashed") + 
-    labs(x = NULL, y = expression(beta[T] ~ "on wingyness"), 
-         title = title) +
-    theme(
-      axis.text.x = element_text(vjust = .58, angle = 60), 
-      legend.position = "top"
-    ) + scale_shape_manual(values = shape_scale) + 
-    scale_color_hue(labels = legend_labs) 
-  if(direction %in% c("Inverse", "Mixed")) p <- p + labs(y = NULL)
-  if(!legend) p <- p + theme(legend.position = "none")
-  return(p)
-}
-
-## Map through each direction_effect and plot
-# Create character vector for map() function
 Direction_effect <- unique(Spp_metadata2$Direction)
 Direction_effect <- setNames(Direction_effect, Direction_effect)
 
-# map through
-Shape_plots <- imap(Direction_effect, \(direction, name){
+plot_shape <- function(df, title = NULL, legend = TRUE, drop_y = FALSE) {
+  p <- df %>%
+    mutate(Sig_trait = str_to_sentence(Sig_trait)) %>%
+    ggplot(aes(x = species, y = estimate, color = Approach,
+               group = interaction(species, Approach))) +
+    geom_errorbar(aes(ymin = LCI95, ymax = UCI95),
+                  alpha = .8, width = 0,
+                  position = position_dodge(width = 0.75)) +
+    geom_point(aes(shape = Sig_trait),
+               size = 2, position = position_dodge(width = 0.75)) +
+    geom_hline(yintercept = 0, linetype = "dashed") +
+    labs(x = NULL, y = expression(beta[T] ~ "on wingyness"),
+         title = title) +
+    theme(
+      axis.text.x = element_text(vjust = .58, angle = 60),
+      legend.position = "top"
+    ) +
+    scale_shape_manual(values = shape_scale) +
+    scale_color_discrete(labels = approach_labels)
+
+  if (drop_y) p <- p + theme(axis.title.y = element_blank())
+  if (!legend) p <- p + theme(legend.position = "none")
+  return(p)
+}
+
+parms_df_p %>% filter(species_ == "Geothlypis_aequinoctialis")
+
+Shape_plots <- imap(Direction_effect, \(direction, name) {
   parms_filt <- parms_df_p %>% filter(Direction == direction)
-  plot <- plot_shape(df = parms_filt, title = name, dire)
-  print(unique(parms_filt$species_))
-  return(plot)
+  drop_y     <- direction %in% c("Inverse", "Mixed")
+  plot_shape(df = parms_filt, title = name, drop_y = drop_y)
 })
 
 # Create common legend
@@ -343,7 +409,7 @@ com.leg <- get_legend(plot_shape(df = parms_df_p, title = "All"))
 
 # Plot
 ggarrange(
-  Shape_plots[[1]], Shape_plots[[2]], Shape_plots[[3]], Shape_plots[[4]], 
+  Shape_plots[[1]], Shape_plots[[2]], Shape_plots[[3]], 
   common.legend = TRUE, legend.grob = com.leg, labels = "auto"
 )
 
@@ -351,7 +417,7 @@ ggarrange(
 ggsave("Figures/Atlantic_birds_shape.png", bg = "white", height = 7, width = 9)
 
 ## Interpretation
-Spp_metadata2 %>% filter(species_ %in% Spp_keep2) %>% 
+Spp_metadata2 %>% filter(species_ %in% Spp_keep_vec) %>% 
   mutate(across(.cols = -c(where(is.character), p_mw), round, 2))
 
 # Sicalis flaveola gets 'much wingyer' (i.e. mass decreases and wing increases), so the results are fairly consistent with our simulation
@@ -379,7 +445,7 @@ calc_lambda <- function(x, y){
 }
 
 # Very low CVs, suggesting that the variance in wing is very low compared to the variance in mass (relative to the means)
-Cvs <- Atlantic_birds4 %>% 
+Cvs <- Atlantic_birds5 %>%
   summarize(N = n(), 
             lambda = calc_lambda(x = mass, y = wing),
             .by = species_) %>%
@@ -397,3 +463,71 @@ stop()
 
 # Could try this looking at how shape changes with the amount of forest or the habitat where the bird was captured
 # Could try with some sort of bill measurement
+
+
+# EXTRAS ------------------------------------------------------------------
+# Test effect of approach -------------------------------------------------
+
+# Does CV have an impact on the estimate?
+if(FALSE){
+  parms_df %>% filter(term == "B.Tavg") %>% 
+    full_join(Cvs) %>% 
+    ggplot(aes(x = lambda, y = estimate, color = Approach)) + 
+    geom_point() + 
+    geom_smooth(se = FALSE) 
+}
+
+parms_df %>% filter(term == "B.Tavg") %>% 
+  full_join(Cvs) %>% 
+  ggplot(aes(x = Approach, y = estimate, color = species_)) + 
+  geom_point() + 
+  geom_line(aes(group = species_)) + 
+  guides(color = "none")
+
+## GPT
+df <- parms_df %>% 
+  filter(term == "B.Tavg") %>% 
+  full_join(Cvs)
+
+# reorder approaches by mean estimate
+df <- df %>% 
+  group_by(Approach) %>% 
+  mutate(mean_est = mean(estimate, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  mutate(Approach = reorder(Approach, mean_est))
+
+# overall mean trend for black line
+overall <- df %>% 
+  group_by(Approach) %>% 
+  summarise(mean_est = mean(estimate, na.rm = TRUE), .groups = "drop")
+
+ggplot(df, aes(x = Approach, y = estimate, color = species_)) + 
+  geom_point() +
+  geom_line(aes(group = species_), alpha = 0.5) +
+  guides(color = "none") +
+  # black trend line of overall mean
+  geom_line(data = overall, aes(x = Approach, y = mean_est, group = 1), 
+            color = "black", size = 1) +
+  theme_minimal(base_size = 14)
+
+# Test assumptions --------------------------------------------------------
+# OLS assumptions
+ols_mod_l <- map(nj_df_l, \(df){
+  ols_mod <- lm(log_wing ~ log_mass + B.Tavg, data = df)
+})
+
+# Some departure from homoskedasticity
+map(ols_mod_l, \(ols_mod){
+  plot(ols_mod, which = 1)
+  plot(ols_mod, which = 2)
+})
+
+# SMA assumptions
+sma_mod_l <- map(nj_df_l, \(df){
+  sma_mod <- sma(log_wing ~ log_mass, data = df, method = "SMA")
+})
+
+map(sma_mod_l, \(sma_mod){
+  plot(sma_mod, which = "residual")
+  plot(sma_mod, which = "qq")
+})
