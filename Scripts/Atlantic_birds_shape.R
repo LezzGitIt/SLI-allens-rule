@@ -12,7 +12,16 @@ library(lavaan)
 source("Scripts/Key_causal_fns.R")
 ggplot2::theme_set(theme_cowplot())
 
-Atlantic_birds <- read_csv("/Users/aaronskinner/Library/CloudStorage/OneDrive-UBC/Academia/Datasets_external/Ecology/Atlantic_bird_traits/ATLANTIC_BIRD_TRAITS_completed_2018_11_d05.csv") 
+Atlantic_birds <- read_csv("/Users/aaronskinner/Library/CloudStorage/OneDrive-UBC/Academia/Datasets_external/Ecology/Atlantic_bird_traits/ATLANTIC_BIRD_TRAITS_completed_2018_11_d05.csv")
+
+# Run parameters ----------------------------------------------------------
+min_n_obs       <- 300    # minimum observations per species to be included
+year_cutoff     <- 1990   # exclude records from this year and before
+p_bergmann      <- 0.05   # p-value threshold: Bergmann / Allen response classification
+p_age_sex       <- 0.10   # p-value threshold: age / sex covariate inclusion
+pos_allom       <- TRUE   # retain only species with positive allometric slope (b_ols > 0.1, p < .06)
+filter_bergmann <- FALSE  # TRUE: retain only species with a significant Bergmann / Allen response
+control_age_sex <- TRUE   # TRUE: include age / sex as covariates where they significantly affect body size
 
 # SLI function ------------------------------------------------------------
 # Calculate b_sli using logged morphometrics
@@ -58,7 +67,7 @@ Atlantic_birds3 %>%
 # Filter NA morphologies
 Atlantic_birds4 <- Atlantic_birds3 %>%
   filter(!is.na(mass) & !is.na(wing) & !is.na(tarsus)) %>% 
-  filter( year > 1990 & !is.na(B.Tavg)) %>% #sex == "Male" & age == "Adult" &
+  filter(year > year_cutoff & !is.na(B.Tavg)) %>% #sex == "Male" & age == "Adult" &
   dplyr::select(species_, wing, tarsus, tail, mass, log_wing, log_tarsus, log_tail, log_mass, wing_mass, wing2_mass, B.Tavg, latitude, locality, year, age, sex)
 table(Atlantic_birds4$year)
 
@@ -74,8 +83,8 @@ Spp_summary <- Atlantic_birds4 %>%
             num_obs = n(),
             num_locality = length(unique(locality)),
             .by = species_)
-Spp_include <- Spp_summary %>% 
-  filter(num_obs > 100) %>% 
+Spp_include <- Spp_summary %>%
+  filter(num_obs > min_n_obs) %>%
   arrange(desc(num_obs))
 
 # Create list 
@@ -118,29 +127,40 @@ Age_tbl <- bind_rows(
   test_group_effect(Atl_birds_l, dv = "mass",   iv = "age"),
   test_group_effect(Atl_birds_l, dv = "wing",   iv = "age"),
   test_group_effect(Atl_birds_l, dv = "tarsus", iv = "age")
-) %>% mutate(sig = p.value < 0.10) %>% 
+) %>% mutate(sig = p.value < p_age_sex) %>%
   filter(n_juvenile > 20)
 
 Sex_tbl <- bind_rows(
   test_group_effect(Atl_birds_l, dv = "mass",   iv = "sex"),
   test_group_effect(Atl_birds_l, dv = "wing",   iv = "sex"),
   test_group_effect(Atl_birds_l, dv = "tarsus", iv = "sex")
-) %>% mutate(sig = p.value < 0.10) %>% 
+) %>% mutate(sig = p.value < p_age_sex) %>%
   filter(n_female > 20)
 
 # Inspect: which species × DV combinations are significant?
 Age_tbl %>% filter(sig) %>% dplyr::select(species_, dv, estimate, p.value, n_juvenile, n_adult)
 Sex_tbl %>% filter(sig) %>% dplyr::select(species_, dv, estimate, p.value, n_female, n_male)
 
-# Species with significant age / sex effects by DV (used in Berg's models below)
-sig_age_mass <- Age_tbl %>% filter(dv == "mass", sig) %>% pull(species_)
-sig_sex_mass <- Sex_tbl %>% filter(dv == "mass", sig) %>% pull(species_)
-sig_age_wing <- Age_tbl %>% filter(dv == "wing", sig) %>% pull(species_)
-sig_sex_wing <- Sex_tbl %>% filter(dv == "wing", sig) %>% pull(species_)
+# Species with significant age / sex effects by DV (used in Berg's models and downstream)
+sig_age_mass   <- Age_tbl %>% filter(dv == "mass",   sig) %>% pull(species_)
+sig_sex_mass   <- Sex_tbl %>% filter(dv == "mass",   sig) %>% pull(species_)
+sig_age_wing   <- Age_tbl %>% filter(dv == "wing",   sig) %>% pull(species_)
+sig_sex_wing   <- Sex_tbl %>% filter(dv == "wing",   sig) %>% pull(species_)
+sig_age_tarsus <- Age_tbl %>% filter(dv == "tarsus", sig) %>% pull(species_)
+sig_sex_tarsus <- Sex_tbl %>% filter(dv == "tarsus", sig) %>% pull(species_)
+
+# Union across all DVs: if age/sex affects any indicator, include it in SEM + shape models
+sig_age_any <- unique(c(sig_age_mass, sig_age_wing, sig_age_tarsus))
+sig_sex_any <- unique(c(sig_sex_mass, sig_sex_wing, sig_sex_tarsus))
+
+# If control_age_sex = FALSE, zero out — no covariate adjustment flows through downstream
+if (!control_age_sex) {
+  sig_age_any <- character(0)
+  sig_sex_any <- character(0)
+}
 
 # Berg's relationship -------------------------------------------
-## For each species, age/sex included as covariates where they significantly affect the DV;
-## those species' data are also filtered to non-Unknown observations for that variable.
+## For each species, age/sex included as covariates where they significantly affect the DV; those species' data are also filtered to non-Unknown observations for that variable.
 
 berg_model <- function(df, dv, sig_age_spp, sig_sex_spp) {
   sp   <- unique(df$species_)
@@ -180,8 +200,8 @@ Spp_keep <- Bergs %>%
   arrange(species_)
 
 # Classify the direction of the effect and which trait is significant
-Spp_keep2 <- Spp_keep %>% 
-  mutate(sig = p.value < 0.05) %>% 
+Spp_keep2 <- Spp_keep %>%
+  mutate(sig = p.value < p_bergmann) %>%
   group_by(species_) %>% 
   summarise(
     n_sig = sum(sig),
@@ -202,7 +222,10 @@ Spp_keep2 <- Spp_keep %>%
   )
 Spp_keep2 %>% tabyl(Direction)
 
-Atlantic_birds5 <- Atlantic_birds4 %>% 
+# If filter_bergmann = TRUE, drop species with no significant Bergmann / Allen response
+if (filter_bergmann) Spp_keep2 <- Spp_keep2 %>% filter(Direction != "Neither")
+
+Atlantic_birds5 <- Atlantic_birds4 %>%
   filter(species_ %in% unique(Spp_keep2$species_))
 
 # Calculate correlations, and SMA and OLS slopes
@@ -215,7 +238,6 @@ Slopes_tbl <- Atlantic_birds5 %>%
 Spp_metadata <- Spp_keep2 %>% 
   left_join(Spp_include) %>% 
   left_join(Slopes_tbl)
-
 Spp_metadata
 
 # Visualize regression approaches -----------------------------------------
@@ -257,14 +279,16 @@ Cors_tbl <- map(Atl_birds_l2, \(df){
 
 Spp_metadata2 <- Spp_metadata %>% left_join(Cors_tbl)
 
-# 7 species have significant correlation between mass and wing!!
+# 8 species have significant correlation between mass and wing!!
 Spp_keep_vec <- Spp_metadata2 %>% 
-  filter(p_mw < .06) %>% 
+  filter(b_ols > 0.1 & p_mw < .06) %>%
   pull(species_)
 Spp_keep_vec
 
 # Keep just species with significant correlation
-#Atl_birds_l2 <- Atl_birds_l2[Spp_keep_vec]
+if(pos_allom){
+  Atl_birds_l2 <- Atl_birds_l2[Spp_keep_vec]
+}
 
 # Create shape metrics ----------------------------------------------------
 Atl_birds_l3 <- map(Atl_birds_l2, \(df){
@@ -298,35 +322,62 @@ map(Atl_birds_l4, \(df){
 })
 
 # Run models & extract parms ----------------------------------------------
-# Generate wing mass models, extract parameters via tidy
-parms_df <- map(Atl_birds_l4, \(df){
-  mod_resid_ols <- lm(resid_ols ~ B.Tavg, data = df) %>% tidy() %>% 
-    mutate(Approach = "Resid_ols")
-  #mod_coef_ma <- lm(resid_ma ~ B.Tavg, data = df) %>% tidy() %>% 
-  # mutate(Approach = "Resid_ma")
-  mod_coef_ols <- lm(wing ~ mass + B.Tavg, data = df) %>% tidy() %>% 
-    mutate(Approach = "Ryding")
-  mod_coef_ratio <- lm(wing_mass ~ B.Tavg, data = df) %>% tidy() %>% 
-    mutate(Approach = "Ratio")
-  mod_coef_ratio2 <- lm(wing2_mass ~ B.Tavg, data = df) %>% tidy() %>% 
-    mutate(Approach = "Ratio2")
-  mod_sli_iso <- lm(sli_isometry ~ B.Tavg, data = df) %>% tidy() %>%
-    mutate(Approach = "Sli_iso")
-  mod_sli_est <- lm(sli_estimated ~ B.Tavg, data = df) %>% tidy() %>%
-    mutate(Approach = "Sli_est")
-  bind_rows(mod_sli_iso, mod_sli_est, mod_resid_ols, mod_coef_ols, mod_coef_ratio, mod_coef_ratio2) #, mod_coef_ma
+# For each species, age/sex dummies are added as covariates when they significantly affect any of mass, wing, or tarsus (sig_age_any / sig_sex_any).
+# Unknown/NA observations are filtered only for species where the covariate matters.
+parms_df <- map(Atl_birds_l4, \(df) {
+  sp   <- unique(df$species_)
+  df_  <- df
+  covs <- character(0)
+  if (sp %in% sig_age_any) {
+    df_  <- df_ %>% filter(age != "Unknown" & !is.na(age))
+    covs <- c(covs, "age")
+  }
+  if (sp %in% sig_sex_any) {
+    df_  <- df_ %>% filter(sex != "Unknown" & !is.na(sex))
+    covs <- c(covs, "sex")
+  }
+  extra <- if (length(covs)) paste("+", paste(covs, collapse = " + ")) else ""
+
+  mod_resid_ols   <- lm(as.formula(paste("resid_ols ~ B.Tavg",        extra)), data = df_) %>%
+    tidy() %>% mutate(Approach = "Resid_ols")
+  mod_coef_ols    <- lm(as.formula(paste("wing ~ mass + B.Tavg",      extra)), data = df_) %>%
+    tidy() %>% mutate(Approach = "Ryding")
+  mod_coef_ratio  <- lm(as.formula(paste("wing_mass ~ B.Tavg",        extra)), data = df_) %>%
+    tidy() %>% mutate(Approach = "Ratio")
+  mod_coef_ratio2 <- lm(as.formula(paste("wing2_mass ~ B.Tavg",       extra)), data = df_) %>%
+    tidy() %>% mutate(Approach = "Ratio2")
+  mod_sli_iso     <- lm(as.formula(paste("sli_isometry ~ B.Tavg",     extra)), data = df_) %>%
+    tidy() %>% mutate(Approach = "Sli_iso")
+  mod_sli_est     <- lm(as.formula(paste("sli_estimated ~ B.Tavg",    extra)), data = df_) %>%
+    tidy() %>% mutate(Approach = "Sli_est")
+  bind_rows(mod_sli_iso, mod_sli_est, mod_resid_ols, mod_coef_ols, mod_coef_ratio, mod_coef_ratio2)
 }) %>% list_rbind(names_to = "species_") %>%
   mutate(LCI95 = estimate - 1.96 * std.error,
          UCI95 = estimate + 1.96 * std.error)
 
-# Add SEM: use Atl_birds_l4 (already z-scored per species), no internal rescaling
+# Add SEM: Atl_birds_l4 is already z-scored per species.
+# When age/sex affects any indicator, the column name is passed to fit_lavaan_sem() via
+# size_covs; the function handles numeric encoding internally (lavaan requires numeric).
 sem_parms <- map(Atl_birds_l4, \(df) {
+  sp        <- unique(df$species_)
+  df_       <- df
+  size_covs <- character(0)
+  if (sp %in% sig_age_any) {
+    df_       <- df_ %>% filter(age != "Unknown" & !is.na(age))
+    size_covs <- c(size_covs, "age")
+  }
+  if (sp %in% sig_sex_any) {
+    df_       <- df_ %>% filter(sex != "Unknown" & !is.na(sex))
+    size_covs <- c(size_covs, "sex")
+  }
+
   res <- fit_lavaan_sem(
-    df,
+    df_,
     mass_name    = "log_mass",
     append_names = c("log_wing", "log_tarsus"),
     temp_name    = "B.Tavg",
-    labels       = c("wing", "tarsus")
+    labels       = c("wing", "tarsus"),
+    size_covs    = size_covs
   )
   tibble(
     term      = "B.Tavg",
@@ -396,8 +447,6 @@ plot_shape <- function(df, title = NULL, legend = TRUE, drop_y = FALSE) {
   return(p)
 }
 
-parms_df_p %>% filter(species_ == "Geothlypis_aequinoctialis")
-
 Shape_plots <- imap(Direction_effect, \(direction, name) {
   parms_filt <- parms_df_p %>% filter(Direction == direction)
   drop_y     <- direction %in% c("Inverse", "Mixed")
@@ -456,14 +505,14 @@ stop()
 
 # Interpretation -------------------------------------------------------------
 
-# This doesn't seem to be a great dataset to test this particular question because there are very few species with >50 observations and a significant correlation between wing and mass. Joliceur 1990 argues that the correlation should be greater than 0.6, which is extremely high. Furthermore, the relationships between temperature and size are pretty small, so temperature may have little effect on size and shape.
+# This doesn't seem to be a great dataset to test this particular question because there are very few species that follow Bergmann's rule and have a significant correlation between wing and mass. Joliceur 1990 argues that the correlation should be greater than 0.6, which is extremely high. Furthermore, the relationships between temperature and size are pretty small, so temperature may have little effect on size and shape.
 #NOTE: I tried with tarsus as well and got similar results
 
 # Next steps --------------------------------------------------------------
 
 # Could try this looking at how shape changes with the amount of forest or the habitat where the bird was captured
+# Try with year instead of average temperature. Climate change / deforestation (also increasing through time) may be stronger influences than temperature changes by geography
 # Could try with some sort of bill measurement
-
 
 # EXTRAS ------------------------------------------------------------------
 # Test effect of approach -------------------------------------------------
