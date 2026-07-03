@@ -30,99 +30,41 @@ ggplot2::theme_set(theme_cowplot())
 # b_sma = (r * (Sy / Sx)) / r # rs cancel out
 
 
-# Simulate functions --------------------------------------------------------
-## Generate functions to create datasets with different amounts of correlation (r), OLS slopes, and SMA slopes, and plot 3x3 grid.
+# Play around (Smith, 2009) -----------------------------------------------
 
-## gen_parm_combos() functions
-# Goal is to provide either b_ols_vals OR r_vals, & generate the missing values for a given set of b_sma_vals. 
-# Formulas used are as follow:
-# b_sma = b_ols / r
-# b_ols = b_sma * r 
-# r = b_ols / b_sma
-gen_parm_combos <- function(
-    b_sma_vals = c(0.2, 0.33, 0.5), 
-    b_ols_vals = NULL, r_vals = NULL) {
-  stopifnot(xor(is.null(b_ols_vals), is.null(r_vals)))  # only one should be provided
-  
-  if (!is.null(r_vals)) {
-    parm_combos <- expand.grid(b_sma = b_sma_vals, r = r_vals)
-    parm_combos$b_ols <- parm_combos$b_sma * parm_combos$r
-  } else {
-    parm_combos <- expand.grid(b_sma = b_sma_vals, b_ols = b_ols_vals)
-    parm_combos$r <-  parm_combos$b_ols / parm_combos$b_sma
-  }
-  parm_combos %>% mutate(across(everything(.), ~round(.x, 2)))
-}
-parm_combos <- gen_parm_combos(r_vals = c(.2, .4, .6)) #b_ols_vals = c(.08, .15, .19)
+true_df <- gen_cor_vars(r_12 = .3, mu_append = 180, mu_mass = 80, sd_append = 10, sd_mass = .2, transient_error_append = 0, transient_error_mass = 0, meas_error = 0) 
 
-## simulate_SMA_data() function
-# Simulate data under the constraints in parm_combos, & estimate the parameters from the simulated data 
-simulate_SMA_data <- function(parm_combos, n = 1000, seed = NULL){
-  set.seed(seed)
-  sim_list <- list()
-  for (i in seq_len(nrow(parm_combos))) {
-    print(i)
-    b_ols <- parm_combos$b_ols[i]
-    r <- parm_combos$r[i]
-    b_sma <- parm_combos$b_sma[i]
-    
-    X <- rnorm(n, mean = 0, sd = 1)
-    var_X <- var(X)
-    
-    # Compute the appropriate amount of noise to generate Y, resulting in the appropriate correlation between X & Y
-    var_epsilon <- (b_ols^2 * var_X) * ((1 - r^2) / r^2)
-    sd_epsilon <- sqrt(var_epsilon)
-    
-    eps <- rnorm(n, mean = 0, sd = sd_epsilon)
-    Y <- b_ols * X + eps
-    
-    sim_list[[paste0("b_sma=", b_sma, "_r=", round(r, 2))]] <- tibble(
-      X = X,
-      Y = Y,
-      true_r = r,
-      true_b_ols = b_ols,
-      true_b_sma = b_sma,
-      est_r = cor(X, Y),
-      est_b_ols = coef(lm(Y ~ X))[2],
-      est_b_sma = coef(sma(Y ~ X))[2]
-    )
-  }
-  bind_rows(sim_list, .id = "condition")
-}
+# MAY NEED TO DO ALL OF THIS WITH LOGGED VARIABLES? 
 
-# Generate data frame
-sim_df <- simulate_SMA_data(parm_combos = parm_combos) %>% 
-  mutate(Scaling = case_when(
-    true_b_sma == .2 ~ "Hypoallometric",
-    true_b_sma == .33 ~ "Isometric",
-    true_b_sma == .5 ~ "Hyperallometric",
-  ))
+## Smith says that if var(x) << var(y) then OLS will be closer to true slope. In this case sd_y is very large and sd_x is small, so 
+# SMA
+sma_mod <- sma(Appendage ~ Mass, data = true_df) 
+slope_sma <- coef(sma_mod)["slope"]
+slope_sma 
 
-# Ensure that estimated parameters are similar to the true parameter values
-create_SMA_summary <- function(sim_df) {
-  sim_df %>% dplyr::select(starts_with(c("true", "est"))) %>%
-    distinct()
-}
-create_SMA_summary(sim_df)
+# LM - Extract true slope & intercept
+lm_mod <- lm(Appendage ~ Mass, data = true_df) 
+slope_lm <- coef(lm_mod)["Mass"] # 
+intercept_lm <- coef(lm_mod)["(Intercept)"]
 
-# Plot 3x3 grid 
-# Row 1: Hypoallometry, row 2: isometry, row 3: hyperallometry
-# NOTE:: At lower slopes the difference between OLS & SMA regression is greater
-plot_SMA_grid <- function(sim_data) {
-  sim_data %>%
-    group_by(condition) %>%
-    mutate(xbar = mean(X), ybar = mean(Y)) %>%
-    ungroup() %>%
-    ggplot(aes(X, Y)) +
-    geom_point(alpha = 0.6) +
-    geom_smooth(method = "lm", se = FALSE, linetype = "dotted", color = "red") +  # OLS line
-    geom_abline(data = sim_data %>% distinct(condition, xbar = mean(X), ybar = mean(Y), est_b_sma), aes(slope = est_b_sma, intercept = ybar - est_b_sma * xbar), color = "blue", size = 1) +
-    facet_wrap(~condition, scales = "free") +
-    theme_minimal() +
-    labs(title = "SMA Regression: Varying Slopes and Correlations") +
-    ylim(c(-1, 1))
-}
-plot_SMA_grid(sim_data = sim_df)
+# Simulate df with error 
+error_df <- gen_cor_vars(r_12 = .3, mu_append = 180, mu_mass = 80, sd_append = 10, sd_mass = .2, transient_error_append = 0, transient_error_mass = 1, meas_error = 0) 
+
+# We know the true slope (with very small amount of error; black dashed line) given that var(x) << var(y), and we can see that SMA always overestimates the slope using the true data (blue line), and that OLS always underestimate the slope. 
+true_df %>%
+  ggplot(aes(x = Mass, y = Appendage)) + 
+  # True functional relationship
+  geom_abline(intercept = intercept_lm, slope = slope_lm, color = "black", linetype = "dashed") +
+  # SMA on true
+  ggpmisc::stat_ma_line(method = "SMA", color = "blue") + 
+  # SMA estimated
+  ggpmisc::stat_ma_line(data = error_df, method = "SMA", color = "orange") +
+  # OLS estimated
+  geom_smooth(data = error_df, method = "lm", color = "red")
+
+# Confirm 
+sd_y_x <- sd(play_df$Appendage) / sd(play_df$Mass)
+near(slope_sma, sd_y_x)
 
 # Simulate 3 vars --------------------------------------------------------
 ## GOAL:: I want to include a third variable, temperature. So we'll have mass (X1), temperature (X2), and Wing (Y). 
@@ -487,20 +429,21 @@ size_temp %>% ggplot(aes(x = mass, y = SA_V)) +
 p1 <- ggplot(size_temp, aes(x = temp, y = wing)) +
   geom_point(alpha = .4) + 
   geom_smooth(method = "lm", se = FALSE) + 
-  labs(title ="Wing vs Temp", x = "Temperature increase") 
+  labs(x = "Temperature increase", y = "Wing") 
 
 p2 <- ggplot(size_temp, aes(x = temp, y = mass)) +
   geom_point(alpha = .4) + 
   geom_smooth(method = "lm", se = FALSE) + 
-  labs(title = "Mass vs Temp", x = "Temperature increase")
+  labs(x = "Temperature increase", y = "Mass")
 
 # We would expect that SA:V would increase as temperature increases, but in this case SA:V decreases
 p3 <- ggplot(size_temp, aes(x = temp, y = SA_V)) +
   geom_point(alpha = .4) + 
   geom_smooth(method = "lm", se = FALSE) + 
-  labs(title = "SA:V Ratio vs Temp", x = "Temperature increase")
+  labs(y = "Surface area to volume", x = "Temperature increase")
 
 grid.arrange(p1, p2, p3, nrow = 2)
+
 
 # Ex2: Neg covariation ---------------------------------------------------
 # Individuals are doing different things then the population.. Example, wing & mass show a positive trend with latitude, but actually negatively covary. A migratory bird might diverge in migration strategy & behavior (time-minimizing vs energy-minimizing), where short-distance migrant individuals are fat & short winged, & long-distance migrant individuals are skinny & long-winged.
