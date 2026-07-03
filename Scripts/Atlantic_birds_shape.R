@@ -8,8 +8,7 @@ library(smatr)
 library(cowplot)
 library(ggpubr)
 library(naniar)
-library(lavaan)
-source("Scripts/Key_causal_fns.R")
+source("Scripts/Key_allometry_fns.R")
 ggplot2::theme_set(theme_cowplot())
 
 Atlantic_birds <- read_csv("/Users/aaronskinner/Library/CloudStorage/OneDrive-UBC/Academia/Datasets_external/Ecology/Atlantic_bird_traits/ATLANTIC_BIRD_TRAITS_completed_2018_11_d05.csv")
@@ -19,20 +18,13 @@ min_n_obs       <- 150    # minimum observations per species to be included
 year_cutoff     <- 1990   # exclude records from this year and before
 p_bergmann      <- 0.05   # p-value threshold: Bergmann / Allen response classification
 p_age_sex       <- 0.10   # p-value threshold: age / sex covariate inclusion
-pos_allom       <- TRUE   # retain only species with positive allometric slope (b_ols > 0.1, p < .06)
+pos_allom       <- TRUE  # retain only species with b_ols > cor_b_min & p_mw < cor_p_max
 filter_bergmann <- FALSE  # TRUE: retain only species with a significant Bergmann / Allen response
 control_age_sex <- TRUE   # TRUE: include age / sex as covariates where they significantly affect body size
-
-# SLI function ------------------------------------------------------------
-# Calculate b_sli using logged morphometrics
-calc_sli <- function(df, Append = Append, b_sli = 0.33, rename_col = FALSE){
-  # L0 is the average mass, essentially allowing for comparison of wing lengths for a given mass
-  L0 <- mean(df$mass)
-  df_sli <- df %>% mutate(sli = {{ Append }} * (L0 / mass)^b_sli) %>%
-    arrange(desc(sli))
-  if(rename_col != FALSE){df_sli <- df_sli %>% rename( {{ rename_col }} := sli)}
-  return(df_sli)
-}
+min_n_age_group <- 100    # min individuals per age group (juvenile/adult) to include age control
+min_n_sex_group <- 100    # min individuals per sex group (female/male) to include sex control
+cor_b_min       <- 0.1    # min b_ols (mass ~ wing) within group for allometric correlation filter
+cor_p_max       <- 0.05   # max p-value for mass ~ wing within group
 
 # Format ------------------------------------------------------------------
 # Combine several metrics of wing, filter out observations with no wing or mass
@@ -53,8 +45,8 @@ Atlantic_birds3 <- Atlantic_birds2 %>%
          log_mass = log(mass),
          log_tarsus = log(tarsus),
          log_tail = log(tail),
-         wing_mass = wing / mass, 
-         wing2_mass = wing^2 / mass)
+         wing_mass = log_wing - log_mass,
+         wing2_mass = 2*log_wing - log_mass)
 
 # Morphology -------------------------------------------------------------
 # Inspect possible measurements: Body length, wing, mass, tarsus, tail
@@ -101,11 +93,19 @@ Atlantic_birds4 %>% tabyl(age)
 Atlantic_birds4 %>% tabyl(sex)
 
 # Test effect of a grouping variable (iv = "age" or "sex") on a morphometric DV.
-# Filters Unknown/NA for iv, includes per-group sample counts in the output.
-test_group_effect <- function(df_list, dv, iv) {
+# Filters Unknown/NA for iv, then drops individual groups below min_n_per_group.
+# If fewer than 2 valid groups remain, returns NULL for that species.
+test_group_effect <- function(df_list, dv, iv, min_n_per_group = 0) {
   map(df_list, \(df) {
     df_filt <- df %>% filter(.data[[iv]] != "Unknown" & !is.na(.data[[iv]]))
-    if (nrow(df_filt) < 10 || length(unique(df_filt[[iv]])) < 2) return(NULL)
+    if (nrow(df_filt) < 10) return(NULL)
+
+    valid_grps <- df_filt %>%
+      count(.data[[iv]]) %>%
+      filter(n >= min_n_per_group) %>%
+      pull(.data[[iv]])
+    if (length(valid_grps) < 2) return(NULL)
+    df_filt <- df_filt %>% filter(.data[[iv]] %in% valid_grps)
 
     n_counts <- df_filt %>%
       count(.data[[iv]], name = "n") %>%
@@ -123,19 +123,19 @@ test_group_effect <- function(df_list, dv, iv) {
 }
 
 # Age and sex effects on mass, wing, and tarsus
+# Groups below min_n_age_group / min_n_sex_group are dropped inside the function;
+# species with fewer than 2 valid groups are excluded entirely.
 Age_tbl <- bind_rows(
-  test_group_effect(Atl_birds_l, dv = "mass",   iv = "age"),
-  test_group_effect(Atl_birds_l, dv = "wing",   iv = "age"),
-  test_group_effect(Atl_birds_l, dv = "tarsus", iv = "age")
-) %>% mutate(sig = p.value < p_age_sex) %>%
-  filter(n_juvenile > 20)
+  test_group_effect(Atl_birds_l, dv = "mass",   iv = "age", min_n_per_group = min_n_age_group),
+  test_group_effect(Atl_birds_l, dv = "wing",   iv = "age", min_n_per_group = min_n_age_group),
+  test_group_effect(Atl_birds_l, dv = "tarsus", iv = "age", min_n_per_group = min_n_age_group)
+) %>% mutate(sig = p.value < p_age_sex)
 
 Sex_tbl <- bind_rows(
-  test_group_effect(Atl_birds_l, dv = "mass",   iv = "sex"),
-  test_group_effect(Atl_birds_l, dv = "wing",   iv = "sex"),
-  test_group_effect(Atl_birds_l, dv = "tarsus", iv = "sex")
-) %>% mutate(sig = p.value < p_age_sex) %>%
-  filter(n_female > 20)
+  test_group_effect(Atl_birds_l, dv = "mass",   iv = "sex", min_n_per_group = min_n_sex_group),
+  test_group_effect(Atl_birds_l, dv = "wing",   iv = "sex", min_n_per_group = min_n_sex_group),
+  test_group_effect(Atl_birds_l, dv = "tarsus", iv = "sex", min_n_per_group = min_n_sex_group)
+) %>% mutate(sig = p.value < p_age_sex)
 
 # Inspect: which species × DV combinations are significant?
 Age_tbl %>% filter(sig) %>% dplyr::select(species_, dv, estimate, p.value, n_juvenile, n_adult)
@@ -149,7 +149,7 @@ sig_sex_wing   <- Sex_tbl %>% filter(dv == "wing",   sig) %>% pull(species_)
 sig_age_tarsus <- Age_tbl %>% filter(dv == "tarsus", sig) %>% pull(species_)
 sig_sex_tarsus <- Sex_tbl %>% filter(dv == "tarsus", sig) %>% pull(species_)
 
-# Union across all DVs: if age/sex affects any indicator, include it in SEM + shape models
+# Union across all DVs: if age/sex affects any indicator, include it in shape models
 sig_age_any <- unique(c(sig_age_mass, sig_age_wing, sig_age_tarsus))
 sig_sex_any <- unique(c(sig_sex_mass, sig_sex_wing, sig_sex_tarsus))
 
@@ -190,7 +190,7 @@ wing_mod <- map(Atl_birds_l, berg_model, dv = "wing",
 
 Bergs <- bind_rows(mass_mod, wing_mod)
 
-# Keep species with significant response ----------------------------------
+# Bergs - relationship with temp ----------------------------------
 # Select species with a (marginally) significant relationship between temperature and either wing or mass 
 # NOTE:: Generally effects are small compared to nightjar dataset 
 Spp_keep <- Bergs %>% 
@@ -202,28 +202,34 @@ Spp_keep <- Bergs %>%
 # Classify the direction of the effect and which trait is significant
 Spp_keep2 <- Spp_keep %>%
   mutate(sig = p.value < p_bergmann) %>%
-  group_by(species_) %>% 
+  group_by(species_) %>%
   summarise(
-    n_sig = sum(sig),
-    Berg_vals = paste0(Bergs[sig], collapse = ""),
+    n_sig     = sum(sig),
+    mass_dir  = Bergs[dv == "mass"],   # "Y" = neg estimate (smaller at warmer) = Bergmann's for mass
+    wing_dir  = Bergs[dv == "wing"],   # "Y" = neg estimate (shorter at warmer), "N" = longer = Allen's
+    mass_sig  = sig[dv == "mass"],
+    wing_sig  = sig[dv == "wing"],
     Sig_trait = ifelse(n_sig == 0, "Neither", ifelse(n_sig == 2, "both", dv[sig])),
-    .groups = "drop"
-  ) %>% 
+    .groups   = "drop"
+  ) %>%
   mutate(
+    sole_dir  = case_when(mass_sig & !wing_sig ~ mass_dir,
+                          !mass_sig & wing_sig ~ wing_dir),
     Direction = case_when(
-      n_sig == 0 ~ "Neither",
-      n_sig == 1 & Berg_vals == "Y" ~ "Bergmann's",
-      n_sig == 1 & Berg_vals == "N" ~ "Inverse",
-      n_sig == 2 & Berg_vals %in% c("YY") ~ "Bergmann's",
-      n_sig == 2 & Berg_vals %in% c("NN") ~ "Inverse",
-      n_sig == 2 & Berg_vals %in% c("YN", "NY") ~ "Mixed",
+      n_sig == 0                                          ~ "Stable",
+      n_sig == 1 & sole_dir == "Y"                       ~ "Bergmann's",
+      n_sig == 1 & sole_dir == "N"                       ~ "Inverse Bergmann's",
+      n_sig == 2 & mass_dir == "Y" & wing_dir == "Y"     ~ "Bergmann's",
+      n_sig == 2 & mass_dir == "N" & wing_dir == "N"     ~ "Inverse Bergmann's",
+      n_sig == 2 & mass_dir == "Y" & wing_dir == "N"     ~ "Mixed - Wingier",
+      n_sig == 2 & mass_dir == "N" & wing_dir == "Y"     ~ "Mixed - Fatter",
       TRUE ~ "Check"
     )
   )
 Spp_keep2 %>% tabyl(Direction)
 
 # If filter_bergmann = TRUE, drop species with no significant Bergmann / Allen response
-if (filter_bergmann) Spp_keep2 <- Spp_keep2 %>% filter(Direction != "Neither")
+if (filter_bergmann) Spp_keep2 <- Spp_keep2 %>% filter(Direction != "Stable")
 
 Atlantic_birds5 <- Atlantic_birds4 %>%
   filter(species_ %in% unique(Spp_keep2$species_))
@@ -268,46 +274,108 @@ Atl_birds_l2 <- Atlantic_birds5 %>% group_split(species_)
 names(Atl_birds_l2) <- map_chr(Atl_birds_l2, ~unique(pull(.x, species_)))
 length(Atl_birds_l2)
 
-# Extract the correlations
-Cors_tbl <- map(Atl_birds_l2, \(df){
-  # In a variable w/ single predictor this is the correlation
-  tidy(lm(mass ~ wing, data = df)) 
-}) %>% list_rbind(names_to = "species_") %>% 
-  filter(term == "wing") %>% 
-  dplyr::select(species_, estimate, p.value) %>% 
-  rename(cor_mw = estimate, p_mw = p.value)
+Cors_tbl <- map(Atl_birds_l2, \(df) {
+  ct <- cor.test(df$mass, df$wing, use = "complete.obs")
+  tibble(cor_mw = as.numeric(ct$estimate), p_mw = ct$p.value)
+}) %>% list_rbind(names_to = "species_")
+Cors_tbl %>% filter(cor_mw < 0)
 
-Spp_metadata2 <- Spp_metadata %>% left_join(Cors_tbl)
+Spp_metadata2 <- Spp_metadata %>% left_join(Cors_tbl) %>% 
+  mutate(Keep = ifelse(b_ols > cor_b_min & p_mw < cor_p_max, "Include", "Exclude"))
 
-# 8 species have significant correlation between mass and wing!!
-Spp_keep_vec <- Spp_metadata2 %>% 
-  filter(b_ols > 0.1 & p_mw < .06) %>%
+Spp_keep_vec <- Spp_metadata2 %>%
+  filter(Keep == "Include") %>%
   pull(species_)
 Spp_keep_vec
 
-# Keep just species with significant correlation
-if(pos_allom){
-  Atl_birds_l2 <- Atl_birds_l2[Spp_keep_vec]
+# Atl_birds_l2 is NOT filtered to Spp_keep_vec here; sli_est is set NA for non-passing species in Atl_birds_l3
+if (pos_allom) message(length(Spp_keep_vec), " / ", length(Atl_birds_l2), " species pass allometric filter (sli_est will be NA for the rest)")
+
+# Per-group allometric correlation (mass ~ wing within each age × sex combination) -----
+# Inspect b_ols and p_mw per group; groups with pass = FALSE lack a meaningful
+# allometric relationship and should not drive per-group SMA slope estimates.
+if (control_age_sex) {
+  group_cor_wing <- imap(Atl_birds_l2, \(df, sp) {
+    covs <- c(if (sp %in% sig_age_any) "age", if (sp %in% sig_sex_any) "sex")
+    if (!length(covs)) return(NULL)
+    build_group_cor_tbl(df, Append = wing, Mass = mass, control = covs) %>%
+      mutate(species_ = sp, .before = 1)
+  }) %>% list_rbind() %>%
+    mutate(pass = b_ols > cor_b_min & p_mw <= cor_p_max)
+  print(group_cor_wing)
 }
 
 # Create shape metrics ----------------------------------------------------
-Atl_birds_l3 <- map(Atl_birds_l2, \(df){
-  ols_wing     <- lm(log_wing ~ log_mass, data = df)
-  sma_wing     <- sma(log_wing ~ log_mass, data = df, method = "SMA")
-  ols_tarsus   <- lm(log_tarsus ~ log_mass, data = df)
+# Per species: filter to groups meeting min_n thresholds; include age/sex in
+# covariate list only if ≥ 2 valid groups remain after filtering.
+# Residuals use predict() so the model and the df are always aligned.
+# Sli_est uses per-group SMA slopes via calc_sli(control = covs); sli_iso uses isometry.
+Atl_birds_l3 <- imap(Atl_birds_l2, \(df, sp) {
+  covs <- character(0)
+
+  if (sp %in% sig_age_any) {
+    valid_age <- df %>%
+      filter(!is.na(age) & age != "Unknown") %>%
+      count(age) %>% filter(n >= min_n_age_group) %>% pull(age)
+    if (length(valid_age) >= 1) df <- df %>% filter(age %in% valid_age)
+    if (length(valid_age) >= 2) {
+      passing_age <- build_group_cor_tbl(df, Append = wing, Mass = mass, control = "age") %>%
+        ungroup() %>% filter(b_ols > cor_b_min & p_mw <= cor_p_max) %>% pull(age)
+      if (length(passing_age) >= 1) df <- df %>% filter(age %in% passing_age)
+      if (length(passing_age) >= 2) covs <- c(covs, "age")
+    }
+  }
+  if (sp %in% sig_sex_any) {
+    valid_sex <- df %>%
+      filter(!is.na(sex) & sex != "Unknown") %>%
+      count(sex) %>% filter(n >= min_n_sex_group) %>% pull(sex)
+    if (length(valid_sex) >= 1) df <- df %>% filter(sex %in% valid_sex)
+    if (length(valid_sex) >= 2) {
+      passing_sex <- build_group_cor_tbl(df, Append = wing, Mass = mass, control = "sex") %>%
+        ungroup() %>% filter(b_ols > cor_b_min & p_mw <= cor_p_max) %>% pull(sex)
+      if (length(passing_sex) >= 1) df <- df %>% filter(sex %in% passing_sex)
+      if (length(passing_sex) >= 2) covs <- c(covs, "sex")
+    }
+  }
+
+  covs_str <- if (length(covs)) paste("+", paste(covs, collapse = " + ")) else ""
+
+  ols_wing     <- lm(as.formula(paste("log_wing   ~ log_mass", covs_str)), data = df)
+  ols_tarsus   <- lm(as.formula(paste("log_tarsus ~ log_mass", covs_str)), data = df)
+  sma_wing     <- sma(log_wing   ~ log_mass, data = df, method = "SMA")
   sma_tarsus   <- sma(log_tarsus ~ log_mass, data = df, method = "SMA")
-  b_sma_wing   <- coef(sma_wing)['slope']
-  b_sma_tarsus <- coef(sma_tarsus)['slope']
-  df %>%
-    mutate(resid_ols        = residuals(ols_wing),
+
+  df_res <- df %>%
+    mutate(resid_ols        = log_wing   - predict(ols_wing,   newdata = df),
            resid_sma        = residuals(sma_wing),
-           resid_ols_tarsus = residuals(ols_tarsus),
+           resid_ols_tarsus = log_tarsus - predict(ols_tarsus, newdata = df),
            resid_sma_tarsus = residuals(sma_tarsus)) %>%
-    calc_sli(b_sli = 0.33,          Append = wing,   rename_col = "sli_isometry") %>%
-    calc_sli(b_sli = b_sma_wing,    Append = wing,   rename_col = "sli_estimated") %>%
-    calc_sli(b_sli = 0.33,          Append = tarsus, rename_col = "sli_tarsus_iso") %>%
-    calc_sli(b_sli = b_sma_tarsus,  Append = tarsus, rename_col = "sli_tarsus_est")
+    calc_sli(b_sli = 0.33, Append = wing,   Mass = mass, rename_col = "sli_isometry") %>%
+    calc_sli(b_sli = 0.33, Append = tarsus, Mass = mass, rename_col = "sli_tarsus_iso")
+
+  if (sp %in% Spp_keep_vec) {
+    df_res %>%
+      calc_sli(Append = wing,   Mass = mass,
+               control = if (length(covs)) covs else NULL,
+               b_sli   = coef(sma_wing)["slope"],   rename_col = "sli_estimated") %>%
+      calc_sli(Append = tarsus, Mass = mass,
+               control = if (length(covs)) covs else NULL,
+               b_sli   = coef(sma_tarsus)["slope"], rename_col = "sli_tarsus_est")
+  } else {
+    df_res %>% mutate(sli_estimated = NA_real_, sli_tarsus_est = NA_real_)
+  }
 })
+
+# Per-group SMA slope tables (for inspection — wing and tarsus)
+if (control_age_sex) {
+  wing_slopes_tbl <- imap(Atl_birds_l2, \(df, sp) {
+    covs <- c(if (sp %in% sig_age_any) "age", if (sp %in% sig_sex_any) "sex")
+    if (!length(covs)) return(NULL)
+    build_sli_slopes_tbl(df, Append = wing, Mass = mass, control = covs) %>%
+      mutate(species_ = sp, .before = 1)
+  }) %>% list_rbind()
+  print(wing_slopes_tbl)
+}
 
 # Scale by species 
 Atl_birds_l4 <- map(Atl_birds_l3, \(df){
@@ -322,188 +390,105 @@ map(Atl_birds_l4, \(df){
 })
 
 # Run models & extract parms ----------------------------------------------
-# For each species, age/sex dummies are added as covariates when they significantly affect any of mass, wing, or tarsus (sig_age_any / sig_sex_any).
-# Unknown/NA observations are filtered only for species where the covariate matters.
+# Data already filtered (unknowns + small groups removed) upstream in Atl_birds_l3.
+# Approach-specific covariate rules (Nightjar-aligned):
+#   Ratio/Ratio2/Sli_iso: no age/sex by design
+#   Resid_ols: age/sex cleaned in first model (Atl_birds_l3); no additional covariates
+#   Ryding: include age/sex in combined model (B.Tavg conditional on both)
+#   Sli_est: per-group SMA slopes handled upstream in calc_sli(control = covs)
 parms_df <- map(Atl_birds_l4, \(df) {
-  sp   <- unique(df$species_)
-  df_  <- df
-  covs <- character(0)
-  if (sp %in% sig_age_any) {
-    df_  <- df_ %>% filter(age != "Unknown" & !is.na(age))
-    covs <- c(covs, "age")
-  }
-  if (sp %in% sig_sex_any) {
-    df_  <- df_ %>% filter(sex != "Unknown" & !is.na(sex))
-    covs <- c(covs, "sex")
-  }
-  extra <- if (length(covs)) paste("+", paste(covs, collapse = " + ")) else ""
+  sp       <- unique(df$species_)
+  covs     <- c(if (sp %in% sig_age_any) "age", if (sp %in% sig_sex_any) "sex")
+  covs     <- covs[vapply(covs, \(v) length(unique(na.omit(df[[v]]))) >= 2, logical(1))]
+  covs_str <- if (length(covs)) paste("+", paste(covs, collapse = " + ")) else ""
 
-  mod_resid_ols   <- lm(as.formula(paste("resid_ols ~ B.Tavg",        extra)), data = df_) %>%
-    tidy() %>% mutate(Approach = "Resid_ols")
-  mod_coef_ols    <- lm(as.formula(paste("wing ~ mass + B.Tavg",      extra)), data = df_) %>%
-    tidy() %>% mutate(Approach = "Ryding")
-  mod_coef_ratio  <- lm(as.formula(paste("wing_mass ~ B.Tavg",        extra)), data = df_) %>%
+  mod_coef_ratio  <- lm(wing_mass    ~ B.Tavg, data = df) %>%
     tidy() %>% mutate(Approach = "Ratio")
-  mod_coef_ratio2 <- lm(as.formula(paste("wing2_mass ~ B.Tavg",       extra)), data = df_) %>%
+  mod_coef_ratio2 <- lm(wing2_mass   ~ B.Tavg, data = df) %>%
     tidy() %>% mutate(Approach = "Ratio2")
-  mod_sli_iso     <- lm(as.formula(paste("sli_isometry ~ B.Tavg",     extra)), data = df_) %>%
+  mod_sli_iso     <- lm(sli_isometry ~ B.Tavg, data = df) %>%
     tidy() %>% mutate(Approach = "Sli_iso")
-  mod_sli_est     <- lm(as.formula(paste("sli_estimated ~ B.Tavg",    extra)), data = df_) %>%
-    tidy() %>% mutate(Approach = "Sli_est")
-  bind_rows(mod_sli_iso, mod_sli_est, mod_resid_ols, mod_coef_ols, mod_coef_ratio, mod_coef_ratio2)
+  mod_resid_ols   <- lm(resid_ols    ~ B.Tavg, data = df) %>%
+    tidy() %>% mutate(Approach = "Resid_ols")
+  mod_coef_ols    <- lm(as.formula(paste("wing ~ mass + B.Tavg", covs_str)), data = df) %>%
+    tidy() %>% mutate(Approach = "Ryding")
+  mod_sli_est <- if (any(!is.na(df$sli_estimated))) {
+    lm(sli_estimated ~ B.Tavg, data = df) %>% tidy() %>% mutate(Approach = "Sli_est")
+  } else tibble()
+
+  bind_rows(mod_coef_ratio, mod_coef_ratio2, mod_coef_ols, mod_resid_ols, mod_sli_est, mod_sli_iso)
 }) %>% list_rbind(names_to = "species_") %>%
   mutate(LCI95 = estimate - 1.96 * std.error,
          UCI95 = estimate + 1.96 * std.error)
 
-# Add SEM: Atl_birds_l4 is already z-scored per species.
-# When age/sex affects any indicator, the column name is passed to fit_lavaan_sem() via
-# size_covs; the function handles numeric encoding internally (lavaan requires numeric).
-sem_parms <- map(Atl_birds_l4, \(df) {
-  sp        <- unique(df$species_)
-  df_       <- df
-  size_covs <- character(0)
-  if (sp %in% sig_age_any) {
-    df_       <- df_ %>% filter(age != "Unknown" & !is.na(age))
-    size_covs <- c(size_covs, "age")
-  }
-  if (sp %in% sig_sex_any) {
-    df_       <- df_ %>% filter(sex != "Unknown" & !is.na(sex))
-    size_covs <- c(size_covs, "sex")
-  }
-
-  res <- fit_lavaan_sem(
-    df_,
-    mass_name    = "log_mass",
-    append_names = c("log_wing", "log_tarsus"),
-    temp_name    = "B.Tavg",
-    labels       = c("wing", "tarsus"),
-    size_covs    = size_covs
-  )
-  tibble(
-    term      = "B.Tavg",
-    estimate  = c(res$coef_sem_wing,       res$coef_sem_tarsus),
-    std.error = c(res$se_sem_wing,         res$se_sem_tarsus),
-    lambda    = c(res$lambda_sem_wing,     res$lambda_sem_tarsus),
-    se_lambda = c(res$se_lambda_sem_wing,  res$se_lambda_sem_tarsus),
-    p.value   = NA_real_,
-    Approach  = c("SEM_wing", "SEM_tarsus")
-  )
-}) %>%
-  list_rbind(names_to = "species_") %>%
-  mutate(LCI95 = estimate - 1.96 * std.error,
-         UCI95 = estimate + 1.96 * std.error)
-
-parms_df <- bind_rows(parms_df, sem_parms)
-
-# SEM diagnostics: factor loadings  ---------------------------------------
-# lambda = loading of each appendage on latent Size.
-# It captures how much of that appendage's variance is shared with mass.
-#
-# Boundary cases:
-#   low lambda  → appendage barely tracks body size; little collider bias to
-#                 correct, but the latent factor is poorly constrained (high SE).
-#   high lambda → appendage is dominated by size variation; the direct Temp
-#                 effect has little independent variance left (also high SE).
-#   optimal     → intermediate lambda gives best precision.
-#
-# If the SEM guard (|coef| > 1.5) discards a species, lambda is NA.
-
-sem_diag <- sem_parms %>%
-  filter(!is.na(lambda)) %>%
+# Rank order summary -------------------------------------------------------
+# Groups: Ratio (Ratio+Ratio2), SLI (Sli_est+Sli_iso), OLS (Ryding+Resid_ols)
+# Simulation prediction for Bergmann's / Stable:  avg_ratio > avg_sli > avg_ols
+# Simulation prediction for Inverse Bergmann's:   avg_ratio < avg_sli < avg_ols
+rank_summary <- parms_df %>%
+  filter(term == "B.Tavg",
+         Approach %in% c("Ratio", "Ratio2", "Ryding", "Resid_ols", "Sli_est", "Sli_iso")) %>%
+  mutate(approach_group = case_when(
+    Approach %in% c("Ratio", "Ratio2")     ~ "avg_ratio",
+    Approach %in% c("Sli_est", "Sli_iso")  ~ "avg_sli",
+    Approach %in% c("Ryding", "Resid_ols") ~ "avg_ols"
+  )) %>%
+  group_by(species_, approach_group) %>%
+  summarise(avg_coef = mean(estimate, na.rm = TRUE), .groups = "drop") %>%
+  pivot_wider(names_from = approach_group, values_from = avg_coef) %>%
   left_join(Spp_keep2 %>% dplyr::select(species_, Direction), by = "species_") %>%
   mutate(
-    appendage = if_else(Approach == "SEM_wing", "Wing", "Tarsus"),
-    species   = str_replace(species_, "_", " "),
-    ci_width  = UCI95 - LCI95
-  )
+    rank_consistent = case_when(
+      Direction == "Bergmann's"         ~ avg_ratio > avg_sli & avg_sli > avg_ols,
+      Direction == "Inverse Bergmann's" ~ avg_ratio < avg_sli & avg_sli < avg_ols,
+      TRUE ~ NA
+    )
+  ) %>%
+  arrange(Direction, species_)
 
-# Lambda vs SE of temperature coefficient
-p_lambda_se <- ggplot(sem_diag, aes(x = lambda, y = std.error, color = appendage)) +
-  geom_hline(yintercept = 0.5, linetype = "dashed", color = "grey50") +
-  geom_point(size = 2) +
-  geom_smooth(se = FALSE, method = "loess", span = 1.5, linewidth = 0.8) +
-  scale_color_manual(values = c("Wing" = "steelblue", "Tarsus" = "coral3")) +
-  annotate("text", x = -Inf, y = 0.52, hjust = -0.1, size = 3,
-           label = "SE = 0.5", color = "grey40") +
-  labs(x = expression(lambda ~ "(factor loading on latent Size)"),
-       y = "SE of temperature coefficient",
-       color = NULL)
-
-# Lambda vs coefficient estimate (with 95% CI error bars)
-p_lambda_coef <- ggplot(sem_diag, aes(x = lambda, y = estimate, color = appendage)) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
-  geom_errorbar(aes(ymin = LCI95, ymax = UCI95), width = 0, alpha = 0.35) +
-  geom_point(size = 2) +
-  scale_color_manual(values = c("Wing" = "steelblue", "Tarsus" = "coral3")) +
-  labs(x = expression(lambda ~ "(factor loading on latent Size)"),
-       y = "Temperature coefficient",
-       color = NULL)
-
-# Lambda and its own SE: species where the loading is imprecise
-p_lambda_uncertainty <- ggplot(sem_diag, aes(x = lambda, y = se_lambda, color = appendage)) +
-  geom_point(size = 2) +
-  scale_color_manual(values = c("Wing" = "steelblue", "Tarsus" = "coral3")) +
-  labs(x = expression(lambda ~ "(factor loading on latent Size)"),
-       y = expression("SE of" ~ lambda),
-       color = NULL)
-
-plot_grid(p_lambda_se, p_lambda_coef, p_lambda_uncertainty, nrow = 1)
-
-# Strong relationship between the uncertainty in factor loadings and the uncertainty in the temperature coefficient 
-sem_diag %>% filter(se_lambda < 10) %>%
-  ggplot(aes(x = se_lambda, y = std.error, color = appendage)) +
-  geom_point(size = 2) +
-  scale_color_manual(values = c("Wing" = "steelblue", "Tarsus" = "coral3")) +
-  labs(x = expression("SE of" ~ lambda),
-       y = "SE of temperature coefficient",
-       color = NULL)
-
-# Not a strong relationship with sample size and SE of lambda, although all the ones with very high lambda SEs have low sample size
-sem_diag %>% #filter(se_lambda < 5) %>%
-  left_join(Spp_metadata2[,c("species_", "num_obs")]) %>%
-  ggplot(aes(x = num_obs, y = se_lambda, color = appendage)) +
-  geom_point(size = 2) +
-  scale_color_manual(values = c("Wing" = "steelblue", "Tarsus" = "coral3")) +
-  geom_vline(xintercept = 150, linetype = "dashed") +
-  labs(x = "Sample size",
-       y = expression("SE of" ~ lambda),
-       color = NULL)
-
-# Tabulate: which species have high-SE SEM estimates?
-sem_diag %>%
-  dplyr::select(species_, appendage, lambda, se_lambda, estimate, std.error, LCI95, UCI95, Direction) %>%
-  arrange(appendage, desc(se_lambda))
+rank_summary
+rank_summary %>%
+  filter(!is.na(rank_consistent)) %>%
+  group_by(Direction) %>%
+  summarise(n = n(), n_consistent = sum(rank_consistent),
+            pct_consistent = round(100 * mean(rank_consistent)))
 
 # Plot slope estimates ----------------------------------------------------
 ## Slope estimates of temperature's impact on shape
 
 approach_labels <- c(
-  "Ratio"    = "wing / mass",
-  "Ratio2"   = "wing² / mass",
+  "Ratio"    = "Wing / mass",
+  "Ratio2"   = "Wing² / mass",
+  "Ryding"   = "Mass as covariate",
   "Resid_ols"= "OLS residuals",
-  "Ryding"   = "mass as covariate",
-  "SEM_wing" = "SEM (wing)",
   "Sli_est"  = "SLI estimated",
   "Sli_iso"  = "SLI isometry"
 )
 
 Num_spp <- length(unique(parms_df$species_))
 
-# Exclude SEM_tarsus from this wing-focused plot
 parms_df_p <- parms_df %>%
-  filter(term == "B.Tavg", Approach != "SEM_tarsus") %>%
+  filter(term == "B.Tavg") %>%
   left_join(Spp_metadata2[, c("species_", "Direction", "Sig_trait")]) %>%
-  mutate(Approach = factor(Approach),
-         species  = str_replace(species_, "_", "\n")) %>% 
-  # Remove large standard errors that make plotting challenging
+  left_join(rank_summary %>% dplyr::select(species_, rank_consistent), by = "species_") %>%
+  mutate(Approach = factor(Approach, levels = c("Ratio", "Ratio2", "Ryding", "Resid_ols", "Sli_est", "Sli_iso")),
+         species  = str_replace(species_, "_", "\n")) %>%
   filter(std.error < .5)
 
-shape_scale <- c("Both" = 15, "Mass" = 16, "Neither" = 17, "Wing" = 18)
+shape_scale <- c("Both" = 15, "Mass" = 16, "Neither" = 17, "Wing" = 18, "Tarsus" = 19)
 
-Direction_effect <- unique(Spp_metadata2$Direction)
+direction_order  <- c("Bergmann's", "Inverse Bergmann's", "Mixed - Wingier", "Mixed - Fatter", "Stable")
+Direction_effect <- intersect(direction_order, unique(Spp_metadata2$Direction))
 Direction_effect <- setNames(Direction_effect, Direction_effect)
 
 plot_shape <- function(df, title = NULL, legend = TRUE, drop_y = FALSE) {
+  star_df <- df %>%
+    group_by(species) %>%
+    summarise(y_star = max(UCI95, na.rm = TRUE),
+              rank_consistent = first(rank_consistent),
+              .groups = "drop") %>%
+    filter(rank_consistent == TRUE)
+
   p <- df %>%
     mutate(Sig_trait = str_to_sentence(Sig_trait)) %>%
     ggplot(aes(x = species, y = estimate, color = Approach,
@@ -513,6 +498,8 @@ plot_shape <- function(df, title = NULL, legend = TRUE, drop_y = FALSE) {
                   position = position_dodge(width = 0.75)) +
     geom_point(aes(shape = Sig_trait),
                size = 2, position = position_dodge(width = 0.75)) +
+    geom_text(data = star_df, aes(x = species, y = y_star, label = "*"),
+              inherit.aes = FALSE, size = 5, color = "black") +
     geom_hline(yintercept = 0, linetype = "dashed") +
     labs(x = NULL, y = expression(beta[T] ~ "on wingyness"),
          title = title) +
@@ -530,21 +517,25 @@ plot_shape <- function(df, title = NULL, legend = TRUE, drop_y = FALSE) {
 
 Shape_plots <- imap(Direction_effect, \(direction, name) {
   parms_filt <- parms_df_p %>% filter(Direction == direction)
-  drop_y     <- direction %in% c("Inverse", "Mixed")
-  plot_shape(df = parms_filt, title = name, drop_y = drop_y)
+  drop_y     <- direction %in% c("Inverse Bergmann's", "Mixed - Wingier", "Mixed - Fatter")
+  plot_shape(df = parms_filt, title = name, drop_y = drop_y) 
 })
 
 # Create common legend
 com.leg <- get_legend(plot_shape(df = parms_df_p, title = "All"))
 
 # Plot
-ggarrange(
-  Shape_plots[[1]], Shape_plots[[2]], Shape_plots[[3]], 
-  common.legend = TRUE, legend.grob = com.leg, labels = "auto"
-)
+ggarrange(plotlist = Shape_plots, common.legend = TRUE, legend.grob = com.leg, labels = "auto")
 
 # Save
-ggsave("Figures/Atlantic_birds_shape.png", bg = "white", height = 7, width = 9)
+ggsave("Figures/Atlantic_birds_shape.png", bg = "white", height = 7, width = 11)
+
+# CSV export ---------------------------------------------------------------
+write_csv(
+  parms_df_p %>%
+    mutate(Study = "Atlantic birds", species = str_replace_all(species_, "_", " ")),
+  "Derived/Csv/Atlantic_parms.csv"
+)
 
 ## Interpretation
 Spp_metadata2 %>% filter(species_ %in% Spp_keep_vec) %>% 
@@ -582,7 +573,7 @@ Cvs <- Atlantic_birds5 %>%
   mutate(lambda = round(lambda, 2)) %>% 
   arrange(lambda) 
 
-stop()
+# stop()  # exploration checkpoint — commented out to allow full source()
 
 # Interpretation -------------------------------------------------------------
 
@@ -596,8 +587,15 @@ stop()
 # Could try with some sort of bill measurement
 
 # EXTRAS ------------------------------------------------------------------
-# Test effect of approach -------------------------------------------------
 
+Spp_metadata2 %>% 
+  #filter(cor_mw > 0.3) %>%
+  ggplot(aes(x = b_ols, y = b_sma, color = cor_mw, shape = Keep)) + 
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1)
+
+# Test effect of approach -------------------------------------------------
+# stop()  # exploration checkpoint
 # Does CV have an impact on the estimate?
 if(FALSE){
   parms_df %>% filter(term == "B.Tavg") %>% 
@@ -641,23 +639,6 @@ ggplot(df, aes(x = Approach, y = estimate, color = species_)) +
   theme_minimal(base_size = 14)
 
 # Test assumptions --------------------------------------------------------
-# OLS assumptions
-ols_mod_l <- map(nj_df_l, \(df){
-  ols_mod <- lm(log_wing ~ log_mass + B.Tavg, data = df)
-})
-
-# Some departure from homoskedasticity
-map(ols_mod_l, \(ols_mod){
-  plot(ols_mod, which = 1)
-  plot(ols_mod, which = 2)
-})
-
-# SMA assumptions
-sma_mod_l <- map(nj_df_l, \(df){
-  sma_mod <- sma(log_wing ~ log_mass, data = df, method = "SMA")
-})
-
-map(sma_mod_l, \(sma_mod){
-  plot(sma_mod, which = "residual")
-  plot(sma_mod, which = "qq")
-})
+# (leftover nightjar code — nj_df_l does not exist in this script)
+# ols_mod_l <- map(nj_df_l, \(df){ lm(log_wing ~ log_mass + B.Tavg, data = df) })
+# sma_mod_l <- map(nj_df_l, \(df){ sma(log_wing ~ log_mass, data = df, method = "SMA") })
