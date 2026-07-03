@@ -111,13 +111,96 @@ gen_cov_mat <- function(b_avg_12 = 0.33,
 }
 
 
+# Build a summary tibble of per-group SMA slopes for SLI estimation.
+# Fits one SMA model per element of `control` (e.g. Age, Sex separately),
+# then averages the resulting slopes for every group combination.
+# Rows with unknown-coded values or NA in control variables are excluded from
+# slope fitting but all combinations present in the known data are represented.
+# Mass argument is NSE (default = Mass) for compatibility with lowercase column names.
+# Requires smatr and rlang to be loaded (done by the calling script).
+build_sli_slopes_tbl <- function(df, Append, Mass = Mass, control,
+                                  unknown_codes = c("Unk", "U", "Unknown")) {
+  app_nm  <- rlang::as_label(rlang::enquo(Append))
+  mass_nm <- rlang::as_label(rlang::enquo(Mass))
+
+  df_fit <- df %>%
+    mutate(.log_app = log(.data[[app_nm]]), .log_mass = log(.data[[mass_nm]])) %>%
+    filter(if_all(all_of(control), \(x) !is.na(x) & !x %in% unknown_codes))
+
+  # One SMA per control variable; collect per-level slopes
+  slope_tbls <- map(control, \(grp_var) {
+    fmla <- as.formula(paste(".log_app ~ .log_mass *", grp_var))
+    fit  <- smatr::sma(fmla, data = df_fit, method = "SMA")
+    as_tibble(coef(fit), rownames = grp_var) %>%
+      rename(!!paste0("b_sma_", grp_var) := slope) %>%
+      dplyr::select(all_of(grp_var), starts_with("b_sma_"))
+  })
+
+  # All group combinations present in the known data, with sample sizes
+  n_tbl <- df_fit %>% count(!!!syms(control))
+
+  # Join per-variable slopes onto the combination table; average for b_sli_avg
+  slopes_tbl <- n_tbl
+  for (i in seq_along(control)) {
+    slopes_tbl <- left_join(slopes_tbl, slope_tbls[[i]], by = control[[i]])
+  }
+  slope_cols <- paste0("b_sma_", control)
+  slopes_tbl %>%
+    mutate(b_sli_avg = rowMeans(across(all_of(slope_cols)), na.rm = FALSE))
+}
+
+# Per-group mass ~ appendage OLS correlation table.
+# Returns one row per group combination (age × sex) with n, b_ols, and p_mw.
+# Printed for user inspection: groups with b_ols <= threshold or p_mw > threshold
+# lack a meaningful allometric relationship and should not drive per-group SMA slopes.
+build_group_cor_tbl <- function(df, Append, Mass = Mass, control,
+                                 unknown_codes = c("Unk", "U", "Unknown")) {
+  app_nm  <- rlang::as_label(rlang::enquo(Append))
+  mass_nm <- rlang::as_label(rlang::enquo(Mass))
+
+  df_fit <- df %>%
+    filter(if_all(all_of(control), \(x) !is.na(x) & !x %in% unknown_codes))
+
+  df_fit %>%
+    group_by(!!!syms(control)) %>%
+    group_modify(\(grp, key) {
+      fmla <- as.formula(paste(mass_nm, "~", app_nm))
+      m    <- lm(fmla, data = grp)
+      tibble(
+        n     = nrow(grp),
+        b_ols = coef(m)[[app_nm]],
+        p_mw  = summary(m)$coefficients[app_nm, "Pr(>|t|)"]
+      )
+    })
+}
+
 # calc_sli function: see Peig & Green (2009)
-calc_sli <- function(df, b_sli = 0.33, rename_col = FALSE){
-  # L0 is the average mass, essentially allowing for comparison of wing lengths for a given mass
-  L0 <- mean(df$Mass)
-  df_sli <- df %>% mutate(sli = Append * (L0 / Mass)^b_sli) %>%
-    arrange(desc(sli))
-  if(rename_col != FALSE){df_sli <- df_sli %>% rename( {{ rename_col }} := sli)}
+# When control = NULL: scalar b_sli applied to all rows.
+# When control is a character vector (e.g. c("Age","Sex")): build_sli_slopes_tbl()
+# estimates per-group slopes and each individual gets their group's averaged slope.
+# Unknown-coded rows (in control variables) receive sli = NA.
+# Mass argument is NSE (default = Mass) for compatibility with lowercase column names.
+calc_sli <- function(df, Append = Append, Mass = Mass, b_sli = 0.33,
+                     rename_col = FALSE, control = NULL) {
+  mass_nm <- rlang::as_label(rlang::enquo(Mass))
+  L0      <- mean(df[[mass_nm]], na.rm = TRUE)
+
+  if (!is.null(control)) {
+    app_q  <- rlang::enquo(Append)
+    mass_q <- rlang::enquo(Mass)
+    slopes_tbl <- build_sli_slopes_tbl(df, Append = !!app_q, Mass = !!mass_q,
+                                        control = control)
+    df_sli <- df %>%
+      left_join(slopes_tbl %>% dplyr::select(all_of(control), b_sli_avg), by = control) %>%
+      mutate(sli = {{ Append }} * (L0 / {{ Mass }})^b_sli_avg) %>%
+      dplyr::select(-b_sli_avg)
+  } else {
+    df_sli <- df %>%
+      mutate(sli = {{ Append }} * (L0 / {{ Mass }})^b_sli)
+  }
+
+  df_sli <- df_sli %>% arrange(desc(sli))
+  if (rename_col != FALSE) df_sli <- df_sli %>% rename({{ rename_col }} := sli)
   return(df_sli)
 }
 
@@ -152,4 +235,49 @@ gen_cor_vars <- function(r_12, mu_append, mu_mass, sd_append, sd_mass, transient
      Appendage = Appendage + meas_error_append + transient_error_append
   )
   return(df)
+}
+
+# Classify shapeshifting direction (Bergmann's, Inverse Bergmann's, Mixed, Stable)
+# from tidy lm output with mass and wing gradient models per species.
+# mass_dir = TRUE means mass decreases along gradient (Bergmann's direction for mass).
+# wing_dir = TRUE means wing increases along gradient (Allen's direction for wing).
+classify_direction <- function(mods_tbl, p_threshold = 0.05,
+                               species_col = "species_",
+                               mass_dv = "mass", wing_dv = "wing") {
+  mods_tbl %>%
+    rename(species_ = !!sym(species_col)) %>%
+    mutate(sig = p.value < p_threshold) %>%
+    group_by(species_) %>%
+    summarise(
+      n_sig     = sum(sig),
+      mass_dir  = estimate[dv == mass_dv] < 0,
+      wing_dir  = estimate[dv == wing_dv] > 0,
+      mass_sig  = sig[dv == mass_dv],
+      wing_sig  = sig[dv == wing_dv],
+      Sig_trait = case_when(
+        n_sig == 0 ~ "Neither",
+        n_sig == 2 ~ "both",
+        TRUE       ~ dv[sig]
+      ),
+      .groups = "drop"
+    ) %>%
+    mutate(
+      sole_decr = case_when(
+        mass_sig & !wing_sig ~  mass_dir,
+        !mass_sig & wing_sig ~ !wing_dir,
+        .default = NA
+      ),
+      Direction = case_when(
+        n_sig == 0                             ~ "Stable",
+        n_sig == 1 & sole_decr == TRUE         ~ "Bergmann's",
+        n_sig == 1 & sole_decr == FALSE        ~ "Inverse Bergmann's",
+        n_sig == 2 &  mass_dir & !wing_dir     ~ "Bergmann's",
+        n_sig == 2 & !mass_dir &  wing_dir     ~ "Inverse Bergmann's",
+        n_sig == 2 &  mass_dir &  wing_dir     ~ "Mixed - Wingier",
+        n_sig == 2 & !mass_dir & !wing_dir     ~ "Mixed - Fatter",
+        TRUE ~ "Check"
+      )
+    ) %>%
+    dplyr::select(-sole_decr) %>%
+    rename(!!sym(species_col) := species_)
 }
