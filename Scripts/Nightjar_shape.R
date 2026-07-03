@@ -7,19 +7,39 @@ library(smatr)
 library(cowplot)
 library(broom)
 library(ggpmisc)
-library(lavaan)
+select <- dplyr::select
 ggplot2::theme_set(theme_cowplot())
 
 source("Scripts/Key_allometry_fns.R")
-source("Scripts/Key_causal_fns.R")
 nj_raw <- read.csv("Data/Capri_BA_compare03.29.26.csv")
 
-# Run parameters -----------------------------------------------------------
-include_sem     <- TRUE   # include lavaan SEM in the analysis
-                           # TRUE:  all methods use Wing+Mass+Tail complete cases (comparability)
-                           # FALSE: use Wing+Mass complete cases for OLS/SMA/SLI/ratio only
-control_age_sex <- TRUE   # include Age/Sex as covariates in the SEM
-                           # Sex: all species; Age: Nightjar and Whip-poor-will only
+# Control parameters --------------------------------------------------------
+control_age_sex_6mod <- TRUE  # include Age/Sex control in the six OLS-based approaches
+# Nighthawk: Sex only; Nightjar/Whip-poor-will: Age + Sex
+just_am              <- FALSE   # restrict entire analysis to Adult Males only
+# (Age == "Adult" & Sex == "M"); incompatible with control_age_sex_6mod
+
+if (just_am && control_age_sex_6mod) {
+  stop("`just_am = TRUE` is incompatible with `control_age_sex_6mod`. Update control flags")
+}
+
+# Download temperature data -------------------------------------------------
+# WorldClim Annual Max Temperature, °C
+# Cached to Data/Nightjar_temp.rds after first run; subsequent runs skip the
+# WorldClim download entirely. Delete the cache file to force a refresh.
+nj_temp_cache <- "Data/Nightjar_temp.rds"
+if (file.exists(nj_temp_cache)) {
+  nj_raw <- readRDS(nj_temp_cache)
+} else {
+  library(geodata)
+  library(terra)
+  tmax <- worldclim_global(var = "tmax", res = 2.5, path = "Data/")
+  mean_tmax <- mean(tmax[[5:9]])
+  coords <- cbind(nj_raw$B.Long, nj_raw$B.Lat)
+  plot(mean_tmax)
+  nj_raw$B.Temp <- terra::extract(mean_tmax, coords)[, 1]  # single-layer raster → 1-col output
+  saveRDS(nj_raw, nj_temp_cache)
+}
 
 # Quick data summary -------------------------------------------------------
 nj_raw %>%
@@ -33,21 +53,23 @@ nj_raw %>%
     .by = Species)
 
 # Formatting --------------------------------------------------------------
-# NOTE on sign convention: B.Lat (latitude, degrees N) is the temperature
-# proxy — higher latitude is colder. A NEGATIVE B.Lat coefficient therefore
-# indicates Allen's rule (longer appendages at lower/warmer latitudes).
-# This is the reverse of the simulation convention where higher Temp = warmer.
+# NOTE on sign convention: B.Temp is annual mean temperature (°C, WorldClim
+# BIO1) at the banding location. A POSITIVE B.Temp coefficient indicates
+# Allen's rule (longer appendages at warmer sites). This matches the simulation
+# convention where higher Temp = warmer.
 
 nj_df <- nj_raw %>%
   dplyr::select(Species,
                 Wing = Wing.comb, Mass = Mass.comb, Tail = Tail.comb,
-                B.Lat, Age, Sex) %>%
+                B.Temp, Age, Sex) %>%
   drop_na(Wing, Mass) %>%
   mutate(log_wing   = log(Wing),
          log_mass   = log(Mass),
          log_tail   = log(Tail),
-         wing_mass  = Wing / Mass,
-         wing2_mass = Wing^2 / Mass)
+         wing_mass  = log_wing - log_mass,
+         wing2_mass = 2*log_wing - log_mass)
+
+if (just_am) nj_df <- nj_df %>% filter(Age == "Adult" & Sex == "M")
 
 # Visualize regression approaches -----------------------------------------
 # Compare three line-fitting methods
@@ -65,19 +87,11 @@ nj_df %>% group_by(Species) %>%
   mutate(ratio = sqrt(var_wing / var_mass))
 
 # Create lists by Species -------------------------------------------------
-# List 1: Wing + Mass complete (full dataset; baseline when include_sem = FALSE)
+# Wing + Mass complete cases — analysis dataset for all six OLS/SMA/SLI/ratio methods
 nj_df_l <- nj_df %>% group_split(Species)
 names(nj_df_l) <- c("Nighthawk", "Nightjar", "Whip-poor-will")
 
-# List 2: Wing + Mass + Tail complete (required for 3-indicator SEM)
-nj_df_sem_l <- nj_df %>%
-  drop_na(Tail) %>%
-  group_split(Species)
-names(nj_df_sem_l) <- c("Nighthawk", "Nightjar", "Whip-poor-will")
-
-# Analysis dataset: when include_sem = TRUE all methods use the Tail-complete
-# dataset so estimates are directly comparable across approaches.
-nj_df_analysis_l <- if (include_sem) nj_df_sem_l else nj_df_l
+nj_df_analysis_l <- nj_df_l
 
 # Allometric correlation --------------------------------------------------
 # SMA is appropriate only when there is a meaningful mass-wing correlation
@@ -111,7 +125,7 @@ nj_df %>% summarize(N = n(),
 # Test assumptions --------------------------------------------------------
 # OLS assumptions
 ols_mod_l <- map(nj_df_analysis_l, \(df){
-  lm(log_wing ~ log_mass + B.Lat, data = df)
+  lm(log_wing ~ log_mass + B.Temp, data = df)
 })
 
 # Some departure from homoskedasticity
@@ -134,16 +148,51 @@ map(sma_mod_l, \(sma_mod){
 ## NOTE: if you scale first, then the variance of both log_mass & log_wing is 1,
 ## & SMA slope = MA slope = 1 × OLS slope so these are identical.
 
-nj_df_l2 <- map(nj_df_analysis_l, \(df){
-  ols_mod   <- lm(log_wing ~ log_mass, data = df)
+# Per-species covariate helper for the six OLS-based approaches.
+# Nighthawk: Sex only (Age is mostly "Unk" for this species).
+# Nightjar / Whip-poor-will: Age + Sex.
+# Returns character(0) when control_age_sex_6mod = FALSE (no control applied).
+get_6mod_covs <- function(sp) {
+  if (!control_age_sex_6mod) return(character(0))
+  if (sp == "Nighthawk") return("Sex")
+  c("Age", "Sex")
+}
+
+nj_df_l2 <- imap(nj_df_analysis_l, \(df, sp) {
+  covs     <- get_6mod_covs(sp)
+  covs_str <- if (length(covs)) paste("+", paste(covs, collapse = " + ")) else ""
+
+  # Drop unknown-coded rows early so predict() never encounters new factor levels.
+  # For Nighthawk (covs = "Sex"): removes Sex == "U" / NA only.
+  # For Nightjar / Whip-poor-will (covs = c("Age","Sex")): also removes Age == "Unk" / NA.
+  if (length(covs)) {
+    df <- df %>% filter(if_all(all_of(covs), \(x) !is.na(x) & x != "Unk" & x != "U"))
+  }
+
+  ols_mod   <- lm(as.formula(paste("log_wing ~ log_mass", covs_str)), data = df)
   sma_mod   <- sma(log_wing ~ log_mass, data = df, method = "SMA")
-  est_b_sma <- coef(sma_mod)['slope']
+  est_b_sma <- coef(sma_mod)["slope"]
+
+  df <- df %>%
+    mutate(resid_ols = log_wing - predict(ols_mod, newdata = df),
+           resid_sma = residuals(sma_mod))
+
   df %>%
-    mutate(resid_ols = residuals(ols_mod),
-           resid_sma = residuals(sma_mod)) %>%
-    calc_sli(b_sli = 0.33,      Append = Wing, rename_col = "sli_isometry") %>%
-    calc_sli(b_sli = est_b_sma, Append = Wing, rename_col = "sli_estimated")
+    calc_sli(b_sli = 0.33, Append = Wing, rename_col = "sli_isometry") %>%
+    calc_sli(Append = Wing, control = if (length(covs)) covs else NULL,
+             b_sli = est_b_sma, rename_col = "sli_estimated")
 })
+
+# Per-species per-group SMA slope summary (10 rows total when control_age_sex_6mod = TRUE):
+# 2 rows for Nighthawk (Sex), 4 for Nightjar (Age x Sex), 4 for Whip-poor-will (Age x Sex).
+if (control_age_sex_6mod) {
+  sli_slopes_tbl <- imap(nj_df_analysis_l, \(df, sp) {
+    covs <- get_6mod_covs(sp)
+    if (!length(covs)) return(NULL)
+    build_sli_slopes_tbl(df, Append = Wing, control = covs)
+  }) %>% list_rbind(names_to = "Species")
+  print(sli_slopes_tbl)
+}
 
 # Scale by species
 nj_df_l3 <- map(nj_df_l2, \(df){
@@ -157,68 +206,29 @@ map(nj_df_l3, \(df){
                    resid_m = cor(resid_sma, Mass))
 })
 
-
 # Run models & extract parms ----------------------------------------------
-parms_df <- map(nj_df_l3, \(df){
-  mod_resid_ols   <- lm(resid_ols   ~ B.Lat,        data = df) %>% tidy() %>% mutate(Approach = "Resid_ols")
-  mod_coef_ols    <- lm(Wing        ~ Mass + B.Lat,  data = df) %>% tidy() %>% mutate(Approach = "Ryding")
-  mod_coef_ratio  <- lm(wing_mass   ~ B.Lat,         data = df) %>% tidy() %>% mutate(Approach = "Ratio")
-  mod_coef_ratio2 <- lm(wing2_mass  ~ B.Lat,         data = df) %>% tidy() %>% mutate(Approach = "Ratio2")
-  mod_sli_iso     <- lm(sli_isometry  ~ B.Lat,       data = df) %>% tidy() %>% mutate(Approach = "Sli_iso")
-  mod_sli_est     <- lm(sli_estimated ~ B.Lat,       data = df) %>% tidy() %>% mutate(Approach = "Sli_est")
-  bind_rows(mod_sli_iso, mod_sli_est, mod_resid_ols, mod_coef_ols, mod_coef_ratio, mod_coef_ratio2)
+parms_df <- imap(nj_df_l3, \(df, sp) {
+  # df is already filtered (Unk/U rows dropped in nj_df_l2) so no further subsetting needed.
+  covs     <- get_6mod_covs(sp)
+  covs_str <- if (length(covs)) paste("+", paste(covs, collapse = " + ")) else ""
+
+  # Resid_ols: residuals already age/sex-cleaned via first OLS model in nj_df_l2.
+  mod_resid_ols   <- lm(resid_ols    ~ B.Temp, data = df) %>% tidy() %>% mutate(Approach = "Resid_ols")
+  # Ryding: age/sex as covariates in the combined model (B.Temp conditional on both).
+  mod_coef_ols    <- lm(as.formula(paste("Wing ~ Mass + B.Temp", covs_str)), data = df) %>%
+    tidy() %>% mutate(Approach = "Ryding")
+  # Ratio/Ratio2/Sli_iso: no age/sex control by design.
+  mod_coef_ratio  <- lm(wing_mass    ~ B.Temp, data = df) %>% tidy() %>% mutate(Approach = "Ratio")
+  mod_coef_ratio2 <- lm(wing2_mass   ~ B.Temp, data = df) %>% tidy() %>% mutate(Approach = "Ratio2")
+  mod_sli_iso     <- lm(sli_isometry ~ B.Temp, data = df) %>% tidy() %>% mutate(Approach = "Sli_iso")
+  # Sli_est: per-group SMA slopes (from calc_sli) already handle age/sex variation;
+  # no covariates in the final regression. NA rows dropped automatically.
+  mod_sli_est     <- lm(sli_estimated ~ B.Temp, data = df) %>% tidy() %>% mutate(Approach = "Sli_est")
+
+  bind_rows(mod_coef_ratio, mod_coef_ratio2, mod_coef_ols, mod_resid_ols, mod_sli_est, mod_sli_iso)
 }) %>% list_rbind(names_to = "Species") %>%
   mutate(LCI95 = estimate - 1.96 * std.error,
          UCI95 = estimate + 1.96 * std.error)
-
-# SEM with 3 indicators: Mass (anchor) + Wing + Tail ---------------------
-# Only computed when include_sem = TRUE.
-# fit_lavaan_sem() requires pre-z-scored data; data are z-scored per species
-# before calling. Age/Sex filters applied where control_age_sex = TRUE.
-
-if (include_sem) {
-
-  # Per-species covariate helper (Sex: all; Age: Nightjar & Whip-poor-will)
-  get_sem_covs <- function(sp) {
-    if (!control_age_sex) return(character(0))
-    covs <- "Sex"
-    if (sp %in% c("Nightjar", "Whip-poor-will")) covs <- c(covs, "Age")
-    covs
-  }
-
-  nj_df_sem_l2 <- imap(nj_df_analysis_l, \(df, sp){
-    out <- df %>% mutate(across(where(is.numeric), scale))
-    covs <- get_sem_covs(sp)
-    if ("Sex" %in% covs) out <- out %>% filter(!is.na(Sex) & Sex != "U")
-    if ("Age" %in% covs) out <- out %>% filter(!is.na(Age) & Age != "Unknown")
-    out
-  })
-
-  sem_parms <- imap(nj_df_sem_l2, \(df, sp) {
-    res <- fit_lavaan_sem(df,
-      mass_name    = "log_mass",
-      append_names = c("log_wing", "log_tail"),
-      temp_name    = "B.Lat",
-      labels       = c("wing", "tail"),
-      size_covs    = get_sem_covs(sp))
-    tibble(
-      term      = "B.Lat",
-      estimate  = c(res$coef_sem_wing,      res$coef_sem_tail),
-      std.error = c(res$se_sem_wing,        res$se_sem_tail),
-      lambda    = c(res$lambda_sem_wing,    res$lambda_sem_tail),
-      se_lambda = c(res$se_lambda_sem_wing, res$se_lambda_sem_tail),
-      p.value   = NA_real_,
-      Approach  = c("SEM_wing", "SEM_tail")
-    )
-  }) %>%
-    list_rbind(names_to = "Species") %>%
-    mutate(LCI95 = estimate - 1.96 * std.error,
-           UCI95 = estimate + 1.96 * std.error)
-
-  print(sem_parms)
-
-} # end if(include_sem)
-
 
 # Plot slope estimates ----------------------------------------------------
 approach_labs <- c(
@@ -227,16 +237,11 @@ approach_labs <- c(
   "Sli_est"   = "SLI estimated",
   "Sli_iso"   = "SLI isometry",
   "Resid_ols" = "OLS residuals",
-  "Ryding"    = "Mass as covariate",
-  "SEM_wing"  = "SEM (latent Size)"
+  "Ryding"    = "Mass as covariate"
 )
 
-plot_data <- parms_df
-if (include_sem) plot_data <- bind_rows(plot_data, sem_parms %>% filter(Approach == "SEM_wing"))
-
-plot_data %>% filter(term == "B.Lat") %>%
-  mutate(Approach = factor(Approach),
-         Approach = fct_reorder(.f = Approach, .x = estimate, .fun = mean, .desc = TRUE)) %>%
+parms_df %>% filter(term == "B.Temp") %>%
+  mutate(Approach = factor(Approach, levels = c("Ratio", "Ratio2", "Ryding", "Resid_ols", "Sli_est", "Sli_iso"))) %>%
   ggplot(aes(x = Species, y = estimate, color = Approach,
              group = interaction(Species, Approach))) +
   geom_errorbar(aes(ymin = LCI95, ymax = UCI95),
@@ -244,105 +249,56 @@ plot_data %>% filter(term == "B.Lat") %>%
                 position = position_dodge(width = 0.75)) +
   geom_point(size = 2, position = position_dodge(width = 0.75)) +
   geom_hline(yintercept = 0, linetype = "dashed") +
-  labs(x = NULL, y = expression(beta[Lat] ~ "on wing shape")) +
+  labs(x = NULL, y = expression(beta[T] ~ "on wing shape")) +
   scale_color_hue(labels = approach_labs)
 
 ggsave("Figures/Nightjar_shape.png", bg = "white")
 
 
-# SEM diagnostics: factor loadings ----------------------------------------
-# Only when include_sem = TRUE.
+# Direction classification -------------------------------------------------
+dir_mods_nj <- imap(nj_df_analysis_l, \(df, sp) {
+  bind_rows(
+    lm(Mass ~ B.Temp, data = df) %>% tidy() %>% filter(term == "B.Temp") %>%
+      mutate(Species = sp, dv = "mass"),
+    lm(Wing ~ B.Temp, data = df) %>% tidy() %>% filter(term == "B.Temp") %>%
+      mutate(Species = sp, dv = "wing")
+  )
+}) %>% list_rbind()
 
-if (include_sem) {
+Direction_nj <- classify_direction(dir_mods_nj, species_col = "Species",
+                                   mass_dv = "mass", wing_dv = "wing")
 
-  # lambda = loading of each appendage on latent Size.
-  # low lambda  → appendage barely tracks body size; latent factor poorly
-  #               constrained → high SE. The collider problem barely exists.
-  # high lambda → appendage dominated by size variance; little independent
-  #               variance left for the direct B.Lat path → also high SE.
-  # optimal     → intermediate lambda gives best precision.
+# Rank consistency (same logic as Weeks / Atlantic) -----------------------
+rank_nj <- parms_df %>%
+  filter(term == "B.Temp",
+         Approach %in% c("Ratio", "Ratio2", "Ryding", "Resid_ols", "Sli_est", "Sli_iso")) %>%
+  mutate(approach_group = case_when(
+    Approach %in% c("Ratio", "Ratio2")     ~ "avg_ratio",
+    Approach %in% c("Sli_est", "Sli_iso")  ~ "avg_sli",
+    Approach %in% c("Ryding", "Resid_ols") ~ "avg_ols"
+  )) %>%
+  group_by(Species, approach_group) %>%
+  summarise(avg_coef = mean(estimate, na.rm = TRUE), .groups = "drop") %>%
+  pivot_wider(names_from = approach_group, values_from = avg_coef) %>%
+  left_join(Direction_nj, by = "Species") %>%
+  mutate(
+    rank_consistent = case_when(
+      Direction == "Bergmann's"         ~ avg_ratio > avg_sli & avg_sli > avg_ols,
+      Direction == "Inverse Bergmann's" ~ avg_ratio < avg_sli & avg_sli < avg_ols,
+      TRUE ~ NA
+    )
+  ) %>%
+  dplyr::select(Species, rank_consistent)
 
-  sem_diag <- sem_parms %>%
-    filter(!is.na(lambda)) %>%
-    mutate(
-      appendage = if_else(Approach == "SEM_wing", "Wing", "Tail"),
-      ci_width  = UCI95 - LCI95
-    ) %>%
-    left_join(Spp_metadata, by = "Species")
+# CSV export ---------------------------------------------------------------
+nj_parms_out <- parms_df %>%
+  filter(term == "B.Temp") %>%
+  left_join(Direction_nj, by = "Species") %>%
+  left_join(rank_nj, by = "Species") %>%
+  mutate(
+    Study    = "Nightjar",
+    species_ = str_replace_all(Species, " ", "_"),
+    species  = Species
+  )
+write_csv(nj_parms_out, "Derived/Csv/Nightjar_parms.csv")
 
-  # 1. Lambda vs SE of B.Lat coefficient (feasibility diagnostic)
-  p_lambda_se <- ggplot(sem_diag, aes(x = lambda, y = std.error, color = appendage)) +
-    geom_hline(yintercept = 0.5, linetype = "dashed", color = "grey50") +
-    geom_point(size = 3) +
-    geom_text(aes(label = Species), hjust = -0.15, size = 3) +
-    scale_color_manual(values = c("Wing" = "steelblue", "Tail" = "coral3")) +
-    annotate("text", x = -Inf, y = 0.52, hjust = -0.1, size = 3,
-             label = "SE = 0.5", color = "grey40") +
-    labs(x = expression(lambda ~ "(factor loading on latent Size)"),
-         y = "SE of B.Lat coefficient",
-         color = NULL)
-
-  # 2. Lambda vs coefficient estimate with 95% CI
-  p_lambda_coef <- ggplot(sem_diag, aes(x = lambda, y = estimate, color = appendage)) +
-    geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
-    geom_errorbar(aes(ymin = LCI95, ymax = UCI95), width = 0, alpha = 0.35) +
-    geom_point(size = 3) +
-    geom_text(aes(label = Species), hjust = -0.15, size = 3) +
-    scale_color_manual(values = c("Wing" = "steelblue", "Tail" = "coral3")) +
-    labs(x = expression(lambda ~ "(factor loading on latent Size)"),
-         y = "B.Lat coefficient\n(negative = Allen's rule)",
-         color = NULL)
-
-  # 3. Lambda vs its own SE (identifies imprecisely estimated loadings)
-  p_lambda_uncertainty <- ggplot(sem_diag, aes(x = lambda, y = se_lambda, color = appendage)) +
-    geom_point(size = 3) +
-    geom_text(aes(label = Species), hjust = -0.15, size = 3) +
-    scale_color_manual(values = c("Wing" = "steelblue", "Tail" = "coral3")) +
-    labs(x = expression(lambda ~ "(factor loading on latent Size)"),
-         y = expression("SE of" ~ lambda),
-         color = NULL)
-
-  plot_grid(p_lambda_se, p_lambda_coef, p_lambda_uncertainty, nrow = 1)
-  ggsave("Figures/Nightjar_sem_diagnostics.png", bg = "white", width = 14, height = 5)
-
-  # SE(lambda) vs SE(temperature coefficient): just-identification signature.
-  # Both SEs reflect the same likelihood flatness — the model cannot cleanly
-  # separate the indirect (Size-mediated) from the direct (Allen) B.Lat path.
-  sem_diag %>%
-    ggplot(aes(x = se_lambda, y = std.error, color = appendage)) +
-    geom_point(size = 3) +
-    geom_text(aes(label = Species), hjust = -0.1, size = 3) +
-    scale_color_manual(values = c("Wing" = "steelblue", "Tail" = "coral3")) +
-    labs(x = expression("SE of" ~ lambda),
-         y = "SE of B.Lat coefficient",
-         color = NULL)
-
-  # Sample size vs SE(lambda)
-  sem_diag %>%
-    ggplot(aes(x = num_obs, y = se_lambda, color = appendage)) +
-    geom_point(size = 3) +
-    geom_text(aes(label = Species), hjust = -0.1, size = 3) +
-    scale_color_manual(values = c("Wing" = "steelblue", "Tail" = "coral3")) +
-    geom_vline(xintercept = 150, linetype = "dashed") +
-    labs(x = "Sample size (Wing + Mass + Tail complete)",
-         y = expression("SE of" ~ lambda),
-         color = NULL)
-
-  # OLS allometric slope vs SE(lambda): weak allometric coupling = poorly
-  # identified latent factor
-  sem_diag %>%
-    ggplot(aes(x = b_ols, y = se_lambda, color = appendage)) +
-    geom_point(size = 3) +
-    geom_text(aes(label = Species), hjust = -0.1, size = 3) +
-    scale_color_manual(values = c("Wing" = "steelblue", "Tail" = "coral3")) +
-    labs(x = "OLS allometric slope (log Wing ~ log Mass)",
-         y = expression("SE of" ~ lambda),
-         color = NULL)
-
-  # Factor loading summary table (sorted by SE descending — worst cases first)
-  sem_diag %>%
-    dplyr::select(Species, appendage, lambda, se_lambda, estimate, std.error,
-                  LCI95, UCI95, num_obs, b_ols, cor_mw) %>%
-    arrange(desc(std.error))
-
-} # end if(include_sem)
