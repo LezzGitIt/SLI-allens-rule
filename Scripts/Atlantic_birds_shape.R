@@ -6,7 +6,7 @@ library(broom)
 library(janitor)
 library(smatr)
 library(cowplot)
-library(ggpubr)
+library(patchwork)
 library(naniar)
 source("Scripts/Key_allometry_fns.R")
 ggplot2::theme_set(theme_cowplot())
@@ -389,6 +389,17 @@ map(Atl_birds_l4, \(df){
                    resid_m = cor(resid_sma, mass))
 })
 
+# Ratio-mass correlation (exported for manuscript) --------------------------
+# Correlation between the wing/mass ratio (log(A/S) under log_ratio = TRUE)
+# and body mass, illustrating the confounding of ratio metrics with body size.
+Ratio_mass_cor <- imap(Atl_birds_l4, \(df, sp) {
+  ct <- cor.test(df$wing_mass, df$mass)
+  tibble(n = nrow(df), r = as.numeric(ct$estimate), p_value = ct$p.value)
+}) %>% list_rbind(names_to = "species_") %>%
+  mutate(Study = "Atlantic birds", species = str_replace_all(species_, "_", " "))
+
+write_csv(Ratio_mass_cor, "Derived/Csv/Atlantic_ratio_mass_cor.csv")
+
 # Run models & extract parms ----------------------------------------------
 # Data already filtered (unknowns + small groups removed) upstream in Atl_birds_l3.
 # Approach-specific covariate rules (Nightjar-aligned):
@@ -507,7 +518,7 @@ plot_shape <- function(df, title = NULL, legend = TRUE, drop_y = FALSE) {
       axis.text.x = element_text(vjust = .58, angle = 60),
       legend.position = "top"
     ) +
-    scale_shape_manual(values = shape_scale) +
+    scale_shape_manual(values = shape_scale, na.value = 16) +
     scale_color_discrete(labels = approach_labels)
 
   if (drop_y) p <- p + theme(axis.title.y = element_blank())
@@ -521,11 +532,10 @@ Shape_plots <- imap(Direction_effect, \(direction, name) {
   plot_shape(df = parms_filt, title = name, drop_y = drop_y) 
 })
 
-# Create common legend
-com.leg <- get_legend(plot_shape(df = parms_df_p, title = "All"))
-
 # Plot
-ggarrange(plotlist = Shape_plots, common.legend = TRUE, legend.grob = com.leg, labels = "auto")
+wrap_plots(Shape_plots, guides = "collect") +
+  plot_annotation(tag_levels = "A") &
+  theme(legend.position = "top")
 
 # Save
 ggsave("Figures/Atlantic_birds_shape.png", bg = "white", height = 7, width = 11)

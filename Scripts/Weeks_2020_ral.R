@@ -8,7 +8,7 @@ library(smatr)
 library(cowplot)
 library(broom)
 library(janitor)
-library(ggpubr)
+library(patchwork)
 ggplot2::theme_set(theme_cowplot())
 
 source("Scripts/Key_allometry_fns.R")
@@ -357,6 +357,17 @@ map(Weeks_l4, \(df){
                    resid_m = cor(resid_sma, Mass))
 })
 
+# Ratio-mass correlation (exported for manuscript) --------------------------
+# Correlation between the wing/mass ratio (log(A/S) under log_ratio = TRUE)
+# and body mass, illustrating the confounding of ratio metrics with body size.
+Ratio_mass_cor <- imap(Weeks_l4, \(df, sp) {
+  ct <- cor.test(df$wing_mass, df$Mass)
+  tibble(n = nrow(df), r = as.numeric(ct$estimate), p_value = ct$p.value)
+}) %>% list_rbind(names_to = "species_") %>%
+  mutate(Study = "Weeks (2020)", species = str_replace(species_, "_", " "))
+
+write_csv(Ratio_mass_cor, "Derived/Csv/Weeks_ratio_mass_cor.csv")
+
 # Run models & extract parms ----------------------------------------------
 # Data already filtered (small groups removed) upstream in Weeks_l3.
 # Approach-specific covariate rules (Nightjar-aligned):
@@ -470,7 +481,7 @@ plot_shape <- function(df, title = NULL, legend = TRUE, drop_y = FALSE) {
          title = title) +
     theme(axis.text.x = element_text(hjust = 1, angle = 60),
           legend.position = "top") +
-    scale_shape_manual(values = shape_scale) +
+    scale_shape_manual(values = shape_scale, na.value = 16) +
     scale_color_discrete(labels = approach_labels)
   if (drop_y) p <- p + theme(axis.title.y = element_blank())
   if (!legend) p <- p + theme(legend.position = "none")
@@ -482,8 +493,9 @@ Shape_plots <- imap(Direction_effect, \(direction, name) {
   plot_shape(df = parms_filt, title = name)
 })
 
-com.leg <- get_legend(plot_shape(df = parms_df_p))
-ggarrange(plotlist = Shape_plots, common.legend = TRUE, legend.grob = com.leg, labels = "auto")
+wrap_plots(Shape_plots, guides = "collect") +
+  plot_annotation(tag_levels = "A") &
+  theme(legend.position = "top")
 ggsave("Figures/Weeks_shape.png", bg = "white", height = 7, width = max(9, Num_spp * 0.4))
 
 # CSV export ---------------------------------------------------------------

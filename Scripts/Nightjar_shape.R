@@ -206,6 +206,17 @@ map(nj_df_l3, \(df){
                    resid_m = cor(resid_sma, Mass))
 })
 
+# Ratio-mass correlation (exported for manuscript) --------------------------
+# Correlation between the wing/mass ratio (log(A/S) under log_ratio = TRUE)
+# and body mass, illustrating the confounding of ratio metrics with body size.
+Ratio_mass_cor_nj <- imap(nj_df_l3, \(df, sp) {
+  ct <- cor.test(df$wing_mass, df$Mass)
+  tibble(n = nrow(df), r = as.numeric(ct$estimate), p_value = ct$p.value)
+}) %>% list_rbind(names_to = "Species") %>%
+  mutate(Study = "Nightjar", species = Species)
+
+write_csv(Ratio_mass_cor_nj, "Derived/Csv/Nightjar_ratio_mass_cor.csv")
+
 # Run models & extract parms ----------------------------------------------
 parms_df <- imap(nj_df_l3, \(df, sp) {
   # df is already filtered (Unk/U rows dropped in nj_df_l2) so no further subsetting needed.
