@@ -391,10 +391,16 @@ map(Atl_birds_l4, \(df){
 
 # Ratio-mass correlation (exported for manuscript) --------------------------
 # Correlation between the wing/mass ratio (log(A/S) under log_ratio = TRUE)
-# and body mass, illustrating the confounding of ratio metrics with body size.
+# and its squared counterpart (log(A^2/S)) with body mass, illustrating the
+# confounding of ratio metrics with body size and how squaring the appendage
+# term changes it.
 Ratio_mass_cor <- imap(Atl_birds_l4, \(df, sp) {
-  ct <- cor.test(df$wing_mass, df$mass)
-  tibble(n = nrow(df), r = as.numeric(ct$estimate), p_value = ct$p.value)
+  ct1 <- cor.test(df$wing_mass,  df$mass)
+  ct2 <- cor.test(df$wing2_mass, df$mass)
+  bind_rows(
+    tibble(Metric = "Ratio",  n = nrow(df), r = as.numeric(ct1$estimate), p_value = ct1$p.value),
+    tibble(Metric = "Ratio2", n = nrow(df), r = as.numeric(ct2$estimate), p_value = ct2$p.value)
+  )
 }) %>% list_rbind(names_to = "species_") %>%
   mutate(Study = "Atlantic birds", species = str_replace_all(species_, "_", " "))
 
