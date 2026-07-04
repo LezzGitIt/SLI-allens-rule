@@ -111,6 +111,42 @@ gen_cov_mat <- function(b_avg_12 = 0.33,
 }
 
 
+# Fit an SMA model of Append_log ~ Mass_log, optionally allowing the slope to
+# vary with binned temperature (Temp_bin). Used to validate simulated species'
+# direction of shape change via their SMA intercepts.
+run_sma_mod <- function(df, interaction = FALSE) {
+  if (!interaction) {
+    smatr::sma(Append_log ~ Mass_log + Temp_bin, data = df, method = "SMA")
+  } else {
+    smatr::sma(Append_log ~ Mass_log * Temp_bin, data = df, method = "SMA")
+  }
+}
+
+# Tidy the per-Temp_bin coefficients (intercept/slope) from an sma() model
+# fit with run_sma_mod(), decoding the bin label back to a numeric/label pair.
+format_sma_parms <- function(sma_mod) {
+  coef(sma_mod) %>%
+    tibble::rownames_to_column("Temp_inc") %>%
+    dplyr::mutate(
+      Temp_inc = stringr::str_pad(Temp_inc, side = "left", width = 2, pad = "0"),
+      Temp_inc = stringr::str_replace(Temp_inc, "^([0-9])([0-9])$", "\\1.\\2"),
+      Temp_label = paste0(Temp_inc, "°C"),
+      Temp_inc = as.numeric(Temp_inc)
+    ) %>%
+    tibble::tibble()
+}
+
+# Regenerate raw individual-level data for one or more hypothetical species
+# (rows of a Parms_mat-style tibble) via gen_data(), for illustrative figures.
+gen_ex_data <- function(Parms_mat, transient_error_mass = 0, transient_error_append = 0) {
+  Cols <- Parms_mat %>% dplyr::select(dplyr::starts_with(c("b_", "r_")))
+  Parms_mat %>%
+    dplyr::mutate(coefs = purrr::pmap(Cols, \(...) gen_data(...,
+                                              transient_error_mass   = transient_error_mass,
+                                              transient_error_append = transient_error_append))) %>%
+    tidyr::unnest(coefs)
+}
+
 # Build a summary tibble of per-group SMA slopes for SLI estimation.
 # Fits one SMA model per element of `control` (e.g. Age, Sex separately),
 # then averages the resulting slopes for every group combination.
