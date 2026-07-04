@@ -12,7 +12,7 @@ format: #docx
       - |
         \usepackage{fancyhdr}
         \pagestyle{fancy}
-        \fancyhead[R]{Supplementary information}
+        \fancyhead[R]{SLI to examine Allen's rule}
         \usepackage{makecell}
         \usepackage{lineno}
         \linenumbers
@@ -441,14 +441,14 @@ Prop_longer <- 1 - Prop_fatter
 pull_percent <- function(Model, Temp_eff) {
   Eval_tbl %>%
     filter(Model == {{ Model }} & Temp_eff == {{ Temp_eff }}) %>%
-    mutate(per_corr = Prop_correct * 100) %>%
+    mutate(per_corr = round(Prop_correct * 100, 0)) %>%
     pull(per_corr)
 }
 
 pull_percent_proportional <- function(Model, Direction) {
   Proportional_methods_eval %>%
     filter(Model == {{ Model }} & Direction == {{ Direction }}) %>%
-    mutate(per_corr = round(Proportion * 100, 2)) %>%
+    mutate(per_corr = round(Proportion * 100, 0)) %>%
     pull(per_corr)
 }
 
@@ -488,9 +488,7 @@ These classical approaches have known limitations. Ratio-based metrics are often
 
 Standardized major axis (SMA) regression provides an alternative that distributes error to both the $x$ and $y$ variables simultaneously [@wartonBivariateLinefittingMethods2006]. Rather than minimising vertical residuals (as OLS does), SMA minimises residuals perpendicular to the line, yielding slope estimates equal to $\beta_{OLS} / r$, where $r$ is the Pearson correlation between the variables. SMA slopes converge to OLS slopes as $r \rightarrow 1$, and the divergence grows as the correlation weakens (@nte-sma-intuition). SMA has long been advocated for allometric scaling applications [@wartonBivariateLinefittingMethods2006; @smithUseMisuseReduced2009; @greenMassLengthResiduals2001] and has been proposed as a tool for studying Allen's rule [@santoroAllometryEvaluateAllens2022; @peigNewPerspectivesEstimating2009], but there has been no systematic comparison of SMA-based methods against classical approaches across a realistic range of biological conditions.
 
-Here we introduce the **Standardized Length Index (SLI)**, an analogue of the Standardized Mass Index [@peigNewPerspectivesEstimating2009] adapted to measure appendage length relative to body size. The SLI uses the SMA slope to standardize each individual's appendage length to a common reference body size, producing a size-corrected shape index in the original units of the appendage. We present two parameterisations: SLI-isometry, which fixes the scaling exponent at 0.33 (the isometric expectation for a linear versus volumetric measurement), and SLI-estimated, which estimates the exponent empirically from the data. Using simulated data from `r N_spp` hypothetical species spanning a realistic range of allometric relationships and temperature sensitivities, we show that both SLI approaches outperform the classical methods. We then validate the rank-order pattern of method performance across three independent empirical datasets, and provide recommendations for empirical studies of Allen's rule.
-
-WORKING - These classical approaches share a critical assumption: that body size is measured without error. This is the operating assumption of ordinary least squares regression and is retained in most implementations of multiple regression, maximum likelihood, and Bayesian models unless the model is explicitly formulated otherwise. In practice, this assumption is nearly always violated. Mass — the most commonly used body size proxy — reflects structural body size but also transient biological variation such as gut fill, hydration state, and reproductive condition. Instrument and observer error introduce additional noise. When predictor variables are measured with error, OLS slope estimates are attenuated toward zero — a bias that grows as the correlation between the predictor and response weakens [@wartonBivariateLinefittingMethods2006; @greenMassLengthResiduals2001]. By ignoring this attenuation, classical regression approaches underestimate the allometric relationship between mass and appendage length, which propagates as bias into downstream estimates of temperature's effect on shape.
+Here I introduce the **Standardized Length Index (SLI)**, an analogue of the Standardized Mass Index [@peigNewPerspectivesEstimating2009] adapted to measure appendage length relative to body size. The SLI uses the SMA slope to standardize each individual's appendage length to a common reference body size, producing a size-corrected shape index in the original units of the appendage. I present two parameterisations: SLI-isometry, which fixes the scaling exponent at 0.33 (the isometric expectation for a linear versus volumetric measurement), and SLI-estimated, which estimates the exponent empirically from the data. Using simulated data from `r N_spp` hypothetical species spanning a realistic range of allometric relationships and temperature sensitivities, I show that both SLI approaches outperform the classical methods. I then validate the rank-order pattern of method performance across three independent empirical datasets, and provide recommendations for empirical studies of Allen's rule.
 
 ::: {#nte-sma-intuition .callout-note icon="false"}
 ## Building intuition for SMA regression
@@ -514,16 +512,16 @@ $$\beta_{sma} = \beta_{ols} / r$$
 
 This makes it evident that as $r$ increases, $\beta_{\text{OLS}} \rightarrow \beta_{\text{SMA}}$ and that differences in slopes will be highest when $X$ and $Y$ are only weakly correlated.
 
-Another important feature of SMA regression is that the $X$ and $Y$ axes can be flipped and the line of best fit will not change [also see Figure 1 in @greenMassLengthResiduals2001]. When the axes are flipped, the points are also flipped across the SMA line of best fit (blue), so that each point is equidistant from the line but with the opposite sign (i.e., residuals flip signs). This has some important implications for measures of relative appendage length. Relative to the SMA (blue) regression line, you can see that the individual highlighted in green would be described as having relatively short appendages compared to the other individuals of this hypothetical species (panel A), or as having a large body size for its appendage length (panel B). These are inverse statements, which makes sense for any given individual of our hypothetical species. Comparing the green point to the OLS (red) line, on the other hand, these logical & reciprocal statements do not apply. This convenient property of SMA regression is a function of the residuals being equally and oppositely correlated with both $X$ and $Y$ ($|r_{sma}| = 0.59$ in this hypothetical species). In OLS regression the residuals are not correlated with $X$ but highly correlated with $Y$ ($r_{ols} = 0.96$ in this example).
+Another important feature of SMA regression is that the $X$ and $Y$ axes can be flipped and the line of best fit will not change [also see Figure 1 in @greenMassLengthResiduals2001]. When the axes are flipped, the points are also flipped across the SMA line of best fit (blue), so that each point is equidistant from the line but with the opposite sign (i.e., residuals flip signs). This has some important implications for measures of relative appendage length. Relative to the SMA (blue) regression line, you can see that the individual highlighted in green would be described as having relatively short appendages compared to the other individuals of this hypothetical species (panel A), or as having a large body size for its appendage length (panel B). These are inverse statements, which makes sense for any given individual of my hypothetical species. Comparing the green point to the OLS (red) line, on the other hand, these logical & reciprocal statements do not apply. This convenient property of SMA regression is a function of the residuals being equally and oppositely correlated with both $X$ and $Y$ ($|r_{sma}| = 0.59$ in this hypothetical species). In OLS regression the residuals are not correlated with $X$ but highly correlated with $Y$ ($r_{ols} = 0.96$ in this example).
 
-![In SMA regression the X and Y axes can be flipped and the line of best fit will not change. Here we flip the axes and plot the OLS (red) & SMA (blue) regression lines of best fit, as well as the same individual from our hypothetical species (highlighted in green).](../Figures/sma_flip_axes.png){#fig-sma_flip_axes width="100%"}
+![In SMA regression the X and Y axes can be flipped and the line of best fit will not change. Here I flip the axes and plot the OLS (red) & SMA (blue) regression lines of best fit, as well as the same individual from my hypothetical species (highlighted in green).](../Figures/sma_flip_axes.png){#fig-sma_flip_axes width="100%"}
 :::
 
 # Materials and Methods
 
 ## Literature review
 
-We reviewed studies published between 2021 and 2025 that quantified relative appendage length in the context of Allen's rule in endotherms. Papers were identified by searching for the keywords Allen\* AND relative appendage OR limb OR body shape AND climate change OR warming OR temperature OR latitude, supplemented by reference-list searches. We recorded the primary analytical approach used by each study and classified it into one of five categories: ratio-based methods, two-step residual regression, multiple regression with body size as a covariate, use of absolute appendage length only, or other. In total, we scored `r nrow(Lit_review)` papers, of which `r nrow(Unclear_exclude)` were excluded for not meeting inclusion criteria. Studies with unclear methodology were excluded from approach tallies. The majority of studies (`r per_aves`) examined Allen's rule in birds; the remainder used mammal focal taxa.
+I reviewed studies published between 2021 and 2025 that quantified relative appendage length in the context of Allen's rule in endotherms. Papers were identified by searching for the keywords Allen\* AND relative appendage OR limb OR body shape AND climate change OR warming OR temperature OR latitude, supplemented by reference-list searches. I recorded the primary analytical approach used by each study and classified it into one of five categories: ratio-based methods, two-step residual regression, multiple regression with body size as a covariate, use of absolute appendage length only, or other. In total, I scored `r nrow(Lit_review)` papers, of which `r nrow(Unclear_exclude)` were excluded for not meeting inclusion criteria. Studies with unclear methodology were excluded from approach tallies. The majority of studies (`r per_aves`) examined Allen's rule in birds; the remainder used mammal focal taxa.
 
 ```{r}
 #| label: fig-lit-review
@@ -554,7 +552,7 @@ ggplot() +
 
 ## Data simulation
 
-We simulated appendage length, body size (mass), and a temperature index for `r N_spp` hypothetical species, each represented by approximately `r N_ind` individuals. Data were drawn from a trivariate log-normal distribution, equivalent to a multivariate normal (MVN) on the log scale:
+I simulated appendage length, body size (mass), and a temperature index for `r N_spp` hypothetical species, each represented by approximately `r N_ind` individuals. Data were drawn from a trivariate log-normal distribution, equivalent to a multivariate normal (MVN) on the log scale:
 
 $$\begin{bmatrix}
 \log(\text{Appendage}) \\
@@ -565,13 +563,11 @@ $$\begin{bmatrix}
 
 with $\boldsymbol{\mu} = [\log(180),\ \log(80),\ 1.0]^\top$ representing a species with a mean wing length of 180 mm and mean mass of 80 g over a 1°C temperature range. Simulating from a joint distribution — rather than from a directional model specifying a causal effect of temperature — ensures that no method is advantaged by design. The covariance matrix $\boldsymbol{\Sigma}$ was parameterised by three Pearson correlations ($\rho_{12}$: appendage–mass; $\rho_{13}$: appendage–temperature; $\rho_{23}$: mass–temperature) and the allometric scaling slope.
 
-Hypothetical species were constructed by crossing the following parameter values: appendage–mass correlation $\rho_{12} \in \{`r paste(r_12, collapse = ", ")`\}$; temperature–morphology correlations $\rho_{13} = \rho_{23} \in \{`r paste(r_13, collapse = ", ")`\}$; and allometric scaling slope $b \in \{`r paste(b_avg_12, collapse = ", ")`\}$, representing hypoallometry, isometry, and hyperallometry respectively. Standard deviations of log-mass and log-appendage were set so that the average of the OLS and SMA slopes equalled the specified allometric slope, ensuring that neither SMA nor OLS regression was advantaged by the simulation structure. We additionally simulated a set of species exhibiting a **Much longer** response ($b = 0.22$, $\rho_{12} \in \{0.2, 0.3, 0.4\}$, $\rho_{13} \in \{0, 0.10, 0.20, 0.40\}$, $\rho_{23} \in \{0, -0.10, -0.20, -0.40\}$), where appendage length increases and body mass decreases simultaneously with temperature. This scenario — in which direct Allen's rule effects and Bergmann's rule both reinforce a longer relative appendage — represents the strongest shape-shifting conditions and is empirically motivated by systems such as migratory passerines [@dubinerWidespreadRecentChanges2022].
+Hypothetical species were constructed by crossing the following parameter values: appendage–mass correlation $\rho_{12} \in \{`r paste(r_12, collapse = ", ")`\}$; temperature–morphology correlations $\rho_{13} = \rho_{23} \in \{`r paste(r_13, collapse = ", ")`\}$; and allometric scaling slope $b \in \{`r paste(b_avg_12, collapse = ", ")`\}$, representing hypoallometry, isometry, and hyperallometry respectively. Standard deviations of log-mass and log-appendage were set so that the average of the OLS and SMA slopes equalled the specified allometric slope, ensuring that neither SMA nor OLS regression was advantaged by the simulation structure. I additionally simulated a set of species exhibiting a **Much longer** response ($b = 0.22$, $\rho_{12} \in \{0.2, 0.3, 0.4\}$, $\rho_{13} \in \{0, 0.10, 0.20, 0.40\}$, $\rho_{23} \in \{0, -0.10, -0.20, -0.40\}$), where appendage length increases and body mass decreases simultaneously with temperature. This scenario — in which direct Allen's rule effects and Bergmann's rule both reinforce a longer relative appendage — represents the strongest shape-shifting conditions and is empirically motivated by systems such as migratory passerines [@dubinerWidespreadRecentChanges2022].
 
-Species were classified by the direction of temperature's effect on shape: **Longer** ($\rho_{13} > \rho_{23}$, temperature reduces mass more than appendage length), **Fatter** ($\rho_{13} < \rho_{23}$, temperature reduces appendage more than mass), **Proportional** ($\rho_{13} = \rho_{23}$, temperature reduces both equally), and **Much longer** ($\rho_{13} \geq 0$, $\rho_{23} \leq 0$; appendage grows and mass shrinks simultaneously with temperature). Combinations where temperature had no effect on either trait ($\rho_{13} = \rho_{23} = 0$) were excluded. We verified that the simulated direction of temperature's effect on shape matched the intended direction using the correlation between binned temperature values and SMA intercepts. Simulated datasets where the correlation had the wrong sign due to random chance were removed (`r nrow(Sim_fail)` of `r N_spp` species), yielding a final sample of `r nrow(Parms_tbl3)` hypothetical species.
+Species were classified by the direction of temperature's effect on shape: **Longer** ($\rho_{13} > \rho_{23}$, temperature reduces mass more than appendage length), **Fatter** ($\rho_{13} < \rho_{23}$, temperature reduces appendage more than mass), **Proportional** ($\rho_{13} = \rho_{23}$, temperature reduces both equally), and **Much longer** ($\rho_{13} \geq 0$, $\rho_{23} \leq 0$; appendage grows and mass shrinks simultaneously with temperature). Combinations where temperature had no effect on either trait ($\rho_{13} = \rho_{23} = 0$) were excluded. As a validation, I verified that the simulated direction of temperature's effect on shape matched the intended direction by examining the SMA intercept, where higher intercepts represent proportionally longer appendages for a given body size (@fig-temp-body-shape-plot) [@shingletonAllometryStudyBiological2010]. I then examined the correlation between binned temperature values and SMA intercepts and removed hypothetical species that did not match the expected direction. In the case of Longer species, higher temperatures should be associated with higher intercepts (relatively longer appendage); for Fatter species the pattern should be reversed. Simulated datasets where the correlation had the wrong sign due to random chance were removed (`r nrow(Sim_fail)` of `r N_spp` species), yielding a final sample of `r nrow(Parms_tbl3)` hypothetical species.
 
 Simulations did not include measurement or transient fluctuation error (error in $X$ and $Y$ beyond what is implied by the MVN structure); sensitivity analyses with additional error up to 10% of the trait standard deviation produced negligible changes in conclusions.
-
-As a validation, SMA intercepts shift in the expected direction with temperature for two example species (@fig-temp-body-shape-plot): for the Longer species, higher temperatures are associated with higher intercepts (relatively longer appendage); for the Fatter species the pattern reverses.
 
 ```{r}
 #| label: ex-parms-select
@@ -591,7 +587,8 @@ Ex_parms <- Parms_mat3 %>%
 
 Ex_df_ex <- gen_ex_data(Ex_parms)
 
-ex_parms_temp_bs <- map(c("Fatter", "Longer"), \(shp) {
+Temp_eff_vec <- setNames(c("Fatter", "Longer"), c("Fatter", "Longer"))
+ex_parms_temp_bs <- map(Temp_eff_vec, \(shp) {
   df <- Ex_df_ex %>% filter(Temp_eff == shp)
   bind_rows(
     format_sma_parms(run_sma_mod(df, interaction = FALSE)) %>% mutate(Slopes_vary = "No"),
@@ -620,29 +617,52 @@ ex_parms_temp_bs %>%
 
 ## Statistical approaches
 
-We applied six methods to each simulated dataset, standardising all variables to unit variance before fitting regression models so that coefficients were comparable across species and methods.
+I applied six methods to each simulated dataset, log-transforming all variables and then standardising to unit variance before fitting regression models so that coefficients were comparable across species and methods.
 
-**Ratio approaches.** (1) The appendage-to-mass ratio $A / S$ was regressed on temperature. (2) The squared appendage-to-mass ratio $A^2 / S$ was regressed on temperature, reflecting a surface-area-to-volume formulation used in some empirical studies.
+**Ratio approaches.** (1) The appendage-to-mass ratio $log(A / S)$ was regressed on temperature. (2) The squared appendage-to-mass ratio $log(A^2 / S)$ was regressed on temperature, reflecting a surface-area-to-volume formulation used in some empirical studies [e.g., @nwaoguTemperatureAridityDetermine2018; @dubinerWidespreadRecentChanges2022].
 
-**Two-step residual regression (OLS residuals).** Appendage length was regressed on log-mass using OLS, and the resulting residuals were regressed on temperature.
+**Two-step residual regression (OLS residuals).** Appendage was regressed on mass using OLS, and the resulting residuals were regressed on temperature.
 
-**Multiple regression (Ryding method).** Appendage length was modelled as a linear function of log-mass and temperature simultaneously; the temperature coefficient $\beta_T$ was interpreted as the effect of temperature on relative appendage length.
+**Multiple regression.** Appendage was modelled as a linear function of mass and temperature simultaneously; the temperature coefficient $\beta_T$ was interpreted as the effect of temperature on relative appendage length.
 
-**Standardized Length Index — isometry (SLI-isometry).** Following @peigNewPerspectivesEstimating2009, we computed:
+**Standardized Length Index — isometry (SLI-isometry).** Following @peigNewPerspectivesEstimating2009, I computed:
 
-$$SLI_i = A_i \cdot \left(\frac{S_0}{S_i}\right)^{b_{SLI}}$$
+$$SLI_i = A_i \cdot \left(\frac{M_0}{M_i}\right)^{b_{SLI}}$$
 
-where $A_i$ is the appendage length of individual $i$, $S_i$ is body size (mass), $S_0$ is the mean mass of the species, and $b_{SLI} = 0.33$ (the isometric scaling exponent for a linear versus volumetric measurement). The SLI reprojects each individual's appendage length to the value it would take at the population mean body size, then the SLI was regressed on temperature.
+where $A_i$ is the appendage length of individual $i$, $M_i$ is the mass of individual $i$, $M_0$ is the mean mass of the species, and $b_{SLI} = 0.33$ (the isometric scaling exponent for a linear versus volumetric measurement). The SLI reprojects each individual's appendage length to the value it would take at the population mean body size, then the SLI was regressed on temperature.
 
 **Standardized Length Index — estimated (SLI-estimated).** Identical to SLI-isometry but with $b_{SLI}$ replaced by the empirical SMA slope of $\log(A)$ on $\log(S)$ estimated from the data.
 
 ## Evaluation
 
-Because data were simulated from a joint distribution without a specified effect size, there is no single true $\beta_T$ to recover. We therefore evaluated methods on whether they correctly recovered the **direction** of temperature's effect on relative appendage length: a positive $\hat{\beta}_T$ for species becoming relatively longer, and a negative $\hat{\beta}_T$ for species becoming relatively fatter. For species simulated as proportional, we compared the proportion classified as longer or fatter against the true proportion (approximately 50%). An ideal method scores 1.0 on directional accuracy for Longer and Fatter species, and classifies approximately 50% of Proportional species in each direction.
+Because data were simulated from a joint distribution without a specified effect size, there is no single true $\beta_T$ to recover. I therefore evaluated methods on whether they correctly recovered the **direction** of temperature's effect on relative appendage length: a positive $\hat{\beta}_T$ for species becoming relatively longer, and a negative $\hat{\beta}_T$ for species becoming relatively fatter. For species simulated as proportional, I compared the proportion classified as longer or fatter against the true proportion (approximately 50%). An ideal method scores 1.0 on directional accuracy for Longer and Fatter species, and classifies approximately 50% of Proportional species in each direction.
 
 ## Empirical case studies
 
-We applied all six methods to three independent empirical datasets to assess whether the rank-order pattern observed in simulations generalises to real data. First, we used morphological data from three migratory nightjar species — European nightjars (*Caprimulgus europaeus*), eastern whip-poor-wills (*Antrostomus vociferus*), and common nighthawks (*Chordeiles minor*) — spanning a spatial temperature gradient [@skinnerEnvironmentalGeographicConditions2025] ($n = 3{,}272$ individuals). Nightjars are useful for this comparison because all three species follow Bergmann's rule, but differ in their allometric scaling relationships: European nightjars exhibit near-isometric scaling ($\hat{b}_{SMA} = 0.33$), while whip-poor-wills and nighthawks are hyperallometric ($\hat{b}_{SMA} = 0.40$ and 0.44, respectively). Second, we applied the methods to the dataset of @weeks2020NaturalSelectionMediates, comprising 70,716 capture records from 53 North American migratory species (1979–2016), using capture year as the gradient to quantify temporal shape-shifting. Third, we applied the methods to Atlantic Forest bird data from @rubalcabaClimateExplainsGeographic2019, using mean annual temperature as the gradient. For each dataset, species were classified by the direction of the mass and wing responses (Bergmann's, Inverse Bergmann's, Mixed-Wingier, or Stable) using OLS regressions of mass and wing on the gradient; only species with a statistically significant ($p < 0.05$) response in at least one trait were retained.
+I applied all six methods to three independent empirical datasets to assess whether the rank-order pattern observed in simulations generalises to real data. First, I used morphological data from three migratory nightjar species — European nightjars (*Caprimulgus europaeus*), eastern whip-poor-wills (*Antrostomus vociferus*), and common nighthawks (*Chordeiles minor*) — spanning a spatial temperature gradient [@skinnerEnvironmentalGeographicConditions2025] ($n = 3{,}272$ individuals). Second, I applied the methods to the dataset of @weeksSharedMorphologicalConsequences2020, comprising 70,716 capture records from 53 North American migratory species (1979–2016), using capture year as the gradient to quantify temporal shape-shifting. Third, I applied the methods to Atlantic Forest bird data from @rodriguesATLANTICBIRDTRAITS2019, using mean annual temperature as the gradient.
+
+For each dataset, species were classified according to the direction of their morphological response to the environmental gradient, based on separate OLS regressions of mass and wing length on the gradient variable (@tbl-classification). Because Bergmann's and Allen's rules are often examined together, I use "Bergmann's" and "Inverse Bergmann's" as compound labels for species in which wing length, body mass, or both changed in the same direction. I reserve the "Mixed" categories for species in which wing length and body mass changed in opposite directions, representing cases where Allen's and Bergmann's rules reinforce one another (Mixed-Wingier) or oppose one another (Mixed-Fatter). Only statistically significant ($p < 0.05$) coefficients contributed to a species' classification; species showing no significant change in either trait were classified as Stable.
+
+```{r}
+#| label: tbl-classification
+#| tbl-cap: "Classification of species according to significant ($p < 0.05$) changes in wing length and body mass along the environmental gradient (temperature or year). Non-significant coefficients did not contribute to classification."
+
+Classification_tbl <- tibble::tribble(
+  ~Category,               ~`Classification criterion`,
+  "Bergmann's",            "Wing length, body mass, or both decrease",
+  "Inverse Bergmann's",    "Wing length, body mass, or both increase",
+  "Mixed - Wingier",       "Wing length increases while body mass decreases",
+  "Mixed - Fatter",        "Wing length decreases while body mass increases",
+  "Stable",                "No significant change in either trait"
+)
+knitr::kable(Classification_tbl)
+```
+
+Age and sex can influence body size independently of the environmental gradient (e.g., through sexual size dimorphism or age-related growth). For each species, I therefore tested whether age or sex covariates predicted mass or wing length while controlling for the gradient variable (i.e., temperature or year). Covariates were retained only when significant ($p < 0.10$) and when each age or sex group contained at least 100 individuals.
+
+Significant covariates were incorporated in only certain methods. For the ratio ($A/S$) and squared-ratio ($A^2/S$) I assume that age and sex influence wing and mass roughly proportionally, and thus would not importantly modify the ratios. I do not include age and sex in the SLI-isometry approach because $b_{SLI}$ is fixed at 0.33 by definition. For the OLS-residual approach, age and sex were included in the first-stage regression of wing on mass. For multiple-regression, they were included alongside mass and the gradient variable. For SLI-estimated, SMA slopes were estimated separately for each age and sex group and then averaged depending on the demographic status of each individual (e.g., a hatch-year male would receive use a different SMA slope than an adult male).
+
+To evaluate whether the simulation results generalized to empirical data, I averaged the gradient coefficients within each method group (Ratio: Ratio + Ratio²; OLS: mass-as-covariate + OLS-residuals; SLI: SLI-isometry + SLI-estimated) for each species and compared their rank order with the simulation predictions. For species exhibiting Bergmann's rule, the predicted ordering was Ratio \> SLI \> OLS, whereas for species exhibiting inverse Bergmann's rule the expected ordering reversed (Ratio \< SLI \< OLS). Stable species were excluded from this comparison because they showed no significant change in either mass or wing length, making directional predictions challenging. These species are reported separately in the Supplementary Information. Finally, given that SMA regression is only reliable when wing and mass are at least somewhat correlated [@smithUseMisuseReduced2009], we only calculate the estimated SLI when $r > 0.3$.
 
 # Results
 
@@ -741,9 +761,37 @@ ggarrange(Prop_correct_p, Pos_neg_p, labels = "auto")
 
 ## Empirical case studies
 
-We applied the six methods to three independent empirical datasets: (1) three migratory nightjar species (*Chordeiles minor*, *Caprimulgus europaeus*, *Antrostomus vociferus*) with temperature as the gradient; (2) 53 North American migratory bird species from @weeks2020NaturalSelectionMediates, with capture year as the gradient (1979–2016); and (3) Atlantic Forest bird species from @rubalcabaClimateExplainsGeographic2019, with mean annual temperature as the gradient. For each dataset, species were retained only if the direction of the mass or wing response was significant at $p < 0.05$.
+```{r}
+#| label: rank-consistency-empirical
+#| include: false
 
-The rank-order pattern from simulations was reproduced in nightjars: ratio methods consistently produced the most positive estimates and multiple regression / OLS residuals the most negative, with SLI falling between these extremes. This pattern extended to the majority of Bergmann's species across all three datasets (@fig-empirical). The strong negative correlation between the wing-to-mass ratio and body mass ($r < -0.9$ in all three nightjar species) explains the ratio's upward bias: as mass declines with increasing temperature (Bergmann's rule), the ratio's denominator shrinks, producing artifactually large increases irrespective of true shape change.
+Rank_all <- bind_rows(
+  read_csv("Derived/Csv/Nightjar_parms.csv",  show_col_types = FALSE),
+  read_csv("Derived/Csv/Weeks_parms.csv",     show_col_types = FALSE),
+  read_csv("Derived/Csv/Atlantic_parms.csv",  show_col_types = FALSE)
+) %>%
+  distinct(species, Study, Direction, rank_consistent) %>%
+  filter(Direction %in% c("Bergmann's", "Inverse Bergmann's"))
+
+Rank_summary_dir <- Rank_all %>%
+  group_by(Direction) %>%
+  summarize(n = n(), n_consistent = sum(rank_consistent),
+            pct = round(100 * mean(rank_consistent)), .groups = "drop")
+
+n_rank_total     <- nrow(Rank_all)
+pct_rank_overall <- round(100 * mean(Rank_all$rank_consistent))
+
+pull_rank_stat <- function(dir, col) {
+  Rank_summary_dir %>% filter(Direction == dir) %>% pull({{ col }})
+}
+
+pct_rank_bergmanns     <- pull_rank_stat("Bergmann's", pct)
+n_rank_bergmanns       <- pull_rank_stat("Bergmann's", n)
+pct_rank_inv_bergmanns <- pull_rank_stat("Inverse Bergmann's", pct)
+n_rank_inv_bergmanns   <- pull_rank_stat("Inverse Bergmann's", n)
+```
+
+The rank-order pattern from simulations was reproduced in nightjars: ratio methods consistently produced the most positive estimates and multiple regression / OLS residuals the most negative, with SLI falling between these extremes. This pattern extended across all three datasets: `r pct_rank_overall`% of the `r n_rank_total` species with a directional (Bergmann's or Inverse Bergmann's) classification showed the rank order predicted by the simulations (`r pct_rank_bergmanns`% of `r n_rank_bergmanns` Bergmann's species and `r pct_rank_inv_bergmanns`% of `r n_rank_inv_bergmanns` Inverse Bergmann's species; @fig-empirical). The strong negative correlation between the wing-to-mass ratio and body mass ($r < -0.9$ in all three nightjar species) explains the ratio's upward bias: as mass declines with increasing temperature (Bergmann's rule), the ratio's denominator shrinks, producing artifactually large increases irrespective of true shape change.
 
 ```{r}
 #| label: fig-empirical
@@ -757,13 +805,62 @@ emp_grob <- grid::rasterGrob(emp_img, width = grid::unit(1, "npc"),
 cowplot::ggdraw() + cowplot::draw_grob(emp_grob)
 ```
 
+### Correlation between the wing/mass ratio and body mass
+
+```{r}
+#| label: ratio-mass-correlation-empirical
+#| include: false
+
+Ratio_mass_cor_all <- bind_rows(
+  read_csv("Derived/Csv/Nightjar_ratio_mass_cor.csv",  show_col_types = FALSE),
+  read_csv("Derived/Csv/Weeks_ratio_mass_cor.csv",     show_col_types = FALSE),
+  read_csv("Derived/Csv/Atlantic_ratio_mass_cor.csv",  show_col_types = FALSE)
+) %>%
+  dplyr::select(Study, species, n, r, p_value)
+
+Ratio_mass_summary_tbl <- Ratio_mass_cor_all %>%
+  summarize(N_species = n(), Mean_r = mean(r), Median_r = median(r),
+            Min_r = min(r), Max_r = max(r), .by = Study) %>%
+  bind_rows(
+    Ratio_mass_cor_all %>%
+      summarize(Study = "All studies combined", N_species = n(),
+                Mean_r = mean(r), Median_r = median(r),
+                Min_r = min(r), Max_r = max(r))
+  ) %>%
+  mutate(across(c(Mean_r, Median_r, Min_r, Max_r), \(x) round(x, 2)))
+
+Ratio_mass_species_tbl <- Ratio_mass_cor_all %>%
+  arrange(Study, species) %>%
+  mutate(r = round(r, 2),
+         p_value = ifelse(p_value < 0.001, "< 0.001", as.character(round(p_value, 3))))
+
+n_rmc_total        <- nrow(Ratio_mass_cor_all)
+mean_rmc_all       <- round(mean(Ratio_mass_cor_all$r), 2)
+range_rmc_all      <- paste0(round(min(Ratio_mass_cor_all$r), 2), " to ",
+                             round(max(Ratio_mass_cor_all$r), 2))
+pct_rmc_strong_neg <- round(100 * mean(Ratio_mass_cor_all$r < -0.7))
+```
+
+The discussion below attributes the ratio methods' upward bias to a mechanical correlation between the ratio metric and body mass. To confirm this holds beyond the nightjar case study, I calculated the Pearson correlation between the wing/mass ratio metric ($\log(A/S)$, following the log-ratio convention used throughout) and body mass separately for every species in all three empirical datasets (@tbl-ratio-mass-summary). Across `r n_rmc_total` species, the ratio metric was consistently and strongly negatively correlated with mass (mean $r$ = `r mean_rmc_all`, range `r range_rmc_all`); `r pct_rmc_strong_neg`% of species had a correlation more negative than $-0.7$. This pattern held regardless of taxon, gradient type (spatial or temporal), or geographic region, confirming that the ratio's dependence on body size is a general mechanical property of the metric rather than a quirk of any one dataset.
+
+```{r}
+#| label: tbl-ratio-mass-summary
+#| tbl-cap: "Summary of the per-species Pearson correlation between the wing/mass ratio metric ($\\log(A/S)$) and body mass, by empirical dataset."
+
+Ratio_mass_summary_tbl %>% dplyr::select(-Mean_r) %>% 
+  filter(Study != "All studies combined") %>%
+  knitr::kable(
+    col.names = c("Study", "N species", "Median r", "Min r", "Max r")
+  )
+```
+
 # Discussion
 
 ## Why ratio approaches overestimate temperature effects
 
-Ratio approaches — whether $A/S$ or $A^2/S$ — produced systematically overestimated $\hat{\beta}_T$ values throughout our simulations, often exceeding the true effect by a large margin and misclassifying proportional species as becoming relatively longer. This bias has a straightforward explanation: when temperature is negatively correlated with body size (Bergmann's rule), the denominator of the ratio decreases with temperature, inflating the ratio even when the appendage itself is unchanged. The ratio thus conflates Bergmann's and Allen's responses, making it impossible to distinguish a true increase in relative appendage length from a decline in body size. This limitation has been noted elsewhere [@greenMassLengthResiduals2001; @jakobEstimatingFitnessComparison1996] but continues to be used in empirical Allen's rule studies (see @fig-lit-review).
+Ratio approaches — whether $A/S$ or $A^2/S$ — produced systematically overestimated $\hat{\beta}_T$ values throughout my simulations, often exceeding the true effect by a large margin and misclassifying proportional species as becoming relatively longer. This bias has a straightforward explanation: when temperature is negatively correlated with body size (Bergmann's rule), the denominator of the ratio decreases with temperature, inflating the ratio even when the appendage itself is unchanged. The ratio thus conflates Bergmann's and Allen's responses, making it impossible to distinguish a true increase in relative appendage length from a decline in body size. This limitation has been noted elsewhere [@greenMassLengthResiduals2001; @jakobEstimatingFitnessComparison1996] but continues to be used in empirical Allen's rule studies (see @fig-lit-review).
 
-An additional issue is that ratio variables are frequently correlated with the denominator — in our nightjar case study, $r(A/S, S) < -0.9$ — meaning that the ratio reflects body size as much as shape. The squared-ratio formulation ($A^2/S$) reduces this correlation somewhat, but does not eliminate the fundamental bias introduced by Bergmann-mediated declines in the denominator.
+An additional issue is that ratio variables are frequently correlated with the denominator: across all three empirical datasets, the wing/mass ratio was correlated with body mass at a mean of `r mean_rmc_all` (range `r range_rmc_all`; @tbl-ratio-mass-summary), meaning that the ratio reflects body size as much as shape. The squared-ratio formulation ($A^2/S$) reduces this correlation somewhat, but does not eliminate the fundamental bias introduced by Bergmann-mediated declines in the denominator.
 
 ## Why classical regression underestimates temperature effects
 
@@ -771,7 +868,7 @@ The multiple regression and OLS residual approaches returned negatively biased o
 
 ```{r}
 #| label: fig-dag
-#| fig-cap: "The directed acyclic graph (DAG) implied by the multiple regression approach. Temperature has a direct effect on both body size (Bergmann's rule) and appendage length (Allen's rule), and body size also directly influences appendage length through allometric scaling. Including body size as a covariate conditions on a mediating variable, blocking the indirect pathway $\\text{Temperature} \\rightarrow \\text{Size} \\rightarrow \\text{Appendage}$ and potentially biasing the estimated direct effect of temperature on appendage length."
+#| fig-cap: "The directed acyclic graph (DAG) implied by the multiple regression approach. Temperature has a direct effect on both body size (Bergmann's rule) and appendage length (Allen's rule), and body size also directly influences appendage length through allometric scaling. Under this causal model, conditioning on mass is appropriate to obtain the effect of temperature on relative appendage length. However, there are several other data-generating (causal) models that could produce the same data, some of which mass would act as a collider."
 #| fig-pos: 'H'
 #| fig-height: 3.5
 
@@ -833,29 +930,29 @@ The SLI additionally inherits two useful properties from the SMI [@peigNewPerspe
 
 The two SLI parameterisations differ in their choice of scaling exponent, and this choice matters most in species with unusual allometric relationships. SLI-isometry uses $b_{SLI} = 0.33$, the isometric scaling expectation for a linear appendage measurement against a volumetric body size metric (mass). This is appropriate when (1) the researcher wants to test for departures from isometric scaling expectations, or (2) the empirical scaling relationship is unclear because of small sample size or weak correlation ($r_{A,S} \lesssim 0.3$), making slope estimation unreliable.
 
-SLI-estimated uses the empirical SMA slope, making it more flexible but also more data-dependent. It is most appropriate when the species-specific allometric slope is well-estimated (ideally with $r_{A,S} \geq 0.4$) and the research goal is to characterise departures from the empirical scaling relationship rather than from a theoretical expectation. Our simulations showed that SLI-estimated outperformed SLI-isometry in the Much longer scenario — where appendage length and mass respond to temperature in opposite directions — precisely because the true allometric slope in that scenario (\~0.31–0.37) departs from the isometric assumption. By adapting to the actual allometry, SLI-estimated removes the body-size signal more cleanly, leaving a sharper temperature effect. When allometric slopes vary across groups being compared (e.g., sex or age classes), SLI-estimated can be fitted within groups and the resulting values compared across groups, similar to the use of the SMI in body condition studies.
+SLI-estimated uses the empirical SMA slope, making it more flexible but also more data-dependent. It is most appropriate when the species-specific allometric slope is well-estimated (ideally with $r_{A,S} \geq 0.4$) and the research goal is to characterise departures from the empirical scaling relationship rather than from a theoretical expectation. My simulations showed that SLI-estimated outperformed SLI-isometry in the Much longer scenario — where appendage length and mass respond to temperature in opposite directions — precisely because the true allometric slope in that scenario (\~0.31–0.37) departs from the isometric assumption. By adapting to the actual allometry, SLI-estimated removes the body-size signal more cleanly, leaving a sharper temperature effect. When allometric slopes vary across groups being compared (e.g., sex or age classes), SLI-estimated can be fitted within groups and the resulting values compared across groups, similar to the use of the SMI in body condition studies.
 
-One source of negative bias in SLI-isometry deserves emphasis: in species with hyperallometric scaling (true $b_{SMA} > 0.33$), the isometric assumption underestimates the scaling slope. Small individuals with relatively long appendages given the true allometric relationship are reprojected onto the shallower isometric line and assigned lower SLI values than warranted, producing a slight negative bias. Our simulations showed this most clearly in species with strong hyperallometry and weak temperature–shape relationships. Researchers working with species known to exhibit strong hyperallometry should prefer SLI-estimated, provided the correlation between appendage and mass is strong enough for reliable slope estimation.
+One source of negative bias in SLI-isometry deserves emphasis: in species with hyperallometric scaling (true $b_{SMA} > 0.33$), the isometric assumption underestimates the scaling slope. Small individuals with relatively long appendages given the true allometric relationship are reprojected onto the shallower isometric line and assigned lower SLI values than warranted, producing a slight negative bias. My simulations showed this most clearly in species with strong hyperallometry and weak temperature–shape relationships. Researchers working with species known to exhibit strong hyperallometry should prefer SLI-estimated, provided the correlation between appendage and mass is strong enough for reliable slope estimation.
 
 ## Limitations
 
-The simulation framework used here makes several simplifying assumptions that may limit the generality of our conclusions. First, we simulated from a multivariate normal distribution, which implies symmetric, unbounded data. Real morphological datasets may depart from this assumption, particularly when individuals at the extremes of a temperature gradient differ systematically from those at the centre. Second, we did not simulate measurement error or transient biological variation in body mass (e.g., gut fill, hydration state), which would attenuate OLS and SMA slopes alike and increase variance in all estimates; the relative advantage of SLI over classical approaches under realistic error levels deserves further investigation [but see @romanoShrinkingBodySize2025].
+The simulation framework used here makes several simplifying assumptions that may limit the generality of my conclusions. First, I simulated from a multivariate normal distribution, which implies symmetric, unbounded data. Real morphological datasets may depart from this assumption, particularly when individuals at the extremes of a temperature gradient differ systematically from those at the centre. Second, I did not simulate measurement error or transient biological variation in body mass (e.g., gut fill, hydration state), which would attenuate OLS and SMA slopes alike and increase variance in all estimates; the relative advantage of SLI over classical approaches under realistic error levels deserves further investigation [but see @romanoShrinkingBodySize2025].
 
 Third, the SLI as implemented here fits a single scaling relationship per species, ignoring potential within-species variation in allometric slope across sexes, age classes, or geographic regions. In datasets where such variation is substantial, the approach may need to be applied separately within subgroups. Finally, the SLI assumes a power-law scaling relationship between appendage length and body size (i.e., a linear relationship on the log scale). Where this assumption is violated — for example, in species with pronounced ontogenetic allometry or non-linear growth — the SMA regression used to estimate $b_{SLI}$ may itself be biased.
 
 ## Recommendations for empirical studies
 
-Based on our simulation results and case study, we offer the following practical recommendations for studies of Allen's rule or any investigation of how a linear morphological trait scales with body size across an environmental gradient.
+Based on my simulation results and case study, I offer the following practical recommendations for studies of Allen's rule or any investigation of how a linear morphological trait scales with body size across an environmental gradient.
 
 1.  **Avoid ratio-based metrics** as primary indicators of relative appendage length. Ratios are systematically biased when Bergmann's rule co-occurs with Allen's rule, and they are often correlated with body size itself.
 
 2.  **Interpret multiple regression coefficients with care.** The temperature coefficient in a model including body size as a covariate estimates the *direct* effect of temperature on absolute appendage length, not the effect on relative appendage length. This is appropriate for some research questions but misleading for others, and the mediating role of body size should be acknowledged.
 
-3.  **Use SLI-isometry as a default.** It performed well across the widest range of conditions and requires only the mean body size of the species as a reference value. We provide R code for computing SLI in the Supplementary Material.
+3.  **Use SLI-isometry as a default.** It performed well across the widest range of conditions and requires only the mean body size of the species as a reference value. I provide R code for computing SLI in the Supplementary Material.
 
 4.  **Prefer SLI-estimated when the scaling relationship is well-constrained and the allometric slope departs from isometry.** When the appendage–mass correlation is strong ($r_{A,S} \geq 0.4$) and sample sizes are sufficient ($n \geq 100$ per species or group), SLI-estimated captures the empirical allometric relationship and outperformed SLI-isometry in scenarios with the strongest concurrent Allen's and Bergmann's responses.
 
-5.  **Report multiple methods and examine sensitivity.** Given that the choice of method can reverse biological conclusions — as seen in the nightjar case study — we encourage authors to report results from at least two methods (e.g., SLI-isometry and multiple regression) and discuss how conclusions depend on methodological choice.
+5.  **Report multiple methods and examine sensitivity.** Given that the choice of method can reverse biological conclusions — as seen in the nightjar case study — I encourage authors to report results from at least two methods (e.g., SLI-isometry and multiple regression) and discuss how conclusions depend on methodological choice.
 
 6.  **Report the correlation between appendage length and body size** ($r_{A,S}$ or $r_{\log A, \log S}$). This correlation determines the divergence between OLS and SMA slopes and is therefore directly informative about the likely magnitude of bias in classical regression approaches.
 
@@ -865,10 +962,16 @@ The method used to quantify relative appendage length has large and predictable 
 
 # Data Availability
 
-Simulated data are regenerated by the R code provided in the Supplementary Material. The nightjar morphological data are available from @skinnerEnvironmentalGeographicConditions2025. R functions for computing the SLI are provided in the supplementary functions file (`Key_allometry_fns.R`).
+All analyses can be reproduced using the code available on [Github](https://github.com/LezzGitIt/SLI-allens-rule.git). The nightjar morphological data are available from @skinnerEnvironmentalGeographicConditions2025; Atlantic birds are available from @rodriguesATLANTICBIRDTRAITS2019; the Chicago field museum dataset is available from @weeksSharedMorphologicalConsequences2020.
 
 # Acknowledgements
 
-We thank Andy Green for helpful comments on the development of the Standardized Length Index and its relationship to the Standardized Mass Index, and David Warton for clarifying the assumptions and properties of SMA regression.
+I thank Andy Green for helpful comments on the development of the Standardized Length Index and its relationship to the Standardized Mass Index, and David Warton for clarifying the assumptions and properties of SMA regression.
+
+# EXTRAS - delete
+
+These classical approaches share a critical assumption: that body size is measured without error. This is the operating assumption of ordinary least squares regression and is retained in most implementations of multiple regression, maximum likelihood, and Bayesian models unless the model is explicitly formulated otherwise. In practice, this assumption is nearly always violated. Mass — the most commonly used body size proxy — reflects structural body size but also transient biological variation such as gut fill, hydration state, and reproductive condition. Instrument and observer error introduce additional noise. When predictor variables are measured with error, OLS slope estimates are attenuated toward zero — a bias that grows as the correlation between the predictor and response weakens [@wartonBivariateLinefittingMethods2006; @greenMassLengthResiduals2001]. By ignoring this attenuation, classical regression approaches underestimate the allometric relationship between mass and appendage length, which propagates as bias into downstream estimates of temperature's effect on shape.
+
+{{< pagebreak >}}
 
 # References
