@@ -21,12 +21,12 @@ min_n_obs       <- 150    # minimum observations per species
 year_cutoff     <- 1978   # exclude records from this year and before
 p_bergmann      <- 0.05   # threshold for temporal trend classification (mass, wing)
 p_age_sex       <- 0.10   # threshold for age / sex covariate inclusion
-pos_allom       <- TRUE   # retain only species with b_ols > cor_b_min & p_mw < cor_p_max
+pos_allom       <- TRUE   # retain only species with cor_mw > cor_min & p_mw < cor_p_max
 filter_temporal <- FALSE  # TRUE: retain only species with a significant temporal mass trend
 control_age_sex <- TRUE   # TRUE: include age / sex covariates where they significantly affect morphology
 min_n_age_group <- 100    # min individuals per age group (AHY/HY) to include age control
 min_n_sex_group <- 100    # min individuals per sex group (m/f) to include sex control
-cor_b_min       <- 0.1    # min b_ols (Mass ~ Wing) within group for allometric correlation filter
+cor_min         <- 0.3    # min Pearson r (Mass ~ Wing) within group for allometric correlation filter
 cor_p_max       <- 0.05   # max p-value for Mass ~ Wing within group
 
 # Format ------------------------------------------------------------------
@@ -243,7 +243,7 @@ Cors_tbl <- map(Weeks_l2, \(df) {
 }) %>% list_rbind(names_to = "species_")
 
 Spp_metadata2 <- Spp_metadata %>% left_join(Cors_tbl) %>% 
-  mutate(Keep = ifelse(b_ols > cor_b_min & p_mw < cor_p_max, "Include", "Exclude"))
+  mutate(Keep = ifelse(cor_mw > cor_min & p_mw < cor_p_max, "Include", "Exclude"))
 
 Spp_keep_vec <- Spp_metadata2 %>%
   filter(Keep == "Include") %>%
@@ -264,6 +264,8 @@ Weeks_df2 %>%
   labs(title = paste(length(Weeks_l2), "species after allometric filter"))
 
 # Per-group allometric correlation (Mass ~ Wing within each Age × Sex combination) -----
+# Inspect r_mw and p_mw per group; groups with pass = FALSE lack a meaningful
+# allometric relationship and should not drive per-group SMA slope estimates.
 if (control_age_sex) {
   group_cor_wing <- imap(Weeks_l2, \(df, sp) {
     covs <- c(if (sp %in% sig_age_any) "Age", if (sp %in% sig_sex_any) "Sex")
@@ -271,7 +273,7 @@ if (control_age_sex) {
     build_group_cor_tbl(df, Append = Wing, Mass = Mass, control = covs) %>%
       mutate(species_ = sp, .before = 1)
   }) %>% list_rbind() %>%
-    mutate(pass = b_ols > cor_b_min & p_mw <= cor_p_max)
+    mutate(pass = r_mw > cor_min & p_mw <= cor_p_max)
   print(group_cor_wing)
 }
 
@@ -288,7 +290,7 @@ Weeks_l3 <- imap(Weeks_l2, \(df, sp) {
     if (length(valid_age) >= 1) df <- df %>% filter(Age %in% valid_age)
     if (length(valid_age) >= 2) {
       passing_age <- build_group_cor_tbl(df, Append = Wing, Mass = Mass, control = "Age") %>%
-        ungroup() %>% filter(b_ols > cor_b_min & p_mw <= cor_p_max) %>% pull(Age)
+        ungroup() %>% filter(r_mw > cor_min & p_mw <= cor_p_max) %>% pull(Age)
       if (length(passing_age) >= 1) df <- df %>% filter(Age %in% passing_age)
       if (length(passing_age) >= 2) covs <- c(covs, "Age")
     }
@@ -300,7 +302,7 @@ Weeks_l3 <- imap(Weeks_l2, \(df, sp) {
     if (length(valid_sex) >= 1) df <- df %>% filter(Sex %in% valid_sex)
     if (length(valid_sex) >= 2) {
       passing_sex <- build_group_cor_tbl(df, Append = Wing, Mass = Mass, control = "Sex") %>%
-        ungroup() %>% filter(b_ols > cor_b_min & p_mw <= cor_p_max) %>% pull(Sex)
+        ungroup() %>% filter(r_mw > cor_min & p_mw <= cor_p_max) %>% pull(Sex)
       if (length(passing_sex) >= 1) df <- df %>% filter(Sex %in% passing_sex)
       if (length(passing_sex) >= 2) covs <- c(covs, "Sex")
     }

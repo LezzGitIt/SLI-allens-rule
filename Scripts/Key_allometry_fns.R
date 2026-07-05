@@ -186,8 +186,8 @@ build_sli_slopes_tbl <- function(df, Append, Mass = Mass, control,
 }
 
 # Per-group mass ~ appendage OLS correlation table.
-# Returns one row per group combination (age × sex) with n, b_ols, and p_mw.
-# Printed for user inspection: groups with b_ols <= threshold or p_mw > threshold
+# Returns one row per group combination (age × sex) with n, b_ols, r_mw, and p_mw.
+# Printed for user inspection: groups with r_mw <= cor_min or p_mw > threshold
 # lack a meaningful allometric relationship and should not drive per-group SMA slopes.
 build_group_cor_tbl <- function(df, Append, Mass = Mass, control,
                                  unknown_codes = c("Unk", "U", "Unknown")) {
@@ -205,6 +205,7 @@ build_group_cor_tbl <- function(df, Append, Mass = Mass, control,
       tibble(
         n     = nrow(grp),
         b_ols = coef(m)[[app_nm]],
+        r_mw  = cor(grp[[app_nm]], grp[[mass_nm]], use = "complete.obs"),
         p_mw  = summary(m)$coefficients[app_nm, "Pr(>|t|)"]
       )
     })

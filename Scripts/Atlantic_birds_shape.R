@@ -18,12 +18,12 @@ min_n_obs       <- 150    # minimum observations per species to be included
 year_cutoff     <- 1990   # exclude records from this year and before
 p_bergmann      <- 0.05   # p-value threshold: Bergmann / Allen response classification
 p_age_sex       <- 0.10   # p-value threshold: age / sex covariate inclusion
-pos_allom       <- TRUE  # retain only species with b_ols > cor_b_min & p_mw < cor_p_max
+pos_allom       <- TRUE  # retain only species with cor_mw > cor_min & p_mw < cor_p_max
 filter_bergmann <- FALSE  # TRUE: retain only species with a significant Bergmann / Allen response
 control_age_sex <- TRUE   # TRUE: include age / sex as covariates where they significantly affect body size
 min_n_age_group <- 100    # min individuals per age group (juvenile/adult) to include age control
 min_n_sex_group <- 100    # min individuals per sex group (female/male) to include sex control
-cor_b_min       <- 0.1    # min b_ols (mass ~ wing) within group for allometric correlation filter
+cor_min         <- 0.3    # min Pearson r (mass ~ wing) within group for allometric correlation filter
 cor_p_max       <- 0.05   # max p-value for mass ~ wing within group
 
 # Format ------------------------------------------------------------------
@@ -281,7 +281,7 @@ Cors_tbl <- map(Atl_birds_l2, \(df) {
 Cors_tbl %>% filter(cor_mw < 0)
 
 Spp_metadata2 <- Spp_metadata %>% left_join(Cors_tbl) %>% 
-  mutate(Keep = ifelse(b_ols > cor_b_min & p_mw < cor_p_max, "Include", "Exclude"))
+  mutate(Keep = ifelse(cor_mw > cor_min & p_mw < cor_p_max, "Include", "Exclude"))
 
 Spp_keep_vec <- Spp_metadata2 %>%
   filter(Keep == "Include") %>%
@@ -292,7 +292,7 @@ Spp_keep_vec
 if (pos_allom) message(length(Spp_keep_vec), " / ", length(Atl_birds_l2), " species pass allometric filter (sli_est will be NA for the rest)")
 
 # Per-group allometric correlation (mass ~ wing within each age × sex combination) -----
-# Inspect b_ols and p_mw per group; groups with pass = FALSE lack a meaningful
+# Inspect r_mw and p_mw per group; groups with pass = FALSE lack a meaningful
 # allometric relationship and should not drive per-group SMA slope estimates.
 if (control_age_sex) {
   group_cor_wing <- imap(Atl_birds_l2, \(df, sp) {
@@ -301,7 +301,7 @@ if (control_age_sex) {
     build_group_cor_tbl(df, Append = wing, Mass = mass, control = covs) %>%
       mutate(species_ = sp, .before = 1)
   }) %>% list_rbind() %>%
-    mutate(pass = b_ols > cor_b_min & p_mw <= cor_p_max)
+    mutate(pass = r_mw > cor_min & p_mw <= cor_p_max)
   print(group_cor_wing)
 }
 
@@ -320,7 +320,7 @@ Atl_birds_l3 <- imap(Atl_birds_l2, \(df, sp) {
     if (length(valid_age) >= 1) df <- df %>% filter(age %in% valid_age)
     if (length(valid_age) >= 2) {
       passing_age <- build_group_cor_tbl(df, Append = wing, Mass = mass, control = "age") %>%
-        ungroup() %>% filter(b_ols > cor_b_min & p_mw <= cor_p_max) %>% pull(age)
+        ungroup() %>% filter(r_mw > cor_min & p_mw <= cor_p_max) %>% pull(age)
       if (length(passing_age) >= 1) df <- df %>% filter(age %in% passing_age)
       if (length(passing_age) >= 2) covs <- c(covs, "age")
     }
@@ -332,7 +332,7 @@ Atl_birds_l3 <- imap(Atl_birds_l2, \(df, sp) {
     if (length(valid_sex) >= 1) df <- df %>% filter(sex %in% valid_sex)
     if (length(valid_sex) >= 2) {
       passing_sex <- build_group_cor_tbl(df, Append = wing, Mass = mass, control = "sex") %>%
-        ungroup() %>% filter(b_ols > cor_b_min & p_mw <= cor_p_max) %>% pull(sex)
+        ungroup() %>% filter(r_mw > cor_min & p_mw <= cor_p_max) %>% pull(sex)
       if (length(passing_sex) >= 1) df <- df %>% filter(sex %in% passing_sex)
       if (length(passing_sex) >= 2) covs <- c(covs, "sex")
     }
