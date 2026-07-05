@@ -1,0 +1,35 @@
+# Derived outputs
+Derived/
+Figures/
+
+# Quarto build artifacts
+*_files/
+*_cache/
+*.tex
+*.log
+*.aux
+*.toc
+*.pdf
+*.spl
+
+# macOS
+.DS_Store
+
+# Untracked manuscripts (present locally, not version-controlled)
+Scripts/Recs_allens.qmd
+Scripts/SMA_body_shape_methods_reduced.qmd
+
+# R
+.Rhistory
+.RData
+*.Rproj.user/
+Rplots.pdf
+
+# Data (large files, not version-controlled)
+Data/
+Rdata/
+
+# IDE
+.posit/
+
+/.quarto/
