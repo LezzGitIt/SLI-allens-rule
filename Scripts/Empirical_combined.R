@@ -1,6 +1,7 @@
 ## Combined empirical shapeshifting figure
-## Layout: Bergmann's (full top row) / Inverse Bergmann's + Mixed-Wingier (bottom row)
-## Bottom-row widths are proportional to species counts.
+## Layout: Bergmann's (top row) / Inverse Bergmann's (bottom row)
+## Mixed-Wingier is excluded from this main figure and reported in the
+## Supplementary Information instead (see Scripts/supplementary_info.qmd).
 ## Reads CSVs produced by Nightjar_shape.R, Weeks_2020_ral.R, Atlantic_birds_shape.R
 
 library(tidyverse)
@@ -15,7 +16,7 @@ parms_all <- bind_rows(
   read_csv("Derived/Csv/Atlantic_parms.csv",  show_col_types = FALSE)
 ) %>%
   filter(
-    Direction %in% c("Bergmann's", "Inverse Bergmann's", "Mixed - Wingier"),
+    Direction %in% c("Bergmann's", "Inverse Bergmann's"),
     Approach  %in% c("Ratio", "Ratio2", "Ryding", "Resid_ols", "Sli_est", "Sli_iso"),
     std.error  < 0.5
   ) %>%
@@ -107,7 +108,7 @@ build_direction_plot <- function(df_panel, direction, show_legend = FALSE) {
 }
 
 # Build panels (all without legend) ---------------------------------------
-directions <- c("Bergmann's", "Inverse Bergmann's", "Mixed - Wingier")
+directions <- c("Bergmann's", "Inverse Bergmann's")
 panels <- map(
   setNames(directions, directions),
   \(d) build_direction_plot(parms_all %>% filter(Direction == d), d)
@@ -122,24 +123,11 @@ shared_legend <- get_legend(
   )
 )
 
-# Proportional widths for bottom row based on species count ---------------
-n_inv   <- n_distinct(parms_all$species[parms_all$Direction == "Inverse Bergmann's"])
-n_mixed <- n_distinct(parms_all$species[parms_all$Direction == "Mixed - Wingier"])
-
-bottom_row <- plot_grid(
-  panels[["Inverse Bergmann's"]],
-  panels[["Mixed - Wingier"]],
-  ncol       = 2,
-  rel_widths = c(n_inv, n_mixed),
-  labels     = c("b", "c"),
-  label_size = 10
-)
-
-# Assemble: legend → Bergmann's → bottom row ------------------------------
+# Assemble: legend → Bergmann's → Inverse Bergmann's ----------------------
 combined <- plot_grid(
   shared_legend,
   plot_grid(panels[["Bergmann's"]], labels = "a", label_size = 10),
-  bottom_row,
+  plot_grid(panels[["Inverse Bergmann's"]], labels = "b", label_size = 10),
   ncol        = 1,
   rel_heights = c(0.08, 1, 1)
 )
