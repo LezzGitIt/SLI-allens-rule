@@ -535,11 +535,13 @@ The discussion below attributes the ratio methods' upward bias to a mechanical c
 #| label: tbl-ratio-mass-summary
 #| tbl-cap: "Summary of the per-species Pearson correlation between the wing/mass ratio metric ($\\log(A/S)$) and its squared counterpart ($\\log(A^2/S)$) and body mass, by empirical dataset."
 
-Ratio_mass_summary_tbl %>% dplyr::select(-Mean_r) %>%
+Ratio_mass_summary_tbl %>%
   filter(Study != "All studies combined") %>%
-  mutate(Metric = recode(Metric, "Ratio" = "Wing / Mass", "Ratio2" = "Wing² / Mass")) %>%
+  mutate(Metric = recode(Metric, "Ratio" = "Wing / Mass", "Ratio2" = "Wing² / Mass"),
+         Range = paste(Min_r, "to", Max_r)) %>%
+  dplyr::select(Study, Metric, N_species, Median_r, Range) %>%
   knitr::kable(
-    col.names = c("Study", "Metric", "N species", "Median r", "Min r", "Max r")
+    col.names = c("Study", "Metric", "N species", "Median", "Range")
   )
 ```
 
