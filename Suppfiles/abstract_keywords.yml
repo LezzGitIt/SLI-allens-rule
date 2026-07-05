@@ -1,0 +1,13 @@
+abstract: |
+  Background. Studies of Allen's rule — the tendency for endotherms to have longer appendages in warmer climates — require accurate quantification of appendage length relative to body size. Two approaches dominate the empirical literature: simple ratios, and multiple regression with body size as a covariate. These approaches have different foundational assumptions and statistical weaknesses that have been rarely explored in the context of Allen's rule.
+
+  Aims. We evaluate how accurately these two statistical approaches, plus a newly introduced approach (the Standardized Length Index, SLI), recover the simulated direction of temperature's effect on relative appendage length.
+
+  Methods. We simulated morphological data for 252 hypothetical species drawn from a multivariate normal distribution, varying appendage–mass correlation, allometric scaling slope, and the direction of temperature's effect on shape. Each dataset was analysed with two ratio approaches, two multiple regression approaches, and two versions of the SLI — one using an isometric scaling exponent ($b_{SLI} = 0.33$) and one using the empirically estimated SMA slope. We also confronted the six methods with empirical data from three independent datasets: three migratory nightjar species across a spatial temperature gradient, 53 North American migratory species over four decades, and Atlantic Forest birds across a latitudinal temperature gradient.
+
+  Results. Ratio methods produced positively biased temperature effects while multiple regression methods underestimated the simulated temperature effect. SLI methods most accurately recovered the true direction across all categories of simulated response. The same rank-order observed using simulated data was reproduced in empirical datasets spanning spatial and temporal gradients across three studies.
+
+  Main conclusions. Conclusions regarding adherence to Allen's rule are greatly influenced by the statistical approach employed. Existing approaches often returned biased estimates of temperature's influence on relative appendage length under this data-generating process. The SLI, based on standardized major axis regression, provides a straightforward and more accurate alternative that is implemented in a single function call in R.
+keywords: 
+  - Allen's rule, Bergmann's rule, ecogeography, multiple regression, ratios, relative appendage length, review, standaridzed length index, standardized major axis regression, thermoregulation
+  
