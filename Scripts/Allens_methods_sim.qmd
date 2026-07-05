@@ -575,7 +575,8 @@ This directed acyclic graph (DAG) implies that the total effect of temperature o
 
 library(ggraph)
 
-plot_dag <- function(dag, title, node_labels = c(Age_sex = "Age / sex"), curvature = 0.3) {
+plot_dag <- function(dag, title, panel_label, node_labels = c(Age_sex = "Age / sex"), curvature = 0.3,
+                      xlim = c(-0.45, 0.45), ylim = c(-0.42, 0.16)) {
 
   df <- tidy_dagitty(dag)$data
   df$y <- -df$y
@@ -583,6 +584,9 @@ plot_dag <- function(dag, title, node_labels = c(Age_sex = "Age / sex"), curvatu
   df$label <- ifelse(df$name %in% names(node_labels), node_labels[df$name], df$name)
   df$label_end <- ifelse(df$to %in% names(node_labels), node_labels[df$to], df$to)
 
+  # Fixed xlim/ylim (rather than automatic per-panel scale expansion) so that
+  # node labels land at identical positions across panels regardless of the
+  # extra vertical room the curved bidirected edge in model_unk needs.
   ggplot(df, aes(x = x, y = y, xend = xend, yend = yend)) +
     geom_dag_edges(
       aes(start_cap = label_rect(label, padding = margin(3, 3, 3, 3, "mm")),
@@ -590,13 +594,11 @@ plot_dag <- function(dag, title, node_labels = c(Age_sex = "Age / sex"), curvatu
       edge_colour = "grey55", edge_width = 0.5, curvature = curvature
     ) +
     geom_dag_text(aes(label = label), colour = "black", size = 4.3, fontface = "plain") +
-    ggtitle(title) +
-    coord_equal(clip = "off") +
-    scale_x_continuous(expand = expansion(mult = 0.3)) +
-    scale_y_continuous(expand = expansion(mult = 0.25)) +
+    ggtitle(paste0(panel_label, ") ", title)) +
+    coord_equal(xlim = xlim, ylim = ylim, clip = "off", expand = FALSE) +
     theme_dag() +
     theme(
-      plot.title = element_text(face = "bold", size = 12, hjust = 0),
+      plot.title = element_text(face = "bold", size = 12, hjust = 0.5),
       plot.margin = margin(5, 8, 5, 8)
     )
 }
@@ -650,9 +652,9 @@ dag {
 ')
 
 ggarrange(
-  plot_dag(model_mr,       "Implied by multiple regression"),
-  plot_dag(model_collider, "Mass as a collider"),
-  plot_dag(model_unk,      "Unknown directionality", curvature = -0.3),
+  plot_dag(model_mr,       "Implied by multiple regression", "a"),
+  plot_dag(model_collider, "Mass as a collider",              "b"),
+  plot_dag(model_unk,      "Unknown directionality",          "c", curvature = -0.3),
   nrow = 1, labels = NULL
 )
 ```
