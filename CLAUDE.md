@@ -6,16 +6,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is an academic R/Quarto project producing a methods paper on Allen's rule and the Standardized Length Index (SLI). The paper argues for using SMA regression over OLS-based approaches when detecting shape-shifting across environmental gradients, and proposes SLI as the preferred metric for measuring relative appendage length. Target journal: Methods in Ecology and Evolution.
 
-**Main manuscript:** `Scripts/Allens_methods_sim.qmd`
+**Main manuscript:** `Scripts/qmd/Allens_methods_sim.qmd`
+**Supplement:** `Scripts/qmd/supplementary_info.qmd`
+
+Manuscript `.qmd` files live in `Scripts/qmd/`, separate from the analysis `.R` scripts in `Scripts/`. This keeps Quarto's per-render byproducts (`elsarticle.cls`, `elsarticle-harv.bst` — recreated by the `quarto-journals/elsevier` extension's `format-resources` on every render — plus `*_files/`, `*_cache/`) contained to one folder instead of cluttering `Scripts/`. Because `.qmd` files resolve YAML fields (`bibliography:`, `csl:`, `metadata-files:`) and markdown image paths relative to their own location, both files use `../../Suppfiles/...` and `../../Figures/...` (two levels up to project root, not one).
 
 ## Rendering Documents
 
 Render a single Quarto document to PDF (execute from project root):
 ```bash
-quarto render Scripts/<file>.qmd
+quarto render Scripts/qmd/<file>.qmd
 ```
 
-Output PDFs go to `Derived/PDF/` (set in `_quarto.yml`). The `execute-dir: project` setting means all relative paths in code chunks are relative to the project root, not the `Scripts/` folder.
+Output PDFs go to `Derived/` (set in `_quarto.yml`), mirroring the source path (e.g. `Derived/Scripts/qmd/<file>.pdf`). The `execute-dir: project` setting means all relative paths in **code chunks** are relative to the project root, not the file's own folder — this is a different resolution rule than the YAML/markdown paths above.
 
 ## Key Architecture
 
@@ -30,7 +33,7 @@ Must be sourced before running most other scripts. Key functions:
 - `gen_cor_vars()`: Generate correlated mass/appendage pairs for pairwise exploration
 - `format_temp()`: Bin temperature for plotting; `rm_outliers()`: remove >3 SD outliers
 
-### Main manuscript (`Scripts/Allens_methods_sim.qmd`)
+### Main manuscript (`Scripts/qmd/Allens_methods_sim.qmd`)
 Simulation study comparing six approaches for estimating relative appendage length along a temperature gradient. Approaches: Ratio, Ratio2, Mass-as-covariate (Ryding), OLS residuals, SLI-isometry, SLI-estimated.
 
 ### Simulation script (`Scripts/Allometric_scaling_simulation.R`)
