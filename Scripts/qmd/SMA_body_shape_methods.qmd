@@ -12,9 +12,9 @@ include-in-header: # package float allows you to specify 'H' instead of 'h'
       text: |
         \usepackage{float} 
 editor: visual
-bibliography: ../Suppfiles/Morphology.bib
+bibliography: ../../Suppfiles/Morphology.bib
 link-citations: true
-csl: ../Suppfiles/methods-in-ecology-and-evolution.csl
+csl: ../../Suppfiles/methods-in-ecology-and-evolution.csl
 knitr:
   opts_chunk: 
     comment: "#>"
@@ -1207,7 +1207,7 @@ I observed the same rank-order pattern in nightjars as in our simulation study: 
 
 ## Case study: Atlantic forest birds
 
-![Patterns observed during simulation were also seen in six species (N between 66 and 299 individuals) of Atlantic forest birds. The panels are organized by a species adherence to Bergmann's rule, such that in a) neither trait followed Bergmannian patterns, in b) species exhibited inverse Bergmann's rule (larger with increasing temperatures), in c) at least one trait decreased with temperature (in accordance to Bergmann's rule), and in d) traits exhibited mixed responses to Bergmann's rule, such that one trait increased in size while the other decreased in size. The shape of the points indicates which trait changed across temperature gradients (both mass and wing, just mass, or neither).](../Figures/Atlantic_birds_shape.png){#fig-Atlantic-birds width="100%"}
+![Patterns observed during simulation were also seen in six species (N between 66 and 299 individuals) of Atlantic forest birds. The panels are organized by a species adherence to Bergmann's rule, such that in a) neither trait followed Bergmannian patterns, in b) species exhibited inverse Bergmann's rule (larger with increasing temperatures), in c) at least one trait decreased with temperature (in accordance to Bergmann's rule), and in d) traits exhibited mixed responses to Bergmann's rule, such that one trait increased in size while the other decreased in size. The shape of the points indicates which trait changed across temperature gradients (both mass and wing, just mass, or neither).](../../Figures/Atlantic_birds_shape.png){#fig-Atlantic-birds width="100%"}
 
 Results from Atlantic forest birds of Brazil are generally similar (but less pronounced) compared to migratory nightjars in North America and Europe. This is likely because the correlation between wing and mass was weak or non-existent in most species, highlighting an important limitation of the SLI method: that SMA regression should only be used when there is a significant relationship between the morphological variables of interest. Indeed, SMA regression has Joliceur 1990 argues that the correlation should be greater than 0.6, which is extremely high. Furthermore, the relationship between temperature and morphology is generally weak (panel a in @fig-Atlantic-birds), and inconsistent (panels b and d in @fig-Atlantic-birds). Thus, temperature may have little effect on size and shape in Atlantic forest birds.
 
@@ -1536,7 +1536,7 @@ svg_clean <- charToRaw(enc2utf8(svg))
 rsvg::rsvg_pdf(svg_clean, "Figures/path_diagram.pdf")
 ```
 
-![Path diagram showing a hypothetical model that could be used to test Allen's rule for any number of appendages. Ovals represent latent variables and rectangles represent measured variables. M1 - M3 represent multiple measurements of mass at an appropriate time scale; A1 - A3 represent three distinct appendages (e.g., tarsus, wing, and bill length). Repeat measurements could also be taken for appendage variables, but transient fluctuations in mass are almost certainly more important to account for. Intercepts and residual errors are implied and thus not shown.](../Figures/path_diagram.pdf)
+![Path diagram showing a hypothetical model that could be used to test Allen's rule for any number of appendages. Ovals represent latent variables and rectangles represent measured variables. M1 - M3 represent multiple measurements of mass at an appropriate time scale; A1 - A3 represent three distinct appendages (e.g., tarsus, wing, and bill length). Repeat measurements could also be taken for appendage variables, but transient fluctuations in mass are almost certainly more important to account for. Intercepts and residual errors are implied and thus not shown.](../../Figures/path_diagram.pdf)
 
 Let $i$ index individuals, such that the mass and length of individual $i$ are modeled as: $$\text{Mass}_{i} = \lambda_{mass} \cdot \text{Size}_{i} + \epsilon_{i}$$ {#eq-mass-latent-factor-model}
 

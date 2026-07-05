@@ -24,9 +24,9 @@ format: #docx
       name: Methods in Ecology and Evolution
       formatting: preprint #doubleblind suppresses authors!, return to preprint
       cite-style: authoryear
-bibliography: ../Suppfiles/Morphology.bib
+bibliography: ../../Suppfiles/Morphology.bib
 link-citations: true
-csl: ../Suppfiles/methods-in-ecology-and-evolution.csl
+csl: ../../Suppfiles/methods-in-ecology-and-evolution.csl
 knitr:
   opts_chunk:
     comment: "#>"
@@ -34,8 +34,8 @@ knitr:
 editor_options:
   chunk_output_type: console
 metadata-files: 
-  - ../Suppfiles/abstract_keywords.yml
-  - ../Suppfiles/authors.yml
+  - ../../Suppfiles/abstract_keywords.yml
+  - ../../Suppfiles/authors.yml
 ---
 
 {{< pagebreak >}}
@@ -188,7 +188,7 @@ This makes it evident that as $r$ increases, $\beta_{\text{OLS}} \rightarrow \be
 
 Unlike OLS, the SMA line of best fit is unchanged when the $X$ and $Y$ axes are exchanged (@fig-sma_flip_axes), leading to a useful geometric property: swapping the axes simply reflects the points across the fitted line. Consequently, the individual highlighted in green can be described either as having relatively short appendages for its body size (panel A) or as having a relatively large body for its appendage length (panel B). These are reciprocal descriptions of the same deviation from the allometric relationship (i.e., residuals retain the same magnitude but reverse sign). In contrast, because the OLS line changes when the axes are exchanged, this reciprocity does not hold.
 
-![In SMA regression the X and Y axes can be flipped and the line of best fit will not change. Here I flip the axes and plot the OLS (red) & SMA (blue) regression lines of best fit, as well as the same individual from my hypothetical species (highlighted in green). SMA residuals are equally correlated with both $X$ and $Y$ ($|r_{sma}| = 0.59$, whereas OLS residuals remain uncorrelated with the predictor but strongly correlated with the response ($r_{ols} = 0.96$).](../Figures/sma_flip_axes.png){#fig-sma_flip_axes width="100%"}
+![In SMA regression the X and Y axes can be flipped and the line of best fit will not change. Here I flip the axes and plot the OLS (red) & SMA (blue) regression lines of best fit, as well as the same individual from my hypothetical species (highlighted in green). SMA residuals are equally correlated with both $X$ and $Y$ ($|r_{sma}| = 0.59$, whereas OLS residuals remain uncorrelated with the predictor but strongly correlated with the response ($r_{ols} = 0.96$).](../../Figures/sma_flip_axes.png){#fig-sma_flip_axes width="100%"}
 :::
 
 # Materials and Methods
