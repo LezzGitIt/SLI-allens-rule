@@ -2,17 +2,18 @@
 Derived/
 Figures/
 
-# Quarto build artifacts
-*_files/
-*_cache/
-*.tex
-*.log
-*.aux
-*.toc
-*.pdf
-*.spl
-*.cls
-*.bst
+# Quarto build artifacts (scoped to Scripts/qmd/ so this never shadows real
+# source files elsewhere, e.g. Suppfiles/title.tex or _extensions/**/*.cls|*.bst)
+Scripts/qmd/*_files/
+Scripts/qmd/*_cache/
+Scripts/qmd/*.tex
+Scripts/qmd/*.log
+Scripts/qmd/*.aux
+Scripts/qmd/*.toc
+Scripts/qmd/*.pdf
+Scripts/qmd/*.spl
+Scripts/qmd/*.cls
+Scripts/qmd/*.bst
 
 # macOS
 .DS_Store
