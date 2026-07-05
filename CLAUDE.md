@@ -9,7 +9,7 @@ This is an academic R/Quarto project producing a methods paper on Allen's rule a
 **Main manuscript:** `Scripts/qmd/Allens_methods_sim.qmd`
 **Supplement:** `Scripts/qmd/supplementary_info.qmd`
 
-Manuscript `.qmd` files live in `Scripts/qmd/`, separate from the analysis `.R` scripts in `Scripts/`. This keeps Quarto's per-render byproducts (`elsarticle.cls`, `elsarticle-harv.bst` — recreated by the `quarto-journals/elsevier` extension's `format-resources` on every render — plus `*_files/`, `*_cache/`) contained to one folder instead of cluttering `Scripts/`. Because `.qmd` files resolve YAML fields (`bibliography:`, `csl:`, `metadata-files:`) and markdown image paths relative to their own location, both files use `../../Suppfiles/...` and `../../Figures/...` (two levels up to project root, not one).
+Because `.qmd` files resolve YAML fields (`bibliography:`, `csl:`, `metadata-files:`) and markdown image paths relative to their own location, both files use `../../Suppfiles/...` and `../../Figures/...` (two levels up to project root, not one).
 
 ## Rendering Documents
 
