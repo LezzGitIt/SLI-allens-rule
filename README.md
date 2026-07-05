@@ -12,34 +12,44 @@ I compare six commonly used methods — including log-ratio indices, OLS residua
 
 ```         
 Scripts/
-  Allens_methods_sim.qmd        # Main manuscript (Quarto)
+  qmd/
+    Allens_methods_sim.qmd      # Main manuscript (Quarto)
+    supplementary_info.qmd      # Supplementary Information (Quarto)
   Key_allometry_fns.R           # Shared functions (sourced by all scripts)
+  Run_simulation.R              # Runs the simulation, saves Derived/Rds/simulation_results.rds
   Allometric_scaling_simulation.R  # Exploratory SMA vs OLS simulation
   Nightjar_shape.R              # Empirical case study: Caprimulgidae
   Weeks_2020_ral.R              # Empirical case study: Weeks et al. (2020)
   Atlantic_birds_shape.R        # Empirical case study: Atlantic Forest birds
   Empirical_combined.R          # Combined empirical figure
 
+Suppfiles/                      # Bibliography, journal metadata, title-page partial
+_extensions/                    # Quarto elsevier journal-format extension (needed to render)
+
 Data/                           # Raw data (not version-controlled; see below)
 Derived/                        # Script outputs (recreatable; not tracked)
 Figures/                        # Saved plots (recreatable; not tracked)
 ```
 
+Manuscript `.qmd` files live in `Scripts/qmd/`, separate from the analysis `.R` scripts, so that Quarto's per-render byproducts don't clutter `Scripts/`. `_quarto.yml`, `_extensions/`, and `Suppfiles/` are tracked because they're required to reproduce the exact PDF output — not just the analysis code.
+
 ## Reproducing the analysis
 
-All scripts use paths relative to the project root. Render the manuscript from the project root:
-
-``` bash
-quarto render Scripts/Allens_methods_sim.qmd
-```
-
-The empirical case studies must be run in order before `Empirical_combined.R`:
+All scripts use paths relative to the project root. Run the simulation and the three empirical case studies before rendering either manuscript:
 
 ``` r
+source("Scripts/Run_simulation.R")
 source("Scripts/Nightjar_shape.R")
 source("Scripts/Weeks_2020_ral.R")
 source("Scripts/Atlantic_birds_shape.R")
 source("Scripts/Empirical_combined.R")
+```
+
+Then render the manuscript and supplement from the project root:
+
+``` bash
+quarto render Scripts/qmd/Allens_methods_sim.qmd
+quarto render Scripts/qmd/supplementary_info.qmd
 ```
 
 ## Data availability
