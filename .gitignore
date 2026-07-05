@@ -11,13 +11,18 @@ Figures/
 *.toc
 *.pdf
 *.spl
+*.cls
+*.bst
 
 # macOS
 .DS_Store
 
 # Untracked manuscripts (present locally, not version-controlled)
-Scripts/Recs_allens.qmd
-Scripts/SMA_body_shape_methods_reduced.qmd
+Scripts/qmd/Recs_allens.qmd
+Scripts/qmd/SMA_body_shape_methods_reduced.qmd
+
+# Local working notes (session log for AI-assisted development, not the science itself)
+Project_notes_SLI.md
 
 # R
 .Rhistory
