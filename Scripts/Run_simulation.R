@@ -25,9 +25,8 @@ r_23     <- r_13
 b_avg_12 <- c(0.22, 0.33, 0.44)
 
 # Parameter matrix ------------------------------------------------------------
-# Main grid: Longer / Fatter / Proportional -- three realizations of
-# Bergmann's rule (temperature never increases mass or appendage length).
-Shape <- c("Longer", "Proportional", "Fatter")
+# Main grid: Longer / Fatter / Proportionally smaller -- three realizations of Bergmann's rule (temperature never increases mass or appendage length).
+Shape <- c("Longer", "Proportionally smaller", "Fatter")
 Shape <- setNames(Shape, Shape)
 
 Parms_mat <- expand_grid(
@@ -50,10 +49,7 @@ Parms_mat <- expand_grid(
     near(b_avg_12, 0.33) ~ "Isometry"
   ))
 
-# Bigger: mirror of the negative "Proportional" diagonal -- temperature
-# increases wing and mass equally (rather than decreasing both), i.e. species
-# get uniformly bigger with warming with no true shape change. Simulated
-# analogue of empirical "Inverse Bergmann's" species.
+# Proportionally larger: mirror of the negative "Proportionally smaller" diagonal -- temperature increases wing and mass equally (rather than decreasing both), i.e. species get uniformly bigger with warming with no true shape change. Simulated analogue of empirical "Inverse Bergmann's" species.
 r_temp_pos <- c(.15, .3, .5, .7)
 
 Parms_big <- expand_grid(
@@ -62,7 +58,7 @@ Parms_big <- expand_grid(
   r_temp   = r_temp_pos
 ) %>%
   mutate(r_13 = r_temp, r_23 = r_temp, r_temp = NULL,
-         Temp_eff = "Bigger",
+         Temp_eff = "Proportionally larger",
          Strength = abs(r_13 - r_23),
          Scaling  = case_when(
            b_avg_12 < 0.33 ~ "Hypoallometry",
@@ -73,7 +69,7 @@ Parms_big <- expand_grid(
 Parms_mat2 <- bind_rows(Parms_mat, Parms_big) %>%
   mutate(
     Temp_eff = factor(Temp_eff,
-                      levels = c("Fatter", "Proportional", "Bigger", "Longer")),
+                      levels = c("Fatter", "Proportionally smaller", "Proportionally larger", "Longer")),
     Scaling = factor(Scaling,
                      levels = c("Hypoallometry", "Isometry", "Hyperallometry"))
   ) %>%
@@ -194,8 +190,8 @@ Parms_tbl5 <- Parms_tbl4 %>%
   mutate(Est_correct = case_when(
     Temp_eff == "Longer"      & b_dir == "Pos" ~ TRUE,
     Temp_eff == "Fatter"      & b_dir == "Neg" ~ TRUE,
-    Temp_eff == "Proportional" ~ NA,
-    Temp_eff == "Bigger"      ~ NA,
+    Temp_eff == "Proportionally smaller" ~ NA,
+    Temp_eff == "Proportionally larger"  ~ NA,
     .default = FALSE
   ), .by = Model)
 
@@ -203,11 +199,11 @@ Eval_tbl <- Parms_tbl5 %>%
   summarize(Prop_correct = sum(Est_correct, na.rm = TRUE) / n(),
             .by = c(Model, Temp_eff)) %>%
   mutate(Prop_correct = round(Prop_correct, 2)) %>%
-  filter(!Temp_eff %in% c("Proportional", "Bigger")) %>%
+  filter(!Temp_eff %in% c("Proportionally smaller", "Proportionally larger")) %>%
   arrange(Model)
 
 Proportional_methods_eval <- Parms_tbl5 %>%
-  filter(Temp_eff == "Proportional") %>%
+  filter(Temp_eff == "Proportionally smaller") %>%
   summarize(Prop_pos = sum(b_dir == "Pos") / n(), .by = c(Model, Temp_eff)) %>%
   mutate(Prop_neg = 1 - Prop_pos) %>%
   pivot_longer(cols = c(Prop_pos, Prop_neg),
@@ -216,7 +212,7 @@ Proportional_methods_eval <- Parms_tbl5 %>%
          Model = str_replace_all(Model, x_labs))
 
 Proportional_true_eff_tbl <- Parms_temp_bs %>%
-  filter(Temp_eff == "Proportional") %>%
+  filter(Temp_eff == "Proportionally smaller") %>%
   mutate(True_temp_eff = if_else(Correlation > 0, "Longer", "Fatter")) %>%
   janitor::tabyl(True_temp_eff)
 
@@ -226,12 +222,9 @@ Prop_fatter <- Proportional_true_eff_tbl %>%
   pull(percent)
 Prop_longer <- 1 - Prop_fatter
 
-# "Bigger" scenario: same "no true shape signal" evaluation as Proportional,
-# just mirrored to the positive-r_13/r_23 diagonal (species getting bigger,
-# not smaller). Kept as a parallel/duplicate computation rather than
-# generalizing Proportional_methods_eval, so those objects remain unaffected.
+# "Proportionally larger" scenario: same "no true shape signal" evaluation as Proportionally smaller, just mirrored to the positive-r_13/r_23 diagonal (species getting bigger, not smaller). Kept as a parallel/duplicate computation rather than generalizing Proportional_methods_eval, so those objects remain unaffected.
 Bigger_methods_eval <- Parms_tbl5 %>%
-  filter(Temp_eff == "Bigger") %>%
+  filter(Temp_eff == "Proportionally larger") %>%
   summarize(Prop_pos = sum(b_dir == "Pos") / n(), .by = c(Model, Temp_eff)) %>%
   mutate(Prop_neg = 1 - Prop_pos) %>%
   pivot_longer(cols = c(Prop_pos, Prop_neg),
@@ -240,7 +233,7 @@ Bigger_methods_eval <- Parms_tbl5 %>%
          Model = str_replace_all(Model, x_labs))
 
 Bigger_true_eff_tbl <- Parms_temp_bs %>%
-  filter(Temp_eff == "Bigger") %>%
+  filter(Temp_eff == "Proportionally larger") %>%
   mutate(True_temp_eff = if_else(Correlation > 0, "Longer", "Fatter")) %>%
   janitor::tabyl(True_temp_eff)
 
