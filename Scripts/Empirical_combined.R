@@ -115,7 +115,7 @@ panels <- map(
 )
 
 # Shared legend -----------------------------------------------------------
-shared_legend <- get_legend(
+shared_legend <- ggpubr::get_legend(
   build_direction_plot(
     parms_all %>% filter(Direction == "Bergmann's"),
     "Bergmann's",
