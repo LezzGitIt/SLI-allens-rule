@@ -39,10 +39,10 @@ source("Scripts/Key_allometry_fns.R")
 # Simulation is run by Scripts/Run_simulation.R and saved to
 # Derived/Rds/simulation_results.rds; the main manuscript reads the same file.
 # This brings Parms_mat3, Parms_tbl4, Parms_temp_bs, sma_or_ma, x_labs, and
-# every Bigger-scenario percentage into scope by name.
+# every Proportionally-larger-scenario percentage into scope by name.
 list2env(readRDS("Derived/Rds/simulation_results.rds"), envir = environment())
 
-Parms_tbl4_bigger <- Parms_tbl4 %>% filter(Temp_eff == "Bigger")
+Parms_tbl4_bigger <- Parms_tbl4 %>% filter(Temp_eff == "Proportionally larger")
 ```
 
 # Validation of simulated species direction
@@ -51,7 +51,7 @@ The main text simulates species by crossing correlations between temperature, ma
 
 ```{r}
 #| label: fig-cor-allometry-values
-#| fig-cap: "Correlation between binned temperature and the SMA intercept (a proxy for relative appendage length) for every simulated species, used to validate that each species moved in its intended direction. Fatter species should show a negative correlation and Longer species a positive correlation; Proportional and Bigger species, which have no true shape signal, should straddle zero. Species falling on the wrong side of zero for their category (e.g., points above the dashed line for Fatter species) were excluded from further analysis. Point shape distinguishes models fit with a fixed slope ('No interaction') from models allowing the slope to vary with temperature ('Interaction'); point size indicates allometric scaling category and colour indicates the strength of the difference between temperature's effect on appendage length and mass."
+#| fig-cap: "Correlation between binned temperature and the SMA intercept (a proxy for relative appendage length) for every simulated species, used to validate that each species moved in its intended direction. Fatter species should show a negative correlation and Longer species a positive correlation; Proportionally smaller and Proportionally larger species, which have no true shape signal, should straddle zero. Species falling on the wrong side of zero for their category (e.g., points above the dashed line for Fatter species) were excluded from further analysis. Point shape distinguishes models fit with a fixed slope ('No interaction') from models allowing the slope to vary with temperature ('Interaction'); point size indicates allometric scaling category and colour indicates the strength of the difference between temperature's effect on appendage length and mass."
 #| fig-pos: 'H'
 
 Parms_temp_bs %>%
@@ -61,7 +61,7 @@ Parms_temp_bs %>%
   geom_point(position = position_jitter(width = .3), alpha = .3,
              aes(color = Strength, shape = SMA_mod, size = Scaling)) +
   labs(x = NULL, y = "Correlation between temperature\nand SMA intercept",
-       shape = "Model", size = "Scaling") +
+       shape = "Model", size = "Scaling", color = "Strength\nAllen's") +
   theme(axis.text.x = element_text(size = 10, vjust = .58, angle = 30))
 ```
 
@@ -94,13 +94,13 @@ vary_scaling_tbl %>%
   labs(x = "Log(mass)", y = "Log(appendage)", color = "Temperature\nincrease")
 ```
 
-# Bigger scenario: simulated analogue of Inverse Bergmann's responses
+# Proportionally larger scenario: simulated analogue of Inverse Bergmann's responses
 
-The main text simulation compares six methods for estimating relative appendage length across three realizations of Bergmann's rule (Fatter, Proportional, Longer), in which body mass never increases with warming. Here I additionally simulated a **Bigger** scenario — the mirror image of Proportional, in which temperature increases wing length and body mass by equal amounts rather than decreasing both ($b \in \{0.22, 0.33, 0.44\}$, $\rho_{12} \in \{0.3, 0.45, 0.6\}$, $\rho_{13} = \rho_{23} \in \{0.15, 0.3, 0.5, 0.7\}$; 36 simulated species). Because both traits increase equally, there is no true shape signal in this scenario — an unbiased method should classify roughly half of Bigger species as becoming relatively longer, matching the observed baseline of `r Bigger_longer_pct`%. This scenario is the simulated analogue of empirically observed **Inverse Bergmann's** responses (main text classification table), in which mass, wing length, or both increase with warming.
+The main text simulation compares six methods for estimating relative appendage length across three realizations of Bergmann's rule (Fatter, Proportionally smaller, Longer), in which body mass never increases with warming. Here I additionally simulated a **Proportionally larger** scenario — the mirror image of Proportionally smaller, in which temperature increases wing length and body mass by equal amounts rather than decreasing both ($b \in \{0.22, 0.33, 0.44\}$, $\rho_{12} \in \{0.3, 0.45, 0.6\}$, $\rho_{13} = \rho_{23} \in \{0.15, 0.3, 0.5, 0.7\}$; 36 simulated species). Because both traits increase equally, there is no true shape signal in this scenario — an unbiased method should classify roughly half of Proportionally larger species as becoming relatively longer, matching the observed baseline of `r Bigger_longer_pct`%. This scenario is the simulated analogue of empirically observed **Inverse Bergmann's** responses (main text classification table), in which mass, wing length, or both increase with warming.
 
 ```{r}
 #| label: fig-bigger-compare
-#| fig-cap: "Estimated effect of temperature on relative appendage length ($\\hat{\\beta}_T$) for each method among species simulated to get uniformly Bigger (body mass and wing length both increasing with warming; 36 simulated species). Positive values indicate that species were classified as becoming relatively longer; the true effect is null in every species, so the expected value is near zero for an unbiased method. Point shape indicates allometric scaling category."
+#| fig-cap: "Estimated effect of temperature on relative appendage length ($\\hat{\\beta}_T$) for each method among species simulated as Proportionally larger (body mass and wing length both increasing with warming; 36 simulated species). Positive values indicate that species were classified as becoming relatively longer; the true effect is null in every species, so the expected value is near zero for an unbiased method. Point shape indicates allometric scaling category."
 #| fig-width: 8
 #| fig-height: 5
 #| fig-pos: 'H'
@@ -115,30 +115,15 @@ Parms_tbl4_bigger %>%
   theme(axis.text.x = element_text(size = 10, vjust = .58, angle = 55))
 ```
 
-The pattern mirrors, and inverts, the classical biases described in the main text. Because mass now increases rather than decreases with temperature, the ratio approach's denominator grows instead of shrinking: only `r Ratio_bigger_pos`% of Bigger species (versus the true proportion of `r Bigger_longer_pct`%) were classified as becoming relatively longer — the opposite-direction analogue of the ratio's upward bias in shrinking (Bergmann's) species. Multiple regression and OLS residuals show the mirror-image error: `r Ryding_bigger_pos`% of Bigger species were classified as becoming relatively longer despite the complete absence of a true shape signal, reflecting the same attenuation mechanism described in the main text, reinforcing rather than opposing the (null) signal because mass is increasing rather than decreasing. SLI-isometry also showed a bias toward classifying Bigger species as relatively longer (`r Sli.iso_bigger_pos`%), while SLI-estimated (`r Sli.est_bigger_pos`%) was closer to the true proportion, though this is based on a comparatively modest sample of 36 simulated species.
+The pattern mirrors, and inverts, the classical biases described in the main text. Because mass now increases rather than decreases with temperature, the ratio approach's denominator grows instead of shrinking: only `r Ratio_bigger_pos`% of Proportionally larger species (versus the true proportion of `r Bigger_longer_pct`%) were classified as becoming relatively longer — the opposite-direction analogue of the ratio's upward bias in shrinking (Bergmann's) species. Multiple regression and OLS residuals show the mirror-image error: `r Ryding_bigger_pos`% of Proportionally larger species were classified as becoming relatively longer despite the complete absence of a true shape signal, reflecting the same attenuation mechanism described in the main text, reinforcing rather than opposing the (null) signal because mass is increasing rather than decreasing. SLI-isometry also showed a bias toward classifying Proportionally larger species as relatively longer (`r Sli.iso_bigger_pos`%), while SLI-estimated (`r Sli.est_bigger_pos`%) was closer to the true proportion, though this is based on a comparatively modest sample of 36 simulated species.
 
-# Mixed - Wingier empirical species
+# Mixed - Wingier and Mixed - Fatter empirical species
 
-In addition to the Bergmann's and Inverse Bergmann's species reported in the main text (Empirical case studies section), some species in the empirical datasets showed **Mixed - Wingier** responses: wing length increasing while body mass decreased, so that Allen's and Bergmann's rules reinforce one another. This is the empirical analogue of the simulated species whose mass and wing responses combine most strongly to produce an unambiguously longer relative appendage.
+In addition to the Bergmann's and Inverse Bergmann's species reported in the main text (Empirical case studies section), some species in the empirical datasets showed **Mixed - Wingier** responses: wing length increasing while body mass decreased, so that Allen's and Bergmann's rules reinforce one another. This is the empirical analogue of the simulated species whose mass and wing responses combine most strongly to produce an unambiguously longer relative appendage. A single Atlantic Forest species showed the opposite **Mixed - Fatter** response (wing length decreasing while body mass increased; main text species-accounting table).
 
 ```{r}
-#| label: load-mixed-wingier-data
+#| label: load-mixed-data
 #| include: false
-
-parms_all <- bind_rows(
-  read_csv("Derived/Csv/Nightjar_parms.csv",  show_col_types = FALSE),
-  read_csv("Derived/Csv/Weeks_parms.csv",     show_col_types = FALSE),
-  read_csv("Derived/Csv/Atlantic_parms.csv",  show_col_types = FALSE)
-) %>%
-  filter(
-    Direction == "Mixed - Wingier",
-    Approach  %in% c("Ratio", "Ratio2", "Ryding", "Resid_ols", "Sli_est", "Sli_iso"),
-    std.error < 0.5
-  ) %>%
-  mutate(
-    Sig_trait = str_to_sentence(Sig_trait),
-    Approach  = factor(Approach, levels = c("Ratio", "Ratio2", "Ryding", "Resid_ols", "Sli_est", "Sli_iso"))
-  )
 
 study_order  <- c("Nightjar", "Weeks (2020)", "Atlantic birds")
 study_colors <- c("Nightjar" = "#E41A1C", "Weeks (2020)" = "#377EB8", "Atlantic birds" = "#4DAF4A")
@@ -154,44 +139,83 @@ approach_labs <- c(
 
 shape_scale <- c("Both" = 15, "Mass" = 16, "Neither" = 17, "Wing" = 18)
 
-species_meta <- parms_all %>%
-  group_by(species, Study) %>%
-  summarise(mean_est = mean(estimate, na.rm = TRUE), .groups = "drop") %>%
-  mutate(Study = factor(Study, levels = study_order)) %>%
-  arrange(Study, mean_est)
+load_direction <- function(direction) {
+  bind_rows(
+    read_csv("Derived/Csv/Nightjar_parms.csv",  show_col_types = FALSE),
+    read_csv("Derived/Csv/Weeks_parms.csv",     show_col_types = FALSE),
+    read_csv("Derived/Csv/Atlantic_parms.csv",  show_col_types = FALSE)
+  ) %>%
+    filter(
+      Direction == direction,
+      Approach  %in% c("Ratio", "Ratio2", "Ryding", "Resid_ols", "Sli_est", "Sli_iso"),
+      std.error < 0.5
+    ) %>%
+    mutate(
+      Sig_trait = str_to_sentence(Sig_trait),
+      Approach  = factor(Approach, levels = c("Ratio", "Ratio2", "Ryding", "Resid_ols", "Sli_est", "Sli_iso"))
+    )
+}
 
-species_levels <- species_meta$species
-axis_colors    <- study_colors[as.character(species_meta$Study)]
-n_mixed_wingier <- n_distinct(parms_all$species)
+# Builds one panel: orders species by mean estimate within study, colors axis text by study (matching main-text @fig-empirical), and optionally shows a legend.
+build_mixed_plot <- function(df_panel, show_legend = FALSE) {
+  species_meta_p <- df_panel %>%
+    group_by(species, Study) %>%
+    summarise(mean_est = mean(estimate, na.rm = TRUE), .groups = "drop") %>%
+    mutate(Study = factor(Study, levels = study_order)) %>%
+    arrange(Study, mean_est)
+
+  species_levels_p <- species_meta_p$species
+  axis_colors_p    <- study_colors[as.character(species_meta_p$Study)]
+
+  p <- df_panel %>%
+    mutate(species = factor(species, levels = species_levels_p)) %>%
+    ggplot(aes(x = species, y = estimate, color = Approach,
+               group = interaction(species, Approach))) +
+    geom_hline(yintercept = 0, linetype = "dashed") +
+    geom_errorbar(aes(ymin = LCI95, ymax = UCI95),
+                  alpha = 0.8, width = 0,
+                  position = position_dodge(width = 0.75)) +
+    geom_point(aes(shape = Sig_trait), size = 1.5,
+               position = position_dodge(width = 0.75)) +
+    scale_color_hue(labels = approach_labs) +
+    scale_shape_manual(values = shape_scale, drop = FALSE) +
+    labs(x = NULL, y = expression(beta ~ "on wing shape"), color = NULL, shape = NULL) +
+    theme(axis.text.x = element_text(angle = 60, hjust = 1, size = 8, color = axis_colors_p))
+
+  if (show_legend) {
+    p <- p + theme(legend.position = "top", legend.box = "horizontal")
+  } else {
+    p <- p + theme(legend.position = "none")
+  }
+  p
+}
+
+parms_wingier <- load_direction("Mixed - Wingier")
+parms_fatter  <- load_direction("Mixed - Fatter")
+
+n_mixed_wingier <- n_distinct(parms_wingier$species)
+n_mixed_fatter  <- n_distinct(parms_fatter$species)
+
+fig_cap_mixed <- glue::glue("Estimated effect of the environmental gradient on relative wing length across three empirical datasets (Nightjars — red labels; North American migrants — blue labels; Atlantic Forest birds — green labels): (a) Mixed - Wingier species (wing length increasing while body mass decreased; $n$ = {n_mixed_wingier}) and (b) Mixed - Fatter species (wing length decreasing while body mass increased; $n$ = {n_mixed_fatter}). Only species with a significant ($p < 0.05$) mass or wing response are shown. Points are mean parameter estimates; error bars are 95% confidence intervals.")
 ```
 
 ```{r}
 #| label: fig-mixed-wingier
-#| fig-cap: "Estimated effect of the environmental gradient on relative wing length for Mixed - Wingier species (wing length increasing while body mass decreased) across three empirical datasets (Nightjars — red labels; North American migrants — blue labels; Atlantic Forest birds — green labels). Only species with a significant ($p < 0.05$) mass or wing response are shown. Points are mean parameter estimates; error bars are 95% confidence intervals."
+#| fig-cap: !expr fig_cap_mixed
 #| fig-width: 8
 #| fig-height: 6
 #| fig-pos: 'H'
 
-parms_all %>%
-  mutate(species = factor(species, levels = species_levels)) %>%
-  ggplot(aes(x = species, y = estimate, color = Approach,
-             group = interaction(species, Approach))) +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  geom_errorbar(aes(ymin = LCI95, ymax = UCI95),
-                alpha = 0.8, width = 0,
-                position = position_dodge(width = 0.75)) +
-  geom_point(aes(shape = Sig_trait), size = 1.5,
-             position = position_dodge(width = 0.75)) +
-  scale_color_hue(labels = approach_labs) +
-  scale_shape_manual(values = shape_scale, drop = FALSE) +
-  labs(x = NULL, y = expression(beta ~ "on wing shape"), color = NULL, shape = NULL) +
-  theme(
-    axis.text.x  = element_text(angle = 60, hjust = 1, size = 8, color = axis_colors),
-    legend.position = "top"
-  )
+p_wingier <- build_mixed_plot(parms_wingier)
+p_fatter  <- build_mixed_plot(parms_fatter)
+shared_legend_mixed <- ggpubr::get_legend(build_mixed_plot(parms_wingier, show_legend = TRUE))
+
+mixed_panels <- plot_grid(p_wingier, p_fatter, labels = c("a", "b"), label_size = 10,
+                           ncol = 2, rel_widths = c(14, 1))
+plot_grid(shared_legend_mixed, mixed_panels, ncol = 1, rel_heights = c(0.08, 1))
 ```
 
-Across `r n_mixed_wingier` Mixed - Wingier species, the rank-order pattern among methods is visibly more variable than for Bergmann's or Inverse Bergmann's species (main text Empirical case studies section), consistent with the absence of a clear rank-order signal in the analogous simulated scenarios (main text, Simulation performance).
+Across `r n_mixed_wingier` Mixed - Wingier species (panel a), the rank-order pattern among methods is visibly more variable than for Bergmann's or Inverse Bergmann's species (main text Empirical case studies section), consistent with the absence of a clear rank-order signal in the analogous simulated scenarios (main text, Simulation performance). The single Mixed - Fatter species (panel b) is shown for completeness; with only one species, no rank-order pattern can be assessed.
 
 # Stable empirical species
 
@@ -225,11 +249,13 @@ species_meta_stable <- parms_stable %>%
 species_levels_stable <- species_meta_stable$species
 axis_colors_stable     <- study_colors[as.character(species_meta_stable$Study)]
 n_stable                <- n_distinct(parms_stable$species)
+
+fig_cap_stable <- glue::glue("Estimated effect of the environmental gradient on relative wing length for Stable species (no significant change in mass or wing length) across three empirical datasets (Nightjars — red labels; North American migrants — blue labels; Atlantic Forest birds — green labels); $n$ = {n_stable} species. Points are mean parameter estimates; error bars are 95% confidence intervals. Because neither trait changed significantly, these species have no true directional shape signal to recover, and the six methods are not expected to agree on rank order.")
 ```
 
 ```{r}
 #| label: fig-stable
-#| fig-cap: "Estimated effect of the environmental gradient on relative wing length for Stable species (no significant change in mass or wing length) across three empirical datasets (Nightjars — red labels; North American migrants — blue labels; Atlantic Forest birds — green labels). Points are mean parameter estimates; error bars are 95% confidence intervals. Because neither trait changed significantly, these species have no true directional shape signal to recover, and the six methods are not expected to agree on rank order."
+#| fig-cap: !expr fig_cap_stable
 #| fig-width: 8
 #| fig-height: 6
 #| fig-pos: 'H'
