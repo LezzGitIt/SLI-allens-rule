@@ -16,6 +16,10 @@ Scripts/qmd/*.spl
 Scripts/qmd/*.cls
 Scripts/qmd/*.bst
 
+# Not needed to reproduce the render (Quarto reinstalls this extension via
+# `quarto add quarto-journals/elsevier`; kept locally, just not tracked)
+_extensions/quarto-journals/elsevier/
+
 # macOS
 .DS_Store
 
