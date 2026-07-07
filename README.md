@@ -29,9 +29,10 @@ _extensions/                    # Quarto elsevier journal-format extension (need
 Data/                           # Raw data (not version-controlled; see below)
 Derived/                        # Script outputs (recreatable; not tracked)
 Figures/                        # Saved plots (recreatable; not tracked)
+Rendered/                       # Final rendered PDFs, flat (recreatable; not tracked)
 ```
 
-Manuscript `.qmd` files live in `Scripts/qmd/`, separate from the analysis `.R` scripts, so that Quarto's per-render byproducts don't clutter `Scripts/`. `_quarto.yml`, `_extensions/`, and `Suppfiles/` are tracked because they're required to reproduce the exact PDF output — not just the analysis code.
+Manuscript `.qmd` files live in `Scripts/qmd/`, separate from the analysis `.R` scripts, so that Quarto's per-render byproducts don't clutter `Scripts/`. `_quarto.yml`, `_extensions/`, and `Suppfiles/` are tracked because they're required to reproduce the exact PDF output — not just the analysis code. The final PDFs land flat in `Rendered/<file>.pdf` — a `post-render` hook copies them there after each render, and a `pre-render` hook cleans up the nested copy Quarto itself creates (see `CLAUDE.md` for why it's a two-step copy-then-clean rather than a single move).
 
 ## Reproducing the analysis
 
