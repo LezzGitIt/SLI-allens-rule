@@ -3,7 +3,9 @@
 project:
   type: default
   execute-dir: project
-  output-dir: Derived/
+  output-dir: Rendered/
+  pre-render: ../../Rcookbook/clean_stale_render_output.R
+  post-render: ../../Rcookbook/flatten_rendered_pdf.R
 format: 
   pdf: 
     header-includes:
