@@ -20,6 +20,10 @@ Scripts/qmd/*.bst
 # `quarto add quarto-journals/elsevier`; kept locally, just not tracked)
 _extensions/quarto-journals/elsevier/
 
+# Elsevier style-guide reference/example material, not used by any script or
+# _quarto.yml (kept locally, just not tracked)
+Suppfiles/style-guide/
+
 # macOS
 .DS_Store
 
