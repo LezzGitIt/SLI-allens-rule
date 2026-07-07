@@ -61,6 +61,23 @@ Lr_stack2 <- Lr_stack %>%
   left_join(Lr_per2 %>% distinct(class, approach_label, approach_facet),
             by = c("class", "approach_label"))
 
+## Pooled (both classes combined) approach-usage percentages -- used for the
+## single combined lit-review figure/panel and for the overall "most common
+## approach" ranking cited inline in Materials and Methods.
+Lr_per_pooled <- Lr_pivot %>%
+  summarize(num_studies = n(), .by = approach) %>%
+  mutate(Tot_studies = sum(num_studies),
+         Per = round(100 * num_studies / Tot_studies, 0),
+         approach_label = str_to_sentence(approach),
+         approach_label = str_replace_all(approach_label, "_", "\n"),
+         approach_label = fct_reorder(approach_label, num_studies, .desc = TRUE)) %>%
+  arrange(desc(Per))
+
+Lr_stack_pooled <- Lr_pivot %>%
+  arrange(approach, study) %>%
+  mutate(ypos = row_number(), .by = approach) %>%
+  left_join(Lr_per_pooled %>% distinct(approach, approach_label), by = "approach")
+
 # Body size control  --------------------------------------------------------
 # 46 approaches across 36 studies
 Lr %>% filter(approach_raw_values == "P") %>%
@@ -77,12 +94,7 @@ Body_size_control_studies <- Lr_pivot %>%
 Mass_control_tbl <- Body_size_control_studies %>%
   mutate(Mass_control = str_detect(body_size_control, regex("mass", ignore_case = TRUE))) %>%
   tabyl(Mass_control)
-
-Body_size_control_studies 
-
-Lr_pivot %>%
-  filter(approach != "raw_values") %>% 
-  filter(is.na(body_size_control))
+Mass_control_tbl 
 
 ## 2) Overall trait distribution pooled across studies
 # Format by splitting multi-control entries by comma, standardize whitespace/capitalization, then classify each individual mention into Mass / Linear / Other.
@@ -106,30 +118,30 @@ Trait_group_tbl <- Body_size_control_traits %>% tabyl(control_group)
 Trait_group_tbl 
 
 # Figure ------------------------------------------------------------------
-# Produce lit review figure
+# Produce lit review figure: approaches pooled across classes into a single
+# panel, with point shape distinguishing Aves from Mammalia (replaces the
+# previous two-panel per-class facet).
 fig_lit_review <- ggplot() +
-  geom_col(data = Lr_per2,
-           aes(x = approach_facet, y = num_studies),
+  geom_col(data = Lr_per_pooled,
+           aes(x = approach_label, y = num_studies),
            fill = "grey85", color = "black") +
-  geom_point(data = Lr_stack2,
-             aes(x = approach_facet, y = ypos, color = study),
+  geom_point(data = Lr_stack_pooled,
+             aes(x = approach_label, y = ypos, color = study, shape = class),
              alpha = 0.7, size = 3) +
-  geom_line(data = Lr_stack2,
-            aes(x = approach_facet, y = ypos, group = study, color = study),
+  geom_line(data = Lr_stack_pooled,
+            aes(x = approach_label, y = ypos, group = study, color = study),
             alpha = 0.75) +
-  geom_text(data = Lr_per2,
-            aes(x = approach_facet, y = num_studies, label = Per),
+  geom_text(data = Lr_per_pooled,
+            aes(x = approach_label, y = num_studies, label = paste0(Per, "%")),
             vjust = -0.7, size = 4.5) +
-  facet_wrap(~class, scales = "free_x",
-             labeller = labeller(.default = label_value)) +
-  scale_x_discrete(labels = function(x) sub(".*___", "", x)) +
-  theme(axis.text.x = element_text(size = 9, vjust = 0.58, angle = 55),
-        legend.position = "none") +
-  labs(x = NULL, y = "Number of studies")
+  guides(color = "none") +
+  theme(axis.text.x = element_text(size = 10, vjust = 0.58, angle = 45),
+        legend.position = "top") +
+  labs(x = NULL, y = "Number of studies", shape = "Class")
 fig_lit_review
 
 ggsave("Figures/lit_review.png", fig_lit_review, bg = "white",
-       width = 9, height = 6.5, units = "in", dpi = 300)
+       width = 7, height = 6, units = "in", dpi = 300)
 
 # Export ---------------------------------------------------------------------
 dir.create("Derived/Rds", showWarnings = FALSE)
@@ -138,7 +150,10 @@ saveRDS(
     Unclear_exclude = Unclear_exclude,
     Lit_review = Lit_review,
     Lr = Lr,
-    Lr_per = Lr_per
-  ),
-  "Derived/Rds/lit_review_results.rds"
+    Lr_pivot = Lr_pivot,
+    Lr_per = Lr_per,
+    Lr_per_pooled = Lr_per_pooled,
+    Mass_control_tbl = Mass_control_tbl
+  ), 
+  file = "Derived/Rds/lit_review_results.rds"
 )
