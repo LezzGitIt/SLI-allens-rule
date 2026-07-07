@@ -1,6 +1,7 @@
 # Derived outputs
 Derived/
 Figures/
+Rendered/
 
 # Quarto build artifacts (scoped to Scripts/qmd/ so this never shadows real
 # source files elsewhere, e.g. Suppfiles/title.tex or _extensions/**/*.cls|*.bst)
