@@ -151,7 +151,18 @@ extract_coefs <- function(Sim_df_s, coefs) {
     coef_ratio         = coef(ratio_app)["Temp_inc"],
     coef_ratio2        = coef(ratio2_app)["Temp_inc"],
     est_b_sma          = coefs$est_b_sma,
-    est_b_ols          = coefs$est_b_ols
+    est_b_ols          = coefs$est_b_ols,
+    # Per-species Pearson correlation between each method's individual-level
+    # metric and body mass (@fig-mass-cor-sim in supplementary_info.qmd),
+    # confirming in simulated data the mechanical ratio/mass dependence shown
+    # empirically in the main text (@tbl-ratio-mass-summary). Mass-as-covariate
+    # is excluded: it has no individual-level shape metric to correlate, only
+    # a model coefficient.
+    cor_ratio          = as.numeric(cor(Sim_df_s$Mass_log, Sim_df_s$Append_mass)),
+    cor_ratio2         = as.numeric(cor(Sim_df_s$Mass_log, Sim_df_s$Append2_mass)),
+    cor_ols_resid      = as.numeric(cor(Sim_df_s$Mass_log, Sim_df_s$resid_ols)),
+    cor_sli_iso        = as.numeric(cor(Sim_df_s$Mass_log, Sim_df_s$sli_isometry)),
+    cor_sli_est        = as.numeric(cor(Sim_df_s$Mass_log, Sim_df_s$sli_estimated))
   )
 }
 
@@ -181,6 +192,18 @@ Parms_tbl4 <- Parms_tbl3 %>%
   ) %>%
   mutate(
     Model = str_remove_all(Model, "coef_|_app"),
+    Model = str_to_sentence(Model)
+  )
+
+# Per-species correlation between each method's metric and body mass ---------
+Mass_cor_tbl <- Parms_tbl3 %>%
+  pivot_longer(
+    cols = c(cor_ratio, cor_ratio2, cor_ols_resid, cor_sli_iso, cor_sli_est),
+    names_to  = "Model",
+    values_to = "r_mass"
+  ) %>%
+  mutate(
+    Model = str_remove_all(Model, "cor_"),
     Model = str_to_sentence(Model)
   )
 
@@ -290,6 +313,7 @@ saveRDS(
     Sim_fail      = Sim_fail,
     Parms_tbl3    = Parms_tbl3,
     Parms_tbl4    = Parms_tbl4,
+    Mass_cor_tbl  = Mass_cor_tbl,
     x_labs        = x_labs,
 
     # Evaluation tables
