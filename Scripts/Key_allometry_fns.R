@@ -1,10 +1,12 @@
 ## Relative appendage length key functions script
 
 ### Migration to the sliR package is in progress. Functions ported to sliR keep their original names, arguments and output columns here, so no call site changes; their bodies are thin wrappers. Everything not in sliR (format_temp, rm_outliers, run_sma_mod, format_sma_parms, gen_ex_data, calc_lambda, classify_direction) stays a local helper.
-# Migrated so far: gen_data() [-> sliR::sim_allometric()], gen_cov_mat() [-> sliR::build_cov_mat()]
+# Migrated so far: gen_data() [-> sliR::sim_allometric()], gen_cov_mat() [-> sliR::build_cov_mat()], gen_cor_vars() [-> sliR::sim_correlated()]
+# Still to migrate: calc_sli(), build_sli_slopes_tbl(), build_group_cor_tbl()
 # remotes::install_github("LezzGitIt/sliR")
 
 # Load required libraries
+# MASS is no longer used by this file, but is left attached because supplementary_info.qmd sources this script without loading MASS itself; dropping it here would change that document's search path.
 library(MASS)
 library(tidyverse)
 library(sliR)
@@ -233,29 +235,25 @@ calc_lambda <- function(x, y){
 } 
 
 ## Generate correlated mass and wing data
-# Helpful for playing around to see how slopes vary with different relationships of mass and wing 
+# Helpful for playing around to see how slopes vary with different relationships of mass and wing
 # var1 = appendage, mass = mass
-gen_cor_vars <- function(r_12, mu_append, mu_mass, sd_append, sd_mass, transient_error_append, transient_error_mass, meas_error){
-  cov_12 <- r_12 * sd_append * sd_mass
-  var_cov <- matrix(c(
-    sd_append^2, cov_12,
-    cov_12, sd_mass^2
-  ), nrow = 2)
-  
-  df <- MASS::mvrnorm(n = 3000, mu = c(mu_append, mu_mass), Sigma = var_cov, empirical = TRUE)
-  colnames(df) <- c("Appendage", "Mass")
-  
-  meas_error_mass <- rnorm(3000, 0, sd = sd_mass * meas_error)
-  meas_error_append <- rnorm(3000, 0, sd = sd_append * meas_error)
-  # Transient fluctuation (biological error) to mass
-  transient_error_mass <- rnorm(3000, 0, sd = sd_mass * transient_error_mass)
-  transient_error_append <- rnorm(3000, 0, sd = sd_append * transient_error_append)
-  
-  df <- as_tibble(df) %>% mutate(
-     Mass = Mass + meas_error_mass + transient_error_mass,
-     Appendage = Appendage + meas_error_append + transient_error_append
-  )
-  return(df)
+### Now a thin wrapper over sliR::sim_correlated(). Raw scale, no log transform and no allometric target, so it is the counterpart to gen_data() for building intuition about how a fitted slope responds to correlation and to error on one trait but not the other.
+# sliR names the appendage column Append; rename it back to Appendage so existing call sites are unaffected. n was hardcoded at 3000 and is now an argument, defaulting to that.
+gen_cor_vars <- function(r_12, mu_append, mu_mass, sd_append, sd_mass,
+                         transient_error_append, transient_error_mass, meas_error,
+                         n = 3000) {
+  sliR::sim_correlated(
+    n         = n,
+    r         = r_12,
+    mu_append = mu_append,
+    mu_mass   = mu_mass,
+    sd_append = sd_append,
+    sd_mass   = sd_mass,
+    meas_error             = meas_error,
+    transient_error_append = transient_error_append,
+    transient_error_mass   = transient_error_mass
+  ) %>%
+    dplyr::rename(Appendage = Append)
 }
 
 # Classify shapeshifting direction (Bergmann's, Inverse Bergmann's, Mixed, Stable)
