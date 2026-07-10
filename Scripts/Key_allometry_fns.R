@@ -10,6 +10,12 @@ library(MASS)
 library(tidyverse)
 library(sliR)
 
+### The wrappers below were validated for statistical equivalence against sliR 0.1.0. Fail loudly if an older sliR is installed, so a stale package cannot silently change manuscript results. Install/update with: remotes::install_github("LezzGitIt/sliR@v0.1.0").
+stopifnot(
+  "sliR (>= 0.1.0) is required; install with remotes::install_github('LezzGitIt/sliR@v0.1.0')" =
+    utils::packageVersion("sliR") >= "0.1.0"
+)
+
 # Creation of temperature bins for plotting and examination of scaling intercepts
 format_temp <- function(df){
   df %>% mutate(
