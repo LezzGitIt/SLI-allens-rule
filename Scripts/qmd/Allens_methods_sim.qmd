@@ -213,6 +213,8 @@ Ex_parms <- Parms_mat3 %>%
 #| label: ex-parms-temp-body-shape
 #| include: false
 
+## gen_ex_data() draws new individuals on every render. Seed each call site separately so a chunk's output does not depend on how much RNG the chunks above it happened to consume.
+set.seed(20260709)
 Ex_df_ex <- gen_ex_data(Ex_parms)
 
 Temp_eff_vec <- setNames(c("Fatter", "Longer"), c("Fatter", "Longer"))
@@ -696,6 +698,7 @@ Ex_parms_hypo_hyper <- Parms_mat3 %>%
   filter(Scaling != "Isometry" & Temp_eff == "Longer" & r_12 == r_12[1]) %>%
   slice_max(n = 1, order_by = Strength, by = c(Temp_eff, Scaling), with_ties = FALSE)
 
+set.seed(20260710)
 Ex_df_hypo_hyper <- gen_ex_data(Ex_parms_hypo_hyper) %>%
   filter(Scaling == "Hyperallometry") %>%
   mutate(Temp_inc = Temp_inc / 3)

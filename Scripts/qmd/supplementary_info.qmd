@@ -79,6 +79,8 @@ vary_scaling_parms <- Parms_mat3 %>%
   slice_max(n = 1, order_by = tibble(Strength),
             by = c(Scaling, r_12), with_ties = FALSE)
 
+## gen_ex_data() draws new individuals on every render; seed it so the figure is reproducible.
+set.seed(20260711)
 vary_scaling_tbl <- gen_ex_data(vary_scaling_parms) %>%
   mutate(Temp_inc = Temp_inc / 3,
          Scaling  = factor(Scaling, levels = c("Hypoallometry", "Isometry", "Hyperallometry")),
