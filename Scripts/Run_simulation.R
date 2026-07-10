@@ -2,8 +2,9 @@
 ## Allens_methods_sim.qmd and supplementary_info.qmd to Derived/Rds/simulation_results.rds.
 ##
 ## Run this script (source() or Rscript) any time the parameter grid, sample
-## size, or evaluation logic changes. Both downstream .qmd files just read the
-## .rds and no longer regenerate the simulation themselves.
+## size, or evaluation logic changes. The downstream .qmd files read the .rds
+## for every simulation-derived statistic they quote; they do still call
+## gen_ex_data() to redraw the small illustrative example figures.
 
 suppressPackageStartupMessages({
   library(tidyverse)
@@ -81,6 +82,11 @@ N_spp <- nrow(Parms_mat3)
 # Generate data ---------------------------------------------------------------
 Cols <- Parms_mat3 %>% dplyr::select(starts_with(c("b_", "r_")))
 N <- as.numeric(str_remove(N_ind, ","))
+
+### gen_data() draws fresh individuals per species, and gen_cov_mat(vary_sd = TRUE) redraws each species' sd_log_morph from Uniform(0.05, 0.09), so this script produced different results on every run. Seed it so simulation_results.rds is reproducible from source.
+# Regenerating the .rds will change every simulation-derived number the manuscript quotes, once. After that they are fixed.
+set.seed(20260712)
+
 df_morph_l <- pmap(Cols, \(...) gen_data(..., n = N, meas_error = 0,
                                          transient_error_mass = 0,
                                          transient_error_append = 0))

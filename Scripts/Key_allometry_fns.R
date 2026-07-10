@@ -1,12 +1,11 @@
 ## Relative appendage length key functions script
 
 ### Migration to the sliR package is in progress. Functions ported to sliR keep their original names, arguments and output columns here, so no call site changes; their bodies are thin wrappers. Everything not in sliR (format_temp, rm_outliers, run_sma_mod, format_sma_parms, gen_ex_data, calc_lambda, classify_direction) stays a local helper.
-# Migrated so far: gen_data()  [-> sliR::sim_allometric()]
+# Migrated so far: gen_data() [-> sliR::sim_allometric()], gen_cov_mat() [-> sliR::build_cov_mat()]
 # remotes::install_github("LezzGitIt/sliR")
 
 # Load required libraries
 library(MASS)
-library(MBESS) # cor2cov function
 library(tidyverse)
 library(sliR)
 
@@ -68,42 +67,31 @@ gen_data <- function(n = 3000,
   format_temp(sim)
 }
 
-## Generate the variance-covariance matrix (on the log scale) that goes into gen_data function
-# vary_sd: vary_sd argument = TRUE allows specification of standard deviation of either mass or appendage from a uniform distribution 
-# vary: Given the standard deviations covary together, the vary argument allows the generated sd_log_morph to be assigned to either mass or appendage, and then the unknown standard deviation is solved for algebraically 
+## Generate the variance-covariance matrix (on the log scale), for log(appendage), log(mass) and temperature
+### Now a thin wrapper over sliR::build_cov_mat(). The allometry has two degrees of freedom, so b_avg_12 and r_12 together pin both slopes, and one standard deviation then fixes the scale; sliR solves for the other. Output is an unnamed 3x3 matrix, as before.
+# vary: which morphological trait sd_log_morph refers to. The two standard deviations covary, so naming one solves for the other.
+# vary_sd: TRUE draws sd_log_morph from Uniform(0.05, 0.09) and ignores whatever was passed. Kept for backwards compatibility. It affects raw-scale dispersion and skew only: the log-scale slopes and correlations are invariant to it.
 gen_cov_mat <- function(b_avg_12 = 0.33,
                         r_12 = 0.3, r_13 = -0.1, r_23 = -0.1,
                         vary = c("mass", "append"),
                         sd_log_morph = .07,
                         vary_sd = TRUE,
                         sd_temp = 0.18) {
-    
-    if(vary_sd == TRUE){
-      sd_log_morph <- runif(1, 0.05, 0.09)
-    }
-  
+
   vary <- match.arg(vary)
-  
-  # Compute b_OLS
-  b_ols <- (2 * b_avg_12 * r_12) / (r_12 + 1)
-  
-  if (vary == "mass") {
-    sd_log_mass <- sd_log_morph
-    sd_log_append <- abs(b_ols / r_12 * sd_log_mass)
-  } else {
-    sd_log_append <- sd_log_morph
-    sd_log_mass <- abs(r_12 / b_ols * sd_log_append)
-  }
-  
-  sds <- c(sd_log_append, sd_log_mass, sd_temp)
-  
-  R <- matrix(c(
-    1,     r_12,  r_13,
-    r_12,  1,     r_23,
-    r_13,  r_23,  1
-  ), nrow = 3, byrow = TRUE)
-  
-  MBESS::cor2cov(cor.mat = R, sd = sds)
+  if (vary_sd) sd_log_morph <- runif(1, 0.05, 0.09)
+
+  sd_arg <- if (vary == "mass") list(sd_log_mass = sd_log_morph) else list(sd_log_append = sd_log_morph)
+
+  Sigma <- do.call(sliR::build_cov_mat, c(
+    list(b_avg = b_avg_12, r_app_mass = r_12,
+         gradient = "Temp", r_grad_app = r_13, r_grad_mass = r_23),
+    sd_arg
+  ))
+
+  ## build_cov_mat() always places the gradient at unit SD, because it describes a correlation structure rather than temperature's units. Rescale that block to sd_temp.
+  scale_temp <- diag(c(1, 1, sd_temp))
+  unname(scale_temp %*% Sigma %*% scale_temp)
 }
 
 
