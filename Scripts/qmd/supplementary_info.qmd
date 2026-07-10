@@ -94,6 +94,59 @@ vary_scaling_tbl %>%
   labs(x = "Log(mass)", y = "Log(appendage)", color = "Temperature\nincrease")
 ```
 
+# Correlation between relative appendage length metrics and body mass
+
+The main text attributes the ratio methods' upward bias under Bergmann's rule to a mechanical correlation between the ratio metric and body mass, a pattern confirmed empirically across three datasets (main text, ratio/mass correlation table). Here I extend that check to the simulated data and to all five methods that produce an individual-level shape metric; mass-as-covariate is excluded because it returns only a regression coefficient, not an index that can be correlated with mass.
+
+```{r}
+#| label: mass-cor-sim-stats
+#| include: false
+
+n_sim_species_cor <- nrow(Parms_tbl3)
+
+Mass_cor_summary <- Mass_cor_tbl %>%
+  summarize(Mean_r = mean(r_mass), Min_r = min(r_mass), Max_r = max(r_mass), .by = Model) %>%
+  mutate(across(c(Mean_r, Min_r, Max_r), \(x) round(x, 2)))
+
+pull_mass_cor <- function(model, stat) {
+  Mass_cor_summary %>% filter(Model == model) %>% pull({{ stat }})
+}
+
+mean_r_ratio     <- pull_mass_cor("Ratio",     Mean_r)
+range_r_ratio    <- paste(pull_mass_cor("Ratio", Min_r), "to", pull_mass_cor("Ratio", Max_r))
+mean_r_ratio2    <- pull_mass_cor("Ratio2",    Mean_r)
+range_r_ratio2   <- paste(pull_mass_cor("Ratio2", Min_r), "to", pull_mass_cor("Ratio2", Max_r))
+mean_r_sli_iso   <- pull_mass_cor("Sli_iso",   Mean_r)
+range_r_sli_iso  <- paste(pull_mass_cor("Sli_iso", Min_r), "to", pull_mass_cor("Sli_iso", Max_r))
+mean_r_sli_est   <- pull_mass_cor("Sli_est",   Mean_r)
+range_r_sli_est  <- paste(pull_mass_cor("Sli_est", Min_r), "to", pull_mass_cor("Sli_est", Max_r))
+max_abs_r_ols    <- Mass_cor_tbl %>% filter(Model == "Ols_resid") %>% pull(r_mass) %>% abs() %>% max() %>% signif(2)
+
+fig_cap_mass_cor <- glue::glue("Per-species Pearson correlation between body mass and each method's individual-level relative appendage length metric, across all {n_sim_species_cor} simulated species. Mass-as-covariate is excluded because it produces only a model coefficient, not an individual-level index. Point colour shows the underlying appendage-mass correlation ($\\rho_{{12}}$) used to simulate each species.")
+```
+
+```{r}
+#| label: fig-mass-cor-sim
+#| fig-cap: !expr fig_cap_mass_cor
+#| fig-width: 8
+#| fig-height: 5
+#| fig-pos: 'H'
+
+Mass_cor_tbl %>%
+  mutate(r_12  = as_factor(r_12),
+         Model = str_replace_all(Model, x_labs),
+         Model = factor(Model, levels = c("Appendage / mass", "Appendage² / mass",
+                                           "OLS residuals", "SLI isometry", "SLI estimated"))) %>%
+  ggplot(aes(x = Model, y = r_mass)) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(width = 0.15, alpha = 0.5, aes(color = r_12, shape = Scaling)) +
+  labs(x = NULL, y = "Correlation with body mass", color = expression(rho[12])) +
+  theme(axis.text.x = element_text(size = 10, vjust = .58, angle = 30))
+```
+
+The simulated data reproduce the empirical pattern and clarify its mechanism. **OLS residuals** showed correlations with mass of essentially zero in every simulated species (maximum $|r|$ = `r max_abs_r_ols`) — not because residual regression is unbiased, but because least-squares residuals are mathematically orthogonal to the predictor by construction; a correlation of zero here reflects a property of the algebra, not evidence that the method isolates a true shape signal. **Ratio** ($A/S$) showed the strongest correlation with mass (mean $r$ = `r mean_r_ratio`, range `r range_r_ratio`), confirming the mechanical dependence responsible for its bias under Bergmann's rule (main text). **Ratio2** ($A^2/S$) was weaker but still consistently negative (mean $r$ = `r mean_r_ratio2`, range `r range_r_ratio2`), consistent with the partial correction from squaring the appendage term. **SLI-isometry** (mean $r$ = `r mean_r_sli_iso`, range `r range_r_sli_iso`) and **SLI-estimated** (mean $r$ = `r mean_r_sli_est`, range `r range_r_sli_est`) fell between the ratio and OLS-residual extremes: weaker than either ratio metric, but — unlike OLS residuals — not exactly zero. This is expected, since SLI standardizes appendage length using a fixed or estimated allometric exponent rather than an OLS-fitted line, so it is not mathematically guaranteed to be orthogonal to mass unless that exponent happens to equal the OLS slope. SLI's good directional-accuracy performance (main text, Simulation performance) therefore does not depend on being perfectly uncorrelated with mass, but on using an exponent that better approximates the true allometric relationship than either the ratio's implicit exponent or OLS's attenuated slope.
+
 # Proportionally larger scenario: simulated analogue of Inverse Bergmann's responses
 
 The main text simulation compares six methods for estimating relative appendage length across three realizations of Bergmann's rule (Fatter, Proportionally smaller, Longer), in which body mass never increases with warming. Here I additionally simulated a **Proportionally larger** scenario — the mirror image of Proportionally smaller, in which temperature increases wing length and body mass by equal amounts rather than decreasing both ($b \in \{0.22, 0.33, 0.44\}$, $\rho_{12} \in \{0.3, 0.45, 0.6\}$, $\rho_{13} = \rho_{23} \in \{0.15, 0.3, 0.5, 0.7\}$; 36 simulated species). Because both traits increase equally, there is no true shape signal in this scenario — an unbiased method should classify roughly half of Proportionally larger species as becoming relatively longer, matching the observed baseline of `r Bigger_longer_pct`%. This scenario is the simulated analogue of empirically observed **Inverse Bergmann's** responses (main text classification table), in which mass, wing length, or both increase with warming.
@@ -196,7 +249,7 @@ parms_fatter  <- load_direction("Mixed - Fatter")
 n_mixed_wingier <- n_distinct(parms_wingier$species)
 n_mixed_fatter  <- n_distinct(parms_fatter$species)
 
-fig_cap_mixed <- glue::glue("Estimated effect of the environmental gradient on relative wing length across three empirical datasets (Nightjars — red labels; North American migrants — blue labels; Atlantic Forest birds — green labels): (a) Mixed - Wingier species (wing length increasing while body mass decreased; $n$ = {n_mixed_wingier}) and (b) Mixed - Fatter species (wing length decreasing while body mass increased; $n$ = {n_mixed_fatter}). Only species with a significant ($p < 0.05$) mass or wing response are shown. Points are mean parameter estimates; error bars are 95% confidence intervals.")
+fig_cap_mixed <- glue::glue("Estimated effect of the environmental gradient on relative wing length across three empirical datasets (Nightjars — red labels; North American migratory birds — blue labels; Atlantic Forest birds — green labels): (a) Mixed - Wingier species (wing length increasing while body mass decreased; $n$ = {n_mixed_wingier}) and (b) Mixed - Fatter species (wing length decreasing while body mass increased; $n$ = {n_mixed_fatter}). Only species with a significant ($p < 0.05$) mass or wing response are shown. Points are mean parameter estimates; error bars are 95% confidence intervals.")
 ```
 
 ```{r}
@@ -250,7 +303,7 @@ species_levels_stable <- species_meta_stable$species
 axis_colors_stable     <- study_colors[as.character(species_meta_stable$Study)]
 n_stable                <- n_distinct(parms_stable$species)
 
-fig_cap_stable <- glue::glue("Estimated effect of the environmental gradient on relative wing length for Stable species (no significant change in mass or wing length) across three empirical datasets (Nightjars — red labels; North American migrants — blue labels; Atlantic Forest birds — green labels); $n$ = {n_stable} species. Points are mean parameter estimates; error bars are 95% confidence intervals. Because neither trait changed significantly, these species have no true directional shape signal to recover, and the six methods are not expected to agree on rank order.")
+fig_cap_stable <- glue::glue("Estimated effect of the environmental gradient on relative wing length for Stable species (no significant change in mass or wing length) across three empirical datasets (Nightjars — red labels; North American migratory birds — blue labels; Atlantic Forest birds — green labels); $n$ = {n_stable} species. Points are mean parameter estimates; error bars are 95% confidence intervals. Because neither trait changed significantly, these species have no true directional shape signal to recover, and the six methods are not expected to agree on rank order.")
 ```
 
 ```{r}
@@ -280,3 +333,9 @@ parms_stable %>%
 ```
 
 Across `r n_stable` Stable species, estimates cluster closer to zero than in the directional categories, as expected, though the six methods still disagree in both magnitude and, occasionally, sign — underscoring that even a "null" result can look different depending on the method used.
+
+# EXTRAS - delete
+
+These classical approaches share a critical assumption: that body size is measured without error. This is the operating assumption of ordinary least squares regression and is retained in most implementations of multiple regression, maximum likelihood, and Bayesian models unless the model is explicitly formulated otherwise. In practice, this assumption is nearly always violated. Mass — the most commonly used body size proxy — reflects structural body size but also transient biological variation such as gut fill, hydration state, and reproductive condition. Instrument and observer error introduce additional noise. When predictor variables are measured with error, OLS slope estimates are attenuated toward zero — a bias that grows as the correlation between the predictor and response weakens [@wartonBivariateLinefittingMethods2006; @greenMassLengthResiduals2001]. By ignoring this attenuation, classical regression approaches underestimate the allometric relationship between mass and appendage length, which propagates as bias into downstream estimates of temperature's effect on shape.
+
+For instance, @rydingMultipleRegressionNot2025 found that multiple regression was unbiased in their simulation study, which targeted a different causal structure. These findings are therefore not contradictory, but instead reflect sensitivity to differing assumptions about the underlying causal system.
