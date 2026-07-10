@@ -168,18 +168,18 @@ build_group_cor_tbl <- function(df, Append, Mass = Mass, control,
 # Mass argument is NSE (default = Mass) for compatibility with lowercase column names.
 ### Now a thin wrapper over sliR::calc_sli(). The old implementation ended with arrange(desc(sli)), reordering the caller's rows as a side effect. That sort was verified to change nothing: Run_simulation.R's 30 exported objects and all 115 data objects across Nightjar_shape.R, Weeks_2020_ral.R and Atlantic_birds_shape.R are identical with and without it. sliR preserves input row order, so the sort is gone.
 # rename_col: sliR uses NULL for "leave the column named sli"; the FALSE sentinel is translated here so call sites are unaffected.
-# b_sli is deliberately not forwarded when control is supplied. sliR warns that b_sli is ignored in that case, which is true and was equally true of the old code, but the call sites in Nightjar_shape.R and Weeks_2020_ral.R pass both. Not forwarding it reproduces the old silent behaviour.
+# b_sli is forwarded only when the caller actually supplied it, so that passing both b_sli and control raises sliR's "b_sli is ignored" warning rather than silently discarding one of them. Call sites branch on length(covs) instead of passing both.
 calc_sli <- function(df, Append = Append, Mass = Mass, b_sli = 0.33,
                      rename_col = FALSE, control = NULL) {
   app_q  <- rlang::enquo(Append)
   mass_q <- rlang::enquo(Mass)
   if (isFALSE(rename_col)) rename_col <- NULL
 
-  if (is.null(control)) {
+  if (missing(b_sli)) {
     sliR::calc_sli(df, Append = !!app_q, Mass = !!mass_q,
-                   b_sli = b_sli, rename_col = rename_col, sort = FALSE)
+                   control = control, rename_col = rename_col, sort = FALSE)
   } else {
-    sliR::calc_sli(df, Append = !!app_q, Mass = !!mass_q,
+    sliR::calc_sli(df, Append = !!app_q, Mass = !!mass_q, b_sli = b_sli,
                    control = control, rename_col = rename_col, sort = FALSE)
   }
 }

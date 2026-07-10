@@ -177,10 +177,14 @@ nj_df_l2 <- imap(nj_df_analysis_l, \(df, sp) {
     mutate(resid_ols = log_wing - predict(ols_mod, newdata = df),
            resid_sma = residuals(sma_mod))
 
-  df %>%
-    calc_sli(b_sli = 0.33, Append = Wing, rename_col = "sli_isometry") %>%
-    calc_sli(Append = Wing, control = if (length(covs)) covs else NULL,
-             b_sli = est_b_sma, rename_col = "sli_estimated")
+  ## Estimated SLI: per-group SMA slopes when this species has valid covariates, otherwise the species-wide SMA slope. Kept as separate calls because calc_sli() ignores b_sli whenever control is supplied, so passing both would silently discard one of them.
+  df_iso <- df %>% calc_sli(b_sli = 0.33, Append = Wing, rename_col = "sli_isometry")
+
+  if (length(covs)) {
+    calc_sli(df_iso, Append = Wing, control = covs, rename_col = "sli_estimated")
+  } else {
+    calc_sli(df_iso, Append = Wing, b_sli = est_b_sma, rename_col = "sli_estimated")
+  }
 })
 
 # Per-species per-group SMA slope summary (10 rows total when control_age_sex_6mod = TRUE):

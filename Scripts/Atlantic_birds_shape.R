@@ -353,14 +353,17 @@ Atl_birds_l3 <- imap(Atl_birds_l2, \(df, sp) {
     calc_sli(b_sli = 0.33, Append = wing,   Mass = mass, rename_col = "sli_isometry") %>%
     calc_sli(b_sli = 0.33, Append = tarsus, Mass = mass, rename_col = "sli_tarsus_iso")
 
+  ## Estimated SLI: per-group SMA slopes when this species has valid covariates, otherwise the species-wide SMA slope. Kept as separate branches because calc_sli() ignores b_sli whenever control is supplied, so passing both would silently discard one of them.
   if (sp %in% Spp_keep_vec) {
-    df_res %>%
-      calc_sli(Append = wing,   Mass = mass,
-               control = if (length(covs)) covs else NULL,
-               b_sli   = coef(sma_wing)["slope"],   rename_col = "sli_estimated") %>%
-      calc_sli(Append = tarsus, Mass = mass,
-               control = if (length(covs)) covs else NULL,
-               b_sli   = coef(sma_tarsus)["slope"], rename_col = "sli_tarsus_est")
+    if (length(covs)) {
+      df_res %>%
+        calc_sli(Append = wing,   Mass = mass, control = covs, rename_col = "sli_estimated") %>%
+        calc_sli(Append = tarsus, Mass = mass, control = covs, rename_col = "sli_tarsus_est")
+    } else {
+      df_res %>%
+        calc_sli(Append = wing,   Mass = mass, b_sli = coef(sma_wing)["slope"],   rename_col = "sli_estimated") %>%
+        calc_sli(Append = tarsus, Mass = mass, b_sli = coef(sma_tarsus)["slope"], rename_col = "sli_tarsus_est")
+    }
   } else {
     df_res %>% mutate(sli_estimated = NA_real_, sli_tarsus_est = NA_real_)
   }
