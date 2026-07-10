@@ -1,9 +1,14 @@
 ## Relative appendage length key functions script
 
+### Migration to the sliR package is in progress. Functions ported to sliR keep their original names, arguments and output columns here, so no call site changes; their bodies are thin wrappers. Everything not in sliR (format_temp, rm_outliers, run_sma_mod, format_sma_parms, gen_ex_data, calc_lambda, classify_direction) stays a local helper.
+# Migrated so far: gen_data()  [-> sliR::sim_allometric()]
+# remotes::install_github("LezzGitIt/sliR")
+
 # Load required libraries
 library(MASS)
 library(MBESS) # cor2cov function
 library(tidyverse)
+library(sliR)
 
 # Creation of temperature bins for plotting and examination of scaling intercepts
 format_temp <- function(df){
@@ -24,52 +29,43 @@ rm_outliers <- function(df, metric, sd_metric) {
                     {{ metric }} < mean({{ metric }}) - 3 * {{ sd_metric }}))
 }
 
-## Generate data (on the log-scale) using var-cov matrix 
+## Generate data (on the log-scale) using var-cov matrix
 # Specify measurement error and transient 'error'
+### Now a thin wrapper over sliR::sim_allometric(). Arguments and output columns are unchanged, so every call site still works. Temperature is drawn as a normal gradient, matching the multivariate-normal draw this function used to do; sliR's own default gradient is uniform.
+# vary_sd was previously hidden inside gen_cov_mat(), where it silently overwrote whatever sd_log_morph the caller passed. It is surfaced here as an argument, defaulting to TRUE to preserve the historical behaviour. Setting vary_sd = FALSE honours sd_log_morph. It affects raw-scale dispersion and skew only: the log-scale slopes and correlations are invariant to it.
 gen_data <- function(n = 3000,
                      b_avg_12 = 0.33,
                      r_12 = 0.3, r_13 = -0.1, r_23 = -0.1,
                      mean_mass = 80, mean_append = 180, mean_temp = 1,
                      sd_log_morph = 0.10,
                      sd_temp = 0.18,
+                     vary_sd = TRUE,
                      meas_error = 0,
                      transient_error_mass = 0,
                      transient_error_append = 0) {
-  
-  # Generate log-scale covariance matrix
-  Sigma <- gen_cov_mat(b_avg_12 = b_avg_12,
-                       r_12 = r_12, r_13 = r_13, r_23 = r_23,
-                       sd_log_morph = sd_log_morph,
-                       sd_temp = sd_temp)
-  
-  mu <- c(log(mean_append), log(mean_mass), mean_temp)
-  
-  sim_log <- MASS::mvrnorm(n, mu = mu, Sigma = Sigma, empirical = TRUE)
-  colnames(sim_log) <- c("log_Append", "log_Mass", "Temp")
-  
-  sim <- as_tibble(sim_log) %>%
-    mutate(Append = exp(log_Append),
-           Mass = exp(log_Mass),
-           Temp_inc = Temp)
-  
-  # Add error to morphometrics on raw scale
-  sd_append <- sd(sim$Append)
-  sd_mass <- sd(sim$Mass)
-  
-  sim2 <- sim %>% rm_outliers(metric = Append, sd_append) %>% 
-    rm_outliers(metric = Mass, sd_mass)
-  
-  sim3 <- sim2 %>%
-    mutate(
-      Append = Append + rnorm(nrow(sim2), 0, sd = sd_append * meas_error) +
-        rnorm(nrow(sim2), 0, sd = sd_append * transient_error_append),
-      Mass = Mass + rnorm(nrow(sim2), 0, sd = sd_mass * meas_error) +
-        rnorm(nrow(sim2), 0, sd = sd_mass * transient_error_mass),
-      Append_log = log(Append),
-      Mass_log = log(Mass)
-    )
-  
-  format_temp(sim3)
+
+  if (vary_sd) sd_log_morph <- runif(1, 0.05, 0.09)
+
+  sim <- sliR::sim_allometric(
+    n             = n,
+    b_avg         = b_avg_12,
+    r_app_mass    = r_12,
+    sd_log_mass   = sd_log_morph,
+    mean_append   = mean_append,
+    mean_mass     = mean_mass,
+    gradient      = "Temp_inc",
+    gradient_dist = "normal",
+    mean_gradient = mean_temp,
+    sd_gradient   = sd_temp,
+    r_grad_app    = r_13,
+    r_grad_mass   = r_23,
+    meas_error             = meas_error,
+    transient_error_append = transient_error_append,
+    transient_error_mass   = transient_error_mass,
+    trim_sd = 3
+  )
+
+  format_temp(sim)
 }
 
 ## Generate the variance-covariance matrix (on the log scale) that goes into gen_data function
