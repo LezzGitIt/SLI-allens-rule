@@ -1,7 +1,11 @@
 ## Relative appendage length key functions script
 
-### The simulation and SLI functions now live in the sliR package. They keep their original names, arguments and output columns here, so no call site changes; their bodies are thin wrappers. Install with remotes::install_github("LezzGitIt/sliR").
-# Wrapped: gen_data() -> sim_allometric(); gen_cov_mat() -> build_cov_mat(); gen_cor_vars() -> sim_correlated(); calc_sli(), build_sli_slopes_tbl(), build_group_cor_tbl() -> their sliR namesakes.
+### The simulation and SLI functions now live in the sliR package. Install with remotes::install_github("LezzGitIt/sliR@v0.1.0").
+# Called directly as sliR::... at the analysis-script call sites: calc_sli(), build_sli_slopes_tbl(), sim_allometric() (see gen_ex_data below), sim_correlated().
+# Kept as thin local wrappers here, because the paper's vocabulary differs from sliR's generic API:
+#   gen_data()   -> sim_allometric()  (adds the paper's Temp_inc/Temp_bin columns via format_temp(); driven by pmap() over a b_avg_12/r_12/r_13/r_23 parameter grid whose column names must match the wrapper's arguments)
+#   gen_cov_mat()-> build_cov_mat()   (rescales the gradient block to sd_temp; displayed as teaching content in SMA_body_shape_methods.qmd)
+#   build_group_cor_tbl() -> its sliR namesake (renames r/p_value back to the r_mw/p_mw that ~6 downstream filters per empirical script depend on)
 # Still local, deliberately not in sliR: format_temp, rm_outliers, run_sma_mod, format_sma_parms, gen_ex_data, calc_lambda, classify_direction.
 
 # Load required libraries
@@ -138,21 +142,6 @@ gen_ex_data <- function(Parms_mat, transient_error_mass = 0, transient_error_app
     tidyr::unnest(coefs)
 }
 
-# Build a summary tibble of per-group SMA slopes for SLI estimation.
-# Fits one SMA model per element of `control` (e.g. Age, Sex separately),
-# then averages the resulting slopes for every group combination.
-# Rows with unknown-coded values or NA in control variables are excluded from
-# slope fitting but all combinations present in the known data are represented.
-# Mass argument is NSE (default = Mass) for compatibility with lowercase column names.
-# Requires smatr and rlang to be loaded (done by the calling script).
-### Now a thin wrapper over sliR::build_sli_slopes_tbl(). Same columns: the control variables, n, one b_sma_<var> per control variable, and their row mean b_sli_avg.
-# sliR additionally warns when a cell averages per-variable slopes that disagree by more than slope_diff_warn (0.15). That warning is new information, not a behaviour change, and is left switched on.
-build_sli_slopes_tbl <- function(df, Append, Mass = Mass, control,
-                                  unknown_codes = c("Unk", "U", "Unknown")) {
-  sliR::build_sli_slopes_tbl(df, Append = {{ Append }}, Mass = {{ Mass }},
-                             control = control, unknown_codes = unknown_codes)
-}
-
 # Per-group mass ~ appendage OLS correlation table.
 # Returns one row per group combination (age × sex) with n, b_ols, r_mw, and p_mw.
 # Printed for user inspection: groups with r_mw <= cor_min or p_mw > threshold
@@ -166,31 +155,7 @@ build_group_cor_tbl <- function(df, Append, Mass = Mass, control,
     dplyr::group_by(dplyr::across(dplyr::all_of(control)))
 }
 
-# calc_sli function: see Peig & Green (2009)
-# When control = NULL: scalar b_sli applied to all rows.
-# When control is a character vector (e.g. c("Age","Sex")): build_sli_slopes_tbl()
-# estimates per-group slopes and each individual gets their group's averaged slope.
-# Unknown-coded rows (in control variables) receive sli = NA.
-# Mass argument is NSE (default = Mass) for compatibility with lowercase column names.
-### Now a thin wrapper over sliR::calc_sli(). The old implementation ended with arrange(desc(sli)), reordering the caller's rows as a side effect. That sort was verified to change nothing: Run_simulation.R's 30 exported objects and all 115 data objects across Nightjar_shape.R, Weeks_2020_ral.R and Atlantic_birds_shape.R are identical with and without it. sliR preserves input row order, so the sort is gone.
-# rename_col: sliR uses NULL for "leave the column named sli"; the FALSE sentinel is translated here so call sites are unaffected.
-# b_sli is forwarded only when the caller actually supplied it, so that passing both b_sli and control raises sliR's "b_sli is ignored" warning rather than silently discarding one of them. Call sites branch on length(covs) instead of passing both.
-calc_sli <- function(df, Append = Append, Mass = Mass, b_sli = 0.33,
-                     rename_col = FALSE, control = NULL) {
-  app_q  <- rlang::enquo(Append)
-  mass_q <- rlang::enquo(Mass)
-  if (isFALSE(rename_col)) rename_col <- NULL
-
-  if (missing(b_sli)) {
-    sliR::calc_sli(df, Append = !!app_q, Mass = !!mass_q,
-                   control = control, rename_col = rename_col, sort = FALSE)
-  } else {
-    sliR::calc_sli(df, Append = !!app_q, Mass = !!mass_q, b_sli = b_sli,
-                   control = control, rename_col = rename_col, sort = FALSE)
-  }
-}
-
-# calc_lambda function: calculate the empirical coefficients of variation 
+# calc_lambda function: calculate the empirical coefficients of variation
 calc_lambda <- function(x, y){ 
   cv_y <- sd({{ y }}) / mean({{ y }}) 
   cv_x <- sd({{ x }}) / mean({{ x }}) 

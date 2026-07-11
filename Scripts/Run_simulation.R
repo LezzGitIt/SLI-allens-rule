@@ -13,6 +13,7 @@ suppressPackageStartupMessages({
   library(janitor)
 })
 
+library(sliR)   # SLI + simulation functions; see github.com/LezzGitIt/sliR
 source("Scripts/Key_allometry_fns.R")
 
 # Global settings -----------------------------------------------------------
@@ -135,8 +136,8 @@ generate_metrics <- function(Sim_df) {
     mutate(resid_ols = residuals(Ols_mod),
            Append_mass  = if (log_ratio) Append_log - Mass_log    else Append_log / Mass_log,
            Append2_mass = if (log_ratio) 2*Append_log - Mass_log  else Append_log^2 / Mass_log) %>%
-    calc_sli(b_sli = 0.33,    rename_col = "sli_isometry") %>%
-    calc_sli(b_sli = est_b_sma, rename_col = "sli_estimated")
+    sliR::calc_sli(b_sli = 0.33,    rename_col = "sli_isometry") %>%
+    sliR::calc_sli(b_sli = est_b_sma, rename_col = "sli_estimated")
   Sim_df_s <- Sim_df %>% mutate(across(where(is.numeric), scale))
   list(Sim_df_s = Sim_df_s, coefs = tibble(est_b_sma, est_b_ols))
 }

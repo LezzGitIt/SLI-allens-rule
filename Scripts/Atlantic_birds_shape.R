@@ -8,6 +8,7 @@ library(smatr)
 library(cowplot)
 library(patchwork)
 library(naniar)
+library(sliR)   # SLI + simulation functions; see github.com/LezzGitIt/sliR
 source("Scripts/Key_allometry_fns.R")
 ggplot2::theme_set(theme_cowplot())
 
@@ -309,7 +310,7 @@ if (control_age_sex) {
 # Per species: filter to groups meeting min_n thresholds; include age/sex in
 # covariate list only if ≥ 2 valid groups remain after filtering.
 # Residuals use predict() so the model and the df are always aligned.
-# Sli_est uses per-group SMA slopes via calc_sli(control = covs); sli_iso uses isometry.
+# Sli_est uses per-group SMA slopes via sliR::calc_sli(control = covs); sli_iso uses isometry.
 Atl_birds_l3 <- imap(Atl_birds_l2, \(df, sp) {
   covs <- character(0)
 
@@ -350,19 +351,19 @@ Atl_birds_l3 <- imap(Atl_birds_l2, \(df, sp) {
            resid_sma        = residuals(sma_wing),
            resid_ols_tarsus = log_tarsus - predict(ols_tarsus, newdata = df),
            resid_sma_tarsus = residuals(sma_tarsus)) %>%
-    calc_sli(b_sli = 0.33, Append = wing,   Mass = mass, rename_col = "sli_isometry") %>%
-    calc_sli(b_sli = 0.33, Append = tarsus, Mass = mass, rename_col = "sli_tarsus_iso")
+    sliR::calc_sli(b_sli = 0.33, Append = wing,   Mass = mass, rename_col = "sli_isometry") %>%
+    sliR::calc_sli(b_sli = 0.33, Append = tarsus, Mass = mass, rename_col = "sli_tarsus_iso")
 
-  ## Estimated SLI: per-group SMA slopes when this species has valid covariates, otherwise the species-wide SMA slope. Kept as separate branches because calc_sli() ignores b_sli whenever control is supplied, so passing both would silently discard one of them.
+  ## Estimated SLI: per-group SMA slopes when this species has valid covariates, otherwise the species-wide SMA slope. Kept as separate branches because sliR::calc_sli() ignores b_sli whenever control is supplied, so passing both would silently discard one of them.
   if (sp %in% Spp_keep_vec) {
     if (length(covs)) {
       df_res %>%
-        calc_sli(Append = wing,   Mass = mass, control = covs, rename_col = "sli_estimated") %>%
-        calc_sli(Append = tarsus, Mass = mass, control = covs, rename_col = "sli_tarsus_est")
+        sliR::calc_sli(Append = wing,   Mass = mass, control = covs, rename_col = "sli_estimated") %>%
+        sliR::calc_sli(Append = tarsus, Mass = mass, control = covs, rename_col = "sli_tarsus_est")
     } else {
       df_res %>%
-        calc_sli(Append = wing,   Mass = mass, b_sli = coef(sma_wing)["slope"],   rename_col = "sli_estimated") %>%
-        calc_sli(Append = tarsus, Mass = mass, b_sli = coef(sma_tarsus)["slope"], rename_col = "sli_tarsus_est")
+        sliR::calc_sli(Append = wing,   Mass = mass, b_sli = coef(sma_wing)["slope"],   rename_col = "sli_estimated") %>%
+        sliR::calc_sli(Append = tarsus, Mass = mass, b_sli = coef(sma_tarsus)["slope"], rename_col = "sli_tarsus_est")
     }
   } else {
     df_res %>% mutate(sli_estimated = NA_real_, sli_tarsus_est = NA_real_)
@@ -374,7 +375,7 @@ if (control_age_sex) {
   wing_slopes_tbl <- imap(Atl_birds_l2, \(df, sp) {
     covs <- c(if (sp %in% sig_age_any) "age", if (sp %in% sig_sex_any) "sex")
     if (!length(covs)) return(NULL)
-    build_sli_slopes_tbl(df, Append = wing, Mass = mass, control = covs) %>%
+    sliR::build_sli_slopes_tbl(df, Append = wing, Mass = mass, control = covs) %>%
       mutate(species_ = sp, .before = 1)
   }) %>% list_rbind()
   print(wing_slopes_tbl)
@@ -415,7 +416,7 @@ write_csv(Ratio_mass_cor, "Derived/Csv/Atlantic_ratio_mass_cor.csv")
 #   Ratio/Ratio2/Sli_iso: no age/sex by design
 #   Resid_ols: age/sex cleaned in first model (Atl_birds_l3); no additional covariates
 #   Ryding: include age/sex in combined model (B.Tavg conditional on both)
-#   Sli_est: per-group SMA slopes handled upstream in calc_sli(control = covs)
+#   Sli_est: per-group SMA slopes handled upstream in sliR::calc_sli(control = covs)
 parms_df <- map(Atl_birds_l4, \(df) {
   sp       <- unique(df$species_)
   covs     <- c(if (sp %in% sig_age_any) "age", if (sp %in% sig_sex_any) "sex")

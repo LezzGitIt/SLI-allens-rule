@@ -10,6 +10,7 @@ library(ggpmisc)
 select <- dplyr::select
 ggplot2::theme_set(theme_cowplot())
 
+library(sliR)   # SLI + simulation functions; see github.com/LezzGitIt/sliR
 source("Scripts/Key_allometry_fns.R")
 nj_raw <- read.csv("Data/Capri_BA_compare03.29.26.csv")
 
@@ -177,13 +178,13 @@ nj_df_l2 <- imap(nj_df_analysis_l, \(df, sp) {
     mutate(resid_ols = log_wing - predict(ols_mod, newdata = df),
            resid_sma = residuals(sma_mod))
 
-  ## Estimated SLI: per-group SMA slopes when this species has valid covariates, otherwise the species-wide SMA slope. Kept as separate calls because calc_sli() ignores b_sli whenever control is supplied, so passing both would silently discard one of them.
-  df_iso <- df %>% calc_sli(b_sli = 0.33, Append = Wing, rename_col = "sli_isometry")
+  ## Estimated SLI: per-group SMA slopes when this species has valid covariates, otherwise the species-wide SMA slope. Kept as separate calls because sliR::calc_sli() ignores b_sli whenever control is supplied, so passing both would silently discard one of them.
+  df_iso <- df %>% sliR::calc_sli(b_sli = 0.33, Append = Wing, rename_col = "sli_isometry")
 
   if (length(covs)) {
-    calc_sli(df_iso, Append = Wing, control = covs, rename_col = "sli_estimated")
+    sliR::calc_sli(df_iso, Append = Wing, control = covs, rename_col = "sli_estimated")
   } else {
-    calc_sli(df_iso, Append = Wing, b_sli = est_b_sma, rename_col = "sli_estimated")
+    sliR::calc_sli(df_iso, Append = Wing, b_sli = est_b_sma, rename_col = "sli_estimated")
   }
 })
 
@@ -193,7 +194,7 @@ if (control_age_sex_6mod) {
   sli_slopes_tbl <- imap(nj_df_analysis_l, \(df, sp) {
     covs <- get_6mod_covs(sp)
     if (!length(covs)) return(NULL)
-    build_sli_slopes_tbl(df, Append = Wing, control = covs)
+    sliR::build_sli_slopes_tbl(df, Append = Wing, control = covs)
   }) %>% list_rbind(names_to = "Species")
   print(sli_slopes_tbl)
 }
