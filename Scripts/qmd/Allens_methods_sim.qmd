@@ -184,6 +184,8 @@ cowplot::ggdraw() + cowplot::draw_grob(lit_review_grob)
 
 ## Data simulation
 
+All simulations and Standardized Length Index computations were performed in R with the `sliR` package [@skinnerSliRStandardizedLength2026].
+
 I simulated appendage length, body size (mass), and a temperature index for `r N_spp` hypothetical species, each represented by approximately `r N_ind` individuals. I simulate mass as it was the single most commonly used variable to control for body size in studies of Allen’s rule. Data were drawn from a multivariate log-normal distribution:
 
 $$\begin{bmatrix}
