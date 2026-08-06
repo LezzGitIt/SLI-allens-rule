@@ -38,10 +38,14 @@ Parms_mat <- expand_grid(
   r_23 = r_23
 ) %>%
   mutate(
+    # Population SMA slope of Append~Mass implied by b_avg_12 (average of OLS + SMA slope) and r_12.
+    true_b_sma = 2 * b_avg_12 / (r_12 + 1),
+    # Closed-form sign of SLI-isometry's population coefficient on temperature -- this simulation's ground truth for "true" shape change (see Project_notes.md for derivation).
+    beta_iso_true = r_13 * true_b_sma - 0.33 * r_23,
     Temp_eff = case_when(
-      r_13 > r_23 ~ Shape[1],
       r_13 == r_23 ~ Shape[2],
-      r_13 < r_23 ~ Shape[3]
+      beta_iso_true > 0 ~ Shape[1],
+      beta_iso_true < 0 ~ Shape[3]
     ),
     Strength = abs(r_13 - r_23)
   ) %>%
@@ -62,6 +66,8 @@ Parms_big <- expand_grid(
   mutate(r_13 = r_temp, r_23 = r_temp, r_temp = NULL,
          Temp_eff = "Proportionally larger",
          Strength = abs(r_13 - r_23),
+         true_b_sma = 2 * b_avg_12 / (r_12 + 1),
+         beta_iso_true = r_13 * true_b_sma - 0.33 * r_23,
          Scaling  = case_when(
            b_avg_12 < 0.33 ~ "Hypoallometry",
            b_avg_12 > 0.33 ~ "Hyperallometry",
@@ -241,9 +247,9 @@ Proportional_methods_eval <- Parms_tbl5 %>%
   mutate(Direction = str_remove(Direction, "Prop_"),
          Model = str_replace_all(Model, x_labs))
 
-Proportional_true_eff_tbl <- Parms_temp_bs %>%
+Proportional_true_eff_tbl <- Parms_mat3 %>%
   filter(Temp_eff == "Proportionally smaller") %>%
-  mutate(True_temp_eff = if_else(Correlation > 0, "Longer", "Fatter")) %>%
+  mutate(True_temp_eff = if_else(beta_iso_true > 0, "Longer", "Fatter")) %>%
   janitor::tabyl(True_temp_eff)
 
 Prop_fatter <- Proportional_true_eff_tbl %>%
@@ -262,9 +268,9 @@ Bigger_methods_eval <- Parms_tbl5 %>%
   mutate(Direction = str_remove(Direction, "Prop_"),
          Model = str_replace_all(Model, x_labs))
 
-Bigger_true_eff_tbl <- Parms_temp_bs %>%
+Bigger_true_eff_tbl <- Parms_mat3 %>%
   filter(Temp_eff == "Proportionally larger") %>%
-  mutate(True_temp_eff = if_else(Correlation > 0, "Longer", "Fatter")) %>%
+  mutate(True_temp_eff = if_else(beta_iso_true > 0, "Longer", "Fatter")) %>%
   janitor::tabyl(True_temp_eff)
 
 Bigger_fatter <- Bigger_true_eff_tbl %>%
