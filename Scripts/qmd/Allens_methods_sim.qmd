@@ -253,13 +253,13 @@ I applied six methods from three families to each simulated species:
 
 **Ordinary least squares (OLS) regression approaches. (**1) A multiple regression approach where appendage was modelled as a linear function of mass and temperature simultaneously; the temperature coefficient $\beta_T$ was interpreted as the effect of temperature on relative appendage length. (2) A two-step residual regression approach was conducted where appendage was regressed on mass using OLS, and the resulting residuals were regressed on temperature.
 
-**Standardized Length Index — isometry (SLI-estimated).** Following @peigNewPerspectivesEstimating2009, I computed:
+**Standardized Length Index — estimated (SLI-estimated).** Following @peigNewPerspectivesEstimating2009, I computed:
 
 $$SLI_i = A_i \cdot \left(\frac{M_0}{M_i}\right)^{b_{SLI}}$$
 
 where $A_i$ is the appendage length of individual $i$, $M_i$ is the mass of individual $i$, $M_0$ is the mean mass of the species, and $b_{SLI}$ comes from the empirical SMA slope of $\log(A)$ on $\log(S)$ estimated from the data. The SLI reprojects each individual's appendage length to the value it would take at the population mean body size. This value is then regressed on temperature.
 
-**Standardized Length Index — estimated (SLI-isometry).** Identical to SLI-estimated but replacing the estimated $b_{SLI}$ by $b_{SLI} = 0.33$, the isometric scaling exponent for a linear versus volumetric measurement.
+**Standardized Length Index — isometry (SLI-isometry).** Identical to SLI-estimated but replacing the estimated $b_{SLI}$ by $b_{SLI} = 0.33$, the isometric scaling exponent for a linear versus volumetric measurement.
 
 I log-transformed all variables and then standardised to unit variance before fitting regression models so that coefficients were comparable across species and methods.
 
