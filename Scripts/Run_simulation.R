@@ -300,9 +300,20 @@ Ryding_longer_right       <- pull_percent("Ryding",  "Longer")
 Ryding_fatter_right       <- pull_percent("Ryding",  "Fatter")
 Ratio_longer_right        <- pull_percent("Ratio",   "Longer")
 Ratio_fatter_right        <- pull_percent("Ratio",   "Fatter")
+Sli.est_longer_right      <- pull_percent("Sli_est", "Longer")
+Sli.est_fatter_right      <- pull_percent("Sli_est", "Fatter")
+
+Ratio2_fatter_right       <- pull_percent("Ratio2", "Fatter")
+Ratio2_fatter_wrong_n <- Parms_tbl4 %>%
+  filter(Temp_eff == "Fatter", Model == "Ratio2", b_temp_inc > 0) %>% nrow()
+Fatter_n <- Parms_tbl4 %>% filter(Temp_eff == "Fatter", Model == "Ratio2") %>% nrow()
 
 Sli.iso_proportional_pos  <- pull_percent_proportional("SLI isometry", "pos")
+Sli.est_proportional_pos  <- pull_percent_proportional("SLI estimated", "pos")
+Ratio_proportional_pos    <- pull_percent_proportional("Appendage / mass", "pos")
+Ratio2_proportional_fatter <- pull_percent_proportional("Appendage² / mass", "neg")
 Dif_sli.iso <- Sli.iso_proportional_pos - (Prop_longer * 100)
+Dif_sli.est <- Sli.est_proportional_pos - (Prop_longer * 100)
 Dif_ryding  <- pull_percent_proportional("Mass as covariate", "neg") - (Prop_fatter * 100)
 
 Sli.iso_bigger_pos <- pull_percent_proportional("SLI isometry",     "pos", tbl = Bigger_methods_eval)
@@ -341,8 +352,14 @@ saveRDS(
     Sli.iso_fatter_right = Sli.iso_fatter_right, Sli.iso_longer_right = Sli.iso_longer_right,
     Ryding_longer_right  = Ryding_longer_right,  Ryding_fatter_right  = Ryding_fatter_right,
     Ratio_longer_right   = Ratio_longer_right,   Ratio_fatter_right   = Ratio_fatter_right,
+    Sli.est_longer_right = Sli.est_longer_right, Sli.est_fatter_right = Sli.est_fatter_right,
+    Ratio2_fatter_right  = Ratio2_fatter_right,  Ratio2_fatter_wrong_n = Ratio2_fatter_wrong_n,
+    Fatter_n = Fatter_n,
     Sli.iso_proportional_pos = Sli.iso_proportional_pos,
-    Dif_sli.iso = Dif_sli.iso, Dif_ryding = Dif_ryding,
+    Sli.est_proportional_pos = Sli.est_proportional_pos,
+    Ratio_proportional_pos = Ratio_proportional_pos,
+    Ratio2_proportional_fatter = Ratio2_proportional_fatter,
+    Dif_sli.iso = Dif_sli.iso, Dif_sli.est = Dif_sli.est, Dif_ryding = Dif_ryding,
     Sli.iso_bigger_pos = Sli.iso_bigger_pos, Sli.est_bigger_pos = Sli.est_bigger_pos,
     Ratio_bigger_pos   = Ratio_bigger_pos,   Ryding_bigger_pos  = Ryding_bigger_pos
   ),
