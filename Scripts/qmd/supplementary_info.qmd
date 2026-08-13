@@ -474,8 +474,12 @@ p_wingier <- build_mixed_plot(parms_wingier)
 p_fatter  <- build_mixed_plot(parms_fatter)
 shared_legend_mixed <- ggpubr::get_legend(build_mixed_plot(parms_wingier, show_legend = TRUE))
 
+## Panel b's width scales with its species count, but a strict proportional ratio leaves no
+## room for its own y-axis, a dodged point per approach, and a rotated species-name label once
+## n drops to 1 (rel_widths = c(14, 1) rendered it essentially blank) -- floor it at 3 "species
+## widths" so the panel stays legible regardless of how few species land in it.
 mixed_panels <- plot_grid(p_wingier, p_fatter, labels = c("a", "b"), label_size = 10,
-                           ncol = 2, rel_widths = c(14, 1))
+                           ncol = 2, rel_widths = c(n_mixed_wingier, pmax(n_mixed_fatter, 3)))
 plot_grid(shared_legend_mixed, mixed_panels, ncol = 1, rel_heights = c(0.08, 1))
 ```
 
