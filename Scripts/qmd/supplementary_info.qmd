@@ -255,6 +255,132 @@ ggplot(Sli_iso_rescale_long, aes(x = x, y = b_temp_inc, color = Temp_eff, shape 
 
 The variance correction takes the correlation from `r round(r_sli_iso_raw,2)` to `r round(r_sli_iso_rescaled,4)`, and the points sit almost exactly on the 1:1 line once it's applied. This isn't unique to SLI-isometry — every one of the six methods has a closed-form standardized coefficient that reaches a similarly exact correlation (0.9999–1.0000) against its own correctly-scaled natural anchor (e.g. Mass-as-covariate against the textbook standardized partial-regression coefficient $(\rho_{13}-\rho_{12}\rho_{23})/(1-\rho_{23}^2)$), confirming that the ground truth used in the main text is not merely correlated with SLI-isometry's formula but algebraically equivalent to it up to this one scaling factor — which is precisely why SLI-isometry's own strong performance should be read as confirmation that the simulation and ground-truth calculation behave as expected, not as a comparative win over the other five approaches (main text, Approach classification).
 
+# Does the direction of causality between mass and appendage matter?
+
+The main text's simulation deliberately draws mass and appendage from a joint distribution rather than a directional model, so that no method is favoured by construction (main text, Data simulation). The Discussion's causal DAGs (main text, Figure 7) instead consider what happens when a genuine directional relationship *does* hold, and argue that the six methods' validity depends on which direction that relationship runs. Here I make that argument concrete with a small, targeted simulation: one example species ($b_{avg} \approx 0.33$ and appendage-mass correlation $\approx 0.35$, matching the main text's realistic ranges, and a mean temperature of 1°C), simulated at a larger sample size ($n=50{,}000$) than the main text's per-species $n=3{,}000$ so that each method's point estimate reflects the population-level pattern rather than sampling noise from one particular random draw, generated under each of two directional structural models — the main text's Figure 7 panel a (mass causes appendage) and panel b (appendage causes mass, i.e. mass as a collider) — with the same direct temperature-on-appendage effect ($\beta_T = 0.3$, standardized, exact by construction in both DGPs) injected into both, so any difference in what the six methods recover is attributable to the causal direction alone, not to the size of the effect or to incidental differences in how realistic each simulated species looks.
+
+```{r}
+#| label: causal-dgp-sim
+#| include: false
+
+set.seed(20260813)
+n <- 50000                             # larger than the main text's per-species n=3,000; this figure is an illustrative, seed-independent demonstration (not tied to any one real dataset's size), so n is set high enough that point estimates reliably reflect the population-level bias/no-bias story rather than single-draw sampling noise
+mean_mass <- 80; mean_append <- 180; mean_temp <- 1; sd_temp <- 0.18
+sd_mass <- 0.07                        # within-species log-mass SD, matching gen_data()'s sd_log_morph range
+target_b_avg <- 0.33                   # target average of the OLS and SMA slopes, matching the main text's b_avg_12
+target_r12 <- 0.35                     # target mass-appendage correlation, within the realistic 0.2-0.5 range
+target_slope <- 2 * target_b_avg / (target_r12 + 1)  # implied SMA slope -- same relationship as the main text's true_b_sma, so the SMA slope alone is not 0.33; the average with the (smaller) OLS slope is
+sd_append <- target_slope * sd_mass    # SMA slope = sd(Append)/sd(Mass), so this pins the slope exactly
+target_beta_T <- 0.3                  # target standardized true effect, shared by both DGPs
+a_path <- -0.2                         # Temperature -> Mass path, both DGPs -- negative to match Bergmann's rule (warming reduces body size); deliberately large so panel b's collider bias is clearly visible against sampling noise, not just directionally present
+
+Vm <- sd_mass^2; Va <- sd_append^2
+# b solved once, from the target standardized effect and Appendage's target SD. That target SD is
+# the same in both DGPs below, so b -- and the true standardized effect -- come out identical in both,
+# rather than needing separate post-hoc standardization per DGP.
+b_path <- target_beta_T * sd_append / sd_temp
+
+## DGP (a): Mass -> Appendage (@fig-dag, panel a). Noise variances solved so Mass and Appendage hit
+## their target SDs exactly (which is what actually pins the SMA slope and keeps it realistic --
+## letting raw noise variances fall out arbitrarily, as an earlier version of this simulation did,
+## let the marginal SMA slope drift far from any realistic value). c_path solved so the resulting
+## correlation hits target_r12 exactly.
+sigma_u2 <- Vm - a_path^2 * sd_temp^2
+c_path   <- (target_r12 * sqrt(Vm * Va) - a_path * b_path * sd_temp^2) / Vm
+sigma_v2 <- Va - (c_path * a_path + b_path)^2 * sd_temp^2 - c_path^2 * sigma_u2
+
+Temp <- rnorm(n, mean_temp, sd_temp)
+Mass_log_a   <- log(mean_mass)   + a_path * (Temp - mean_temp) + rnorm(n, 0, sqrt(sigma_u2))
+Append_log_a <- log(mean_append) + c_path * (Mass_log_a - log(mean_mass)) + b_path * (Temp - mean_temp) + rnorm(n, 0, sqrt(sigma_v2))
+
+## DGP (b): Appendage -> Mass, i.e. mass as a collider (@fig-dag, panel b). Same logic in reverse:
+## Appendage depends only on Temperature; Mass depends on both Appendage and Temperature.
+sigma_vb2 <- Va - b_path^2 * sd_temp^2
+d_path    <- (target_r12 * sqrt(Vm * Va) - a_path * b_path * sd_temp^2) / Va
+sigma_w2  <- Vm - (a_path + d_path * b_path)^2 * sd_temp^2 - d_path^2 * sigma_vb2
+
+Append_log_b <- log(mean_append) + b_path * (Temp - mean_temp) + rnorm(n, 0, sqrt(sigma_vb2))
+Mass_log_b   <- log(mean_mass)   + a_path * (Temp - mean_temp) + d_path * (Append_log_b - log(mean_append)) + rnorm(n, 0, sqrt(sigma_w2))
+
+fit_six_methods <- function(Append_log, Mass_log, Temp) {
+  df <- tibble(Append = exp(Append_log), Mass = exp(Mass_log), Append_log, Mass_log, Temp)
+  sma_mod   <- smatr::sma(Append_log ~ Mass_log, data = df, method = sma_or_ma)
+  est_b_sma <- coef(sma_mod)["slope"]
+  Ols_mod   <- lm(Append_log ~ Mass_log, data = df)
+  est_b_ols <- coef(Ols_mod)["Mass_log"]
+  df <- df %>%
+    mutate(resid_ols    = residuals(Ols_mod),
+           Append_mass  = Append_log - Mass_log,
+           Append2_mass = 2 * Append_log - Mass_log) %>%
+    sliR::calc_sli(b_sli = 0.33,      rename_col = "sli_isometry") %>%
+    sliR::calc_sli(b_sli = est_b_sma, rename_col = "sli_estimated") %>%
+    mutate(across(where(is.numeric), scale))
+  fits <- list(
+    Ratio               = lm(Append_mass   ~ Temp, data = df),
+    Ratio2              = lm(Append2_mass  ~ Temp, data = df),
+    `Mass as covariate` = lm(Append_log    ~ Mass_log + Temp, data = df),
+    `OLS residuals`     = lm(resid_ols     ~ Temp, data = df),
+    `SLI isometry`      = lm(sli_isometry  ~ Temp, data = df),
+    `SLI estimated`     = lm(sli_estimated ~ Temp, data = df)
+  )
+  map(names(fits), \(m) {
+    ci <- confint(fits[[m]])["Temp", ]
+    tibble(Model = m, Estimate = coef(fits[[m]])["Temp"], ci_lo = ci[1], ci_hi = ci[2])
+  }) %>%
+    list_rbind() %>%
+    # b_avg (mean of the SMA and OLS slopes) is the quantity targeted at 0.33, matching the main
+    # text's b_avg_12 -- the SMA slope alone is not 0.33 (true_b_sma = 2*b_avg/(r_12+1) exceeds it,
+    # same relationship as the main grid's Proportional categories).
+    mutate(est_b_sma = as.numeric(est_b_sma), est_b_ols = as.numeric(est_b_ols),
+           est_b_avg = (est_b_sma + est_b_ols) / 2)
+}
+
+Causal_dgp_a <- fit_six_methods(Append_log_a, Mass_log_a, Temp) %>% mutate(DGP = "a. Mass causes appendage")
+Causal_dgp_b <- fit_six_methods(Append_log_b, Mass_log_b, Temp) %>% mutate(DGP = "b. Appendage causes mass (collider)")
+
+# True standardized effect, per DGP -- exactly target_beta_T in both, by construction (b_path was
+# solved from target_beta_T * sd_append / sd_temp, so b_path * sd_temp / sd_append == target_beta_T
+# algebraically). Using the theoretical sd_append here, not each panel's realized sd(Append_log_x),
+# keeps this a fixed reference value rather than a second noisy quantity re-estimated from the same
+# finite sample whose point estimates it's being compared against -- that had previously made the two
+# panels' dashed lines differ slightly (0.296 vs. 0.308) for no reason but sampling noise.
+Causal_true_df <- tibble(
+  DGP = c("a. Mass causes appendage", "b. Appendage causes mass (collider)"),
+  true_val = c(target_beta_T, target_beta_T)
+)
+
+Causal_dgp_tbl <- bind_rows(Causal_dgp_a, Causal_dgp_b) %>%
+  mutate(DGP   = factor(DGP, levels = c("a. Mass causes appendage", "b. Appendage causes mass (collider)")),
+         Model = factor(Model, levels = c("Ratio", "Ratio2", "Mass as covariate", "OLS residuals",
+                                           "SLI isometry", "SLI estimated")))
+
+est_b_avg_a <- round(Causal_dgp_a$est_b_avg[1], 2)
+est_b_avg_b <- round(Causal_dgp_b$est_b_avg[1], 2)
+true_beta_causal_a <- Causal_true_df$true_val[Causal_true_df$DGP == "a. Mass causes appendage"]
+true_beta_causal_b <- Causal_true_df$true_val[Causal_true_df$DGP == "b. Appendage causes mass (collider)"]
+mass_cov_a <- Causal_dgp_tbl %>% filter(Model == "Mass as covariate", DGP == "a. Mass causes appendage")
+```
+
+```{r}
+#| label: fig-causal-dgp
+#| fig-cap: "Each method's estimated effect of temperature on relative appendage length (mean and 95% CI) for one simulated example species (n = 50,000; b_avg about 0.33, appendage-mass correlation about 0.35, mean temperature 1°C) under each directional causal model. Grey dashed line: zero. Green dashed line: the true standardized effect (0.3 in both panels, identical by construction)."
+#| fig-width: 8
+#| fig-height: 5
+#| fig-pos: 'H'
+
+ggplot(Causal_dgp_tbl, aes(x = Model, y = Estimate)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
+  geom_hline(data = Causal_true_df, aes(yintercept = true_val), linetype = "dashed", color = "forestgreen") +
+  geom_pointrange(aes(ymin = ci_lo, ymax = ci_hi)) +
+  facet_wrap(vars(DGP)) +
+  labs(x = NULL, y = expression(hat(beta)[T] ~ "on relative appendage length")) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+Under **panel a (mass causes appendage)**, mass-as-covariate is exactly the model the data were generated from, and its 95% CI is the only one that includes the true value (`r round(mass_cov_a$Estimate,2)` \[`r round(mass_cov_a$ci_lo,2)`, `r round(mass_cov_a$ci_hi,2)`\], against a true value of `r round(true_beta_causal_a,2)`). OLS-residuals, previously indistinguishable from mass-as-covariate when the Temperature$\to$Mass path was small, now diverges from it: unlike mass-as-covariate, OLS-residuals only removes Mass's association with *Appendage*, not with *Temperature* (Frisch--Waugh--Lovell), so once the two are appreciably correlated -- as they now are, by design, to make the confound biologically realistic (Temperature$\to$Mass path negative, matching Bergmann's rule) -- this two-step shortcut underestimates the true effect (`r round(Causal_dgp_a$Estimate[Causal_dgp_a$Model=="OLS residuals"],2)`). The realized $b_{avg}$ here (`r est_b_avg_a`, the average of the fitted OLS and SMA slopes) closely matches the simulated target (0.33), confirming mass and appendage were generated with a realistic allometric relationship, not an inflated one -- the SMA slope alone is higher (`r round(Causal_dgp_a$est_b_sma[1],2)`), the same $b_{avg}$-vs-SMA relationship documented for the main grid's Proportional categories (Effect classification). The remaining four methods all overshoot the truth substantially and in the same (positive) direction -- Ratio and SLI-estimated both roughly double it, Ratio2 and SLI-isometry are also clearly inflated -- because body mass now shrinks with warming (matching Bergmann's rule) while appendage length grows, and any method that does not correctly separate the Mass-mediated and direct-temperature routes mechanically overstates the direct effect, echoing the main text's own account of Bergmann-driven ratio bias (main text, Simulation performance). In short: when mass genuinely causes appendage, only the method built to condition on it correctly in one step -- multiple regression -- recovers the true effect, exactly as the DAG in the main text predicts.
+
+Under **panel b (appendage causes mass, i.e. mass as a collider)**, none of the six methods' 95% CIs include the true value (`r round(true_beta_causal_b,2)`), and -- unlike panel a -- mass-as-covariate is no longer the standout: its estimate (`r round(Causal_dgp_b$Estimate[Causal_dgp_b$Model=="Mass as covariate"],2)`) overshoots the truth by more than half, a similar magnitude of error to Ratio2 and SLI-estimated. OLS-residuals is the least biased of the six here (`r round(Causal_dgp_b$Estimate[Causal_dgp_b$Model=="OLS residuals"],2)`) but still misses; Ratio, SLI-isometry, and the rest cluster at similarly inflated values. This is not a failure specific to any one method; it is a direct consequence of every one of the six approaches conditioning on mass in some way (as a ratio denominator, an explicit covariate, a first-stage regressor, or a size-standardization exponent), and mass here is a collider, not a common cause. Conditioning on a collider does not isolate a direct effect — it induces a spurious association between temperature and appendage through the very act of standardizing by mass, and the size of that spurious association scales with how strongly temperature and appendage each drive the collider (deliberately set large here so the bias is visible against sampling noise at $n = 50{,}000$, not merely present in direction). There is consequently no principled way, among these six approaches, to recover "relative appendage length" when appendage causally precedes mass: the entire premise of standardizing appendage by body size presumes body size is a common cause of variation to be controlled for, not a downstream consequence of the trait being measured -- and critically, panel a's apparent winner offers no protection here, since which method looks best depends entirely on which causal structure holds, not on any inherent property of the method itself. Which of panel a or panel b better describes a given empirical system is not something this simulation can adjudicate — it is a biological question about the species and traits under study, one that determines whether any of these six methods are appropriate to apply at all.
+
 # Mixed - Wingier and Mixed - Fatter empirical species
 
 In addition to the Bergmann's and Inverse Bergmann's species reported in the main text (Empirical case studies section), some species in the empirical datasets showed **Mixed - Wingier** responses: wing length increasing while body mass decreased, so that Allen's and Bergmann's rules reinforce one another. This is the empirical analogue of the simulated species whose mass and wing responses combine most strongly to produce an unambiguously longer relative appendage. A single Atlantic Forest species showed the opposite **Mixed - Fatter** response (wing length decreasing while body mass increased; main text species-accounting table).
