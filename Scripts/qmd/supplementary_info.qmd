@@ -47,11 +47,11 @@ Parms_tbl4_bigger <- Parms_tbl4 %>% filter(Temp_eff == "Proportionally larger")
 
 # Validation of simulated species direction
 
-The main text simulates species by crossing correlations between temperature, mass, and appendage length; whether a given hypothetical species actually moved in its intended direction (e.g., "Fatter" species becoming relatively shorter-winged) was validated by examining the correlation between binned temperature and the SMA intercept, and species with the wrong-signed correlation were excluded from further analysis (main text, Data simulation).
+The main text simulates species by crossing correlations between temperature, mass, and appendage length; whether a given hypothetical species actually moved in its intended direction (e.g., "Fatter" species becoming relatively shorter-winged) was validated by examining the correlation between binned temperature and the SMA intercept, and species with the wrong-signed correlation were excluded from further analysis (main text, Data simulation). This validation check reflects each species' own realized (SMA-estimated) scaling relationship, not the fixed isometric anchor used to define the main text's ground truth (main text, Effect classification). For Proportionally smaller and Proportionally larger species, whose isometric-relative effect is exactly null by design, this means the SMA-intercept correlation is *not* expected to be centered on zero: guaranteeing an exactly null isometric-relative effect for these species necessarily requires $\rho_{13} \neq \rho_{23}$ (main text, Effect classification), and it is exactly that differential correlation the SMA-intercept check picks up — the same pathway responsible for SLI-estimated's divergence from SLI-isometry among these species (main text, Simulation performance; Proportionally larger scenario below).
 
 ```{r}
 #| label: fig-cor-allometry-values
-#| fig-cap: "Correlation between binned temperature and the SMA intercept (a proxy for relative appendage length) for every simulated species, used to validate that each species moved in its intended direction. Fatter species should show a negative correlation and Longer species a positive correlation; Proportionally smaller and Proportionally larger species, which have no true shape signal, should straddle zero. Species falling on the wrong side of zero for their category (e.g., points above the dashed line for Fatter species) were excluded from further analysis. Point shape distinguishes models fit with a fixed slope ('No interaction') from models allowing the slope to vary with temperature ('Interaction'); point size indicates allometric scaling category and colour indicates the strength of the difference between temperature's effect on appendage length and mass."
+#| fig-cap: "Correlation between binned temperature and the SMA intercept (a proxy for each species' own realized scaling relationship, not the isometric ground truth used elsewhere in this paper) for every simulated species, used to validate that Fatter and Longer species moved in their intended direction. Fatter species should show a negative correlation and Longer species a positive correlation. Proportionally smaller and Proportionally larger species are not expected to straddle zero here, despite having an exactly null isometric-relative effect by design (see main text); species falling on the wrong side of zero for their category (e.g., points above the dashed line for Fatter species) were excluded from further analysis, an exclusion rule that was not applied to the Proportionally smaller/larger categories. Point shape distinguishes models fit with a fixed slope ('No interaction') from models allowing the slope to vary with temperature ('Interaction'); point size indicates allometric scaling category and colour indicates the strength of the difference between temperature's effect on appendage length and mass."
 #| fig-pos: 'H'
 
 Parms_temp_bs %>%
@@ -151,11 +151,11 @@ The simulated data reproduce the empirical pattern and clarify its mechanism. **
 
 # Proportionally larger scenario: simulated analogue of Inverse Bergmann's responses
 
-The main text simulation compares six methods for estimating relative appendage length across three realizations of Bergmann's rule (Fatter, Proportionally smaller, Longer), in which body mass never increases with warming. Here I additionally simulated a **Proportionally larger** scenario — the mirror image of Proportionally smaller, in which temperature increases wing length and body mass by equal amounts rather than decreasing both ($b \in \{0.22, 0.33, 0.44\}$, $\rho_{12} \in \{0.3, 0.45, 0.6\}$, $\rho_{13} = \rho_{23} \in \{0.15, 0.3, 0.5, 0.7\}$; 36 simulated species). Because both traits increase equally, there is no true shape signal in this scenario — an unbiased method should classify roughly half of Proportionally larger species as becoming relatively longer, matching the observed baseline of `r Bigger_longer_pct`%. This scenario is the simulated analogue of empirically observed **Inverse Bergmann's** responses (main text classification table), in which mass, wing length, or both increase with warming.
+The main text simulation compares six methods for estimating relative appendage length across three realizations of Bergmann's rule (Fatter, Proportionally smaller, Longer), in which body mass never increases with warming. Here I additionally simulated a **Proportionally larger** scenario — the mirror image of Proportionally smaller, in which temperature increases wing length and body mass with equal, not differential, pull ($b \in \{0.22, 0.33, 0.44\}$, $\rho_{12} \in \{0.3, 0.45, 0.6\}$, $\rho_{13}$ solved from $\rho_{23} \in \{0.15, 0.3, 0.5, 0.7\}$ so the true isometric-relative effect is exactly null; main text, Effect classification; 36 simulated species). Because the true effect is exactly zero for every species in this design, an unbiased method should classify exactly half of Proportionally larger species as becoming relatively longer, matching the true value of `r Bigger_longer_pct`%. This scenario is the simulated analogue of empirically observed **Inverse Bergmann's** responses (main text classification table), in which mass, wing length, or both increase with warming.
 
 ```{r}
 #| label: fig-bigger-compare
-#| fig-cap: "Estimated effect of temperature on relative appendage length ($\\hat{\\beta}_T$) for each method among species simulated as Proportionally larger (body mass and wing length both increasing with warming; 36 simulated species). Positive values indicate that species were classified as becoming relatively longer; the true effect is null in every species, so the expected value is near zero for an unbiased method. Point shape indicates allometric scaling category."
+#| fig-cap: "Estimated effect of temperature on relative appendage length ($\\hat{\\beta}_T$) for each method among species simulated as Proportionally larger (body mass and wing length both increasing with warming; 36 simulated species). Positive values indicate that species were classified as becoming relatively longer; the true effect is exactly zero in every species, so the expected value is zero for an unbiased method. Point shape indicates allometric scaling category."
 #| fig-width: 8
 #| fig-height: 5
 #| fig-pos: 'H'
@@ -170,7 +170,90 @@ Parms_tbl4_bigger %>%
   theme(axis.text.x = element_text(size = 10, vjust = .58, angle = 55))
 ```
 
-The pattern mirrors, and inverts, the classical biases described in the main text. Because mass now increases rather than decreases with temperature, the ratio approach's denominator grows instead of shrinking: only `r Ratio_bigger_pos`% of Proportionally larger species (versus the true proportion of `r Bigger_longer_pct`%) were classified as becoming relatively longer — the opposite-direction analogue of the ratio's upward bias in shrinking (Bergmann's) species. Multiple regression and OLS residuals show the mirror-image error: `r Ryding_bigger_pos`% of Proportionally larger species were classified as becoming relatively longer despite the complete absence of a true shape signal, reflecting the same attenuation mechanism described in the main text, reinforcing rather than opposing the (null) signal because mass is increasing rather than decreasing. SLI-isometry also showed a bias toward classifying Proportionally larger species as relatively longer (`r Sli.iso_bigger_pos`%), while SLI-estimated (`r Sli.est_bigger_pos`%) was closer to the true proportion, though this is based on a comparatively modest sample of 36 simulated species.
+The pattern mirrors, and inverts, the classical biases described in the main text. Because mass now increases rather than decreases with temperature, the ratio approach's denominator grows instead of shrinking: only `r Ratio_bigger_pos`% of Proportionally larger species (versus the true proportion of `r Bigger_longer_pct`%) were classified as becoming relatively longer — the opposite-direction analogue of the ratio's upward bias in shrinking (Bergmann's) species. Multiple regression and OLS residuals show the mirror-image error: `r Ryding_bigger_pos`% of Proportionally larger species were classified as becoming relatively longer despite the complete absence of a true shape signal, reflecting the same attenuation mechanism described in the main text, reinforcing rather than opposing the (null) signal because mass is increasing rather than decreasing. SLI-isometry showed a smaller, but still real, bias toward classifying Proportionally larger species as relatively fatter (`r Sli.iso_bigger_pos`%, versus the true `r Bigger_longer_pct`%), while SLI-estimated (`r Sli.est_bigger_pos`%) deviated further from the true proportion — the same pattern, and for the same structural reason, as in the Proportionally smaller scenario (main text, Simulation performance): forcing the isometric-relative true effect to exactly zero necessarily opens a real differential-correlation pathway that SLI-estimated, but not SLI-isometry, is structurally sensitive to. Accounting for uncertainty makes the gap between the two SLI variants decisive: a 95% confidence interval correctly included zero for `r Sli.iso_bigger_null_correct`% of Proportionally larger species under SLI-isometry, against `r Sli.est_bigger_null_correct`% under SLI-estimated and `r Ratio_bigger_null_correct`–`r Ryding_bigger_null_correct`% for the four non-SLI methods — matching the main text's Proportionally smaller result almost exactly. This is based on a comparatively modest sample of 36 simulated species.
+
+# Robustness check: anchoring the ground truth to OLS instead of SMA
+
+The main text anchors "isometric" (0.33) to the SMA scale (main text, Approach classification), matching SLI's own error-in-both-variables logic. As a check on how much that choice matters, I recomputed an alternative ground truth anchored to the OLS scale instead: $\beta_{OLS} = \rho_{12} \cdot \beta_{SMA}$ and $\beta_{T,OLS} = \rho_{13} \cdot \beta_{OLS} - 0.33 \cdot \rho_{23}$, then re-scored all six methods' sign-agreement against it among Longer and Fatter species (Proportionally smaller/larger are excluded here, as in the main text's calibration scatter (main text, Simulation performance), since their isometric-relative effect is exactly null by design and so has no signed value to agree or disagree with under either anchor).
+
+```{r}
+#| label: tbl-ols-anchor
+#| tbl-cap: "Sign-agreement of each method's estimated coefficient against the adopted (SMA-anchored) ground truth versus an alternative OLS-anchored ground truth, among Longer and Fatter species."
+
+knitr::kable(Ols_anchor_summary_tbl)
+```
+
+SLI-isometry's agreement drops sharply (`r Sliiso_pct_sma`% to `r Sliiso_pct_ols`%) under OLS-anchoring, as expected since the ground truth no longer matches its own formula. Ratio, by contrast, improves substantially (`r Ratio_pct_sma`% to `r Ratio_pct_ols`%) — closing much of the gap with the SLI variants, though not matching them or Ratio² under either anchor — while Mass-as-covariate and OLS-residuals both fall further behind (`r Ryding_pct_sma`% to `r Ryding_pct_ols`%, and `r Olsresid_pct_sma`% to `r Olsresid_pct_ols`%, respectively) — the opposite of what "they're OLS-based methods, so they should track an OLS-anchored truth" would predict, because both test deviation from each species' own estimated relationship rather than from a fixed external anchor, and so are structurally insensitive to the allometry-vs-anchor pathway regardless of which scale that anchor is stated on. This confirms the SMA-vs-OLS choice for 0.33 is consequential, not a relabeling, while leaving the case for anchoring to SMA (main text, Approach classification) unchanged.
+
+```{r}
+#| label: fig-calibration-ols
+#| fig-cap: "The main text's per-species calibration scatter (main text, Simulation performance) recreated with the ground truth anchored to OLS instead of SMA (x-axis: the OLS-anchored true effect), among Longer and Fatter species. Same species and estimated coefficients as the main text figure; only the definition of the true value has moved."
+#| fig-width: 9
+#| fig-height: 6.5
+#| fig-pos: 'H'
+
+ggplot(Ols_anchor_df, aes(x = beta_iso_true_ols, y = b_temp_inc, color = Temp_eff, shape = Scaling)) +
+  geom_hline(yintercept = 0, color = "grey80") +
+  geom_vline(xintercept = 0, color = "grey80") +
+  geom_point(alpha = .55, size = 1.2) +
+  geom_text(data = Ols_anchor_stats, aes(label = paste0("r=", r, ", ", pct_correct, "% correct")),
+            x = -Inf, y = Inf, hjust = -0.05, vjust = 1.3, inherit.aes = FALSE, size = 2.6) +
+  facet_wrap(vars(Model), scales = "free_y") +
+  labs(x = expression(beta[T*","*OLS] ~ "(analytic, OLS-anchored)"),
+       y = expression(hat(beta)[T] ~ "(estimated)"),
+       color = "Category", shape = "Scaling") +
+  guides(color = guide_legend(nrow = 1), shape = guide_legend(nrow = 1)) +
+  theme(legend.position = "top", legend.box = "vertical")
+```
+
+# Why SLI-isometry's correlation with the ground truth isn't exactly 1
+
+The main text notes that anchoring $\beta_T$ to the same isometric scale SLI-isometry itself uses makes it circular to "test" SLI-isometry against the other approaches (Approach classification). If that's right, SLI-isometry's fitted coefficient should be an almost-exact function of $\beta_T$, not just a strongly correlated one — the raw correlation in the main text's calibration scatter (main text, Simulation performance) is r $\approx$ 0.97, not 1, which at first glance looks like room for genuine daylight between the two. It isn't: the gap is (almost entirely) a missing scaling term, not noise.
+
+$\beta_T$ is defined from $\mathrm{Cov}(\log SLI, \mathrm{Temperature})$ alone (main text, Effect classification), but a *fitted regression coefficient* is that covariance divided by $sd(\log SLI)$ too — a correlation, not a covariance. $sd(\log SLI)^2$ is proportional to
+
+$$V = \beta_{SMA}^2 + 0.33^2 - 2 \cdot 0.33 \cdot \rho_{12} \cdot \beta_{SMA}$$
+
+which varies species to species (it depends on each species' own $\beta_{SMA}$ and $\rho_{12}$), and $\beta_T$ never accounted for it — only the *sign* claim survives that omission, since $\sqrt{V}>0$ always. Dividing $\beta_T$ by $\sqrt{V}$ restores the missing term.
+
+```{r}
+#| label: tbl-sli-iso-rescale
+#| tbl-cap: "Correlation between SLI-isometry's fitted coefficient and the ground truth, before and after the variance correction."
+
+tibble::tibble(Version = c("Raw", "Variance-corrected"), r = c(r_sli_iso_raw, r_sli_iso_rescaled)) %>%
+  knitr::kable()
+```
+
+```{r}
+#| label: fig-sli-iso-rescale
+#| fig-cap: "SLI-isometry's fitted coefficient against the ground truth, raw (left) and variance-corrected (right; main text, Effect classification and this section). Longer, Fatter, and Proportionally smaller species, matching the main text's calibration scatter; the dashed line is 1:1, not a fitted trend."
+#| fig-width: 8
+#| fig-height: 4.5
+#| fig-pos: 'H'
+
+Sli_iso_rescale_long <- Sli_iso_rescale_df %>%
+  pivot_longer(cols = c(beta_iso_true, beta_T_rescaled), names_to = "Version", values_to = "x") %>%
+  mutate(Version = if_else(Version == "beta_iso_true", "Raw", "Variance-corrected"),
+         Version = factor(Version, levels = c("Raw", "Variance-corrected")))
+
+Sli_iso_rescale_stats_long <- tibble::tibble(
+  Version = factor(c("Raw", "Variance-corrected"), levels = c("Raw", "Variance-corrected")),
+  r = c(r_sli_iso_raw, r_sli_iso_rescaled)
+)
+
+ggplot(Sli_iso_rescale_long, aes(x = x, y = b_temp_inc, color = Temp_eff, shape = Scaling)) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "grey50") +
+  geom_point(alpha = .55, size = 1.2) +
+  geom_text(data = Sli_iso_rescale_stats_long, aes(label = paste0("r=", r)),
+            x = -Inf, y = Inf, hjust = -0.1, vjust = 1.5, inherit.aes = FALSE, size = 3) +
+  facet_wrap(vars(Version), scales = "free") +
+  labs(x = "Ground truth", y = expression(hat(beta)[T] ~ "(SLI-isometry, estimated)"),
+       color = "Category", shape = "Scaling") +
+  guides(color = guide_legend(nrow = 1), shape = guide_legend(nrow = 1)) +
+  theme(legend.position = "top", legend.box = "vertical")
+```
+
+The variance correction takes the correlation from `r round(r_sli_iso_raw,2)` to `r round(r_sli_iso_rescaled,4)`, and the points sit almost exactly on the 1:1 line once it's applied. This isn't unique to SLI-isometry — every one of the six methods has a closed-form standardized coefficient that reaches a similarly exact correlation (0.9999–1.0000) against its own correctly-scaled natural anchor (e.g. Mass-as-covariate against the textbook standardized partial-regression coefficient $(\rho_{13}-\rho_{12}\rho_{23})/(1-\rho_{23}^2)$), confirming that the ground truth used in the main text is not merely correlated with SLI-isometry's formula but algebraically equivalent to it up to this one scaling factor — which is precisely why SLI-isometry's own strong performance should be read as confirmation that the simulation and ground-truth calculation behave as expected, not as a comparative win over the other five approaches (main text, Approach classification).
 
 # Mixed - Wingier and Mixed - Fatter empirical species
 

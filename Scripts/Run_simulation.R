@@ -265,6 +265,66 @@ Eval_tbl <- Parms_tbl4 %>%
   mutate(Prop_correct = round(Prop_correct, 2)) %>%
   arrange(Model)
 
+# OLS-anchored robustness check (supplementary): recompute the ground truth with 0.33 compared against an OLS-scale reference slope instead of the adopted SMA-scale one, and re-score all six methods' sign-agreement against it. See Project_notes.md / Ground_truth_explainer.qmd "Round 3" for the derivation and the SMA-vs-OLS rationale it is checking (main text, Approach classification). Restricted to Longer/Fatter, matching Eval_tbl's convention: beta_iso_true is exactly 0 for both Proportional categories under the SMA anchor by design (Effect classification), so a signed sign-agreement comparison isn't meaningful for them under that anchor.
+Ols_anchor_df <- Parms_tbl4 %>%
+  filter(Temp_eff %in% c("Longer", "Fatter")) %>%
+  mutate(Model = str_replace_all(Model, x_labs),
+         b_true_ols        = r_12 * true_b_sma,
+         beta_iso_true_ols = r_13 * b_true_ols - 0.33 * r_23)
+
+# "Correct" requires the whole 95% CI, not just the point estimate, on the correct side of
+# zero -- same criterion as Est_correct above, applied here to both candidate ground truths.
+ci_correct <- function(true_val, ci_lo, ci_hi) (true_val > 0 & ci_lo > 0) | (true_val < 0 & ci_hi < 0)
+
+Ols_anchor_summary_tbl <- Ols_anchor_df %>%
+  group_by(Model) %>%
+  summarize(
+    `r (SMA-anchored)` = round(cor(beta_iso_true, b_temp_inc), 2),
+    `% correct (SMA)`  = round(mean(ci_correct(beta_iso_true, ci_lo, ci_hi)) * 100, 1),
+    `r (OLS-anchored)` = round(cor(beta_iso_true_ols, b_temp_inc), 2),
+    `% correct (OLS)`  = round(mean(ci_correct(beta_iso_true_ols, ci_lo, ci_hi)) * 100, 1),
+    .groups = "drop"
+  )
+
+# Precomputed r/pct_correct pair for the fig-eval-style calibration scatter in supplementary_info.qmd -- computed here, not in the qmd, matching this section's "no new stats inside the qmd" convention.
+Ols_anchor_stats <- Ols_anchor_df %>%
+  group_by(Model) %>%
+  summarize(r = round(cor(beta_iso_true_ols, b_temp_inc), 2),
+            pct_correct = round(mean(ci_correct(beta_iso_true_ols, ci_lo, ci_hi)) * 100, 1),
+            .groups = "drop")
+
+pull_ols_pct <- function(model, col, tbl = Ols_anchor_summary_tbl) {
+  tbl %>% filter(Model == {{ model }}) %>% pull({{ col }})
+}
+
+Sliiso_pct_sma   <- pull_ols_pct("SLI isometry",      `% correct (SMA)`)
+Sliiso_pct_ols   <- pull_ols_pct("SLI isometry",      `% correct (OLS)`)
+Ratio_pct_sma    <- pull_ols_pct("Appendage / mass",  `% correct (SMA)`)
+Ratio_pct_ols    <- pull_ols_pct("Appendage / mass",  `% correct (OLS)`)
+Ryding_pct_sma   <- pull_ols_pct("Mass as covariate", `% correct (SMA)`)
+Ryding_pct_ols   <- pull_ols_pct("Mass as covariate", `% correct (OLS)`)
+Olsresid_pct_sma <- pull_ols_pct("OLS residuals",     `% correct (SMA)`)
+Olsresid_pct_ols <- pull_ols_pct("OLS residuals",     `% correct (OLS)`)
+
+# SLI-isometry / beta_T rescaling check (supplementary): beta_iso_true only captures
+# Cov(log SLI, Temp), while SLI-isometry's actual fitted coefficient is that covariance divided by
+# sd(log SLI) too (a correlation, not a covariance) -- a species-specific variance term beta_iso_true
+# never accounted for. V = Var(Append - 0.33*Mass)/sd_M^2 = true_b_sma^2 + 0.33^2 - 2*0.33*r_12*true_b_sma;
+# dividing beta_iso_true by sqrt(V) restores the missing term and should put SLI-isometry almost
+# exactly on the 1:1 line (r ~ 0.9999) against a raw r ~ 0.97 -- see Project_notes.md /
+# Ground_truth_explainer.qmd for the derivation. Scoped to Longer/Fatter/Proportionally smaller,
+# matching fig-eval; Proportionally smaller collapses to 0 under both the raw and rescaled versions.
+Sli_iso_rescale_df <- Parms_tbl4 %>%
+  filter(Temp_eff != "Proportionally larger", Model == "Sli_iso") %>%
+  mutate(V = true_b_sma^2 + 0.33^2 - 2 * 0.33 * r_12 * true_b_sma,
+         beta_T_rescaled = beta_iso_true / sqrt(V))
+
+Sli_iso_rescale_stats <- Sli_iso_rescale_df %>%
+  summarize(r_raw = round(cor(beta_iso_true, b_temp_inc), 4),
+            r_rescaled = round(cor(beta_T_rescaled, b_temp_inc), 4))
+r_sli_iso_raw      <- Sli_iso_rescale_stats$r_raw
+r_sli_iso_rescaled <- Sli_iso_rescale_stats$r_rescaled
+
 Proportional_methods_eval <- Parms_tbl4 %>%
   filter(Temp_eff == "Proportionally smaller") %>%
   summarize(Prop_pos = sum(b_dir == "Pos") / n(), .by = c(Model, Temp_eff)) %>%
@@ -385,6 +445,15 @@ saveRDS(
     Bigger_fatter = Bigger_fatter, Bigger_longer = Bigger_longer,
     Bigger_longer_pct = Bigger_longer_pct,
 
+    # OLS-anchored robustness check (supplementary)
+    Ols_anchor_df          = Ols_anchor_df,
+    Ols_anchor_summary_tbl = Ols_anchor_summary_tbl,
+    Ols_anchor_stats       = Ols_anchor_stats,
+    Sliiso_pct_sma = Sliiso_pct_sma, Sliiso_pct_ols = Sliiso_pct_ols,
+    Ratio_pct_sma  = Ratio_pct_sma,  Ratio_pct_ols  = Ratio_pct_ols,
+    Ryding_pct_sma = Ryding_pct_sma, Ryding_pct_ols = Ryding_pct_ols,
+    Olsresid_pct_sma = Olsresid_pct_sma, Olsresid_pct_ols = Olsresid_pct_ols,
+
     # Inline percentages
     Sli.iso_fatter_right = Sli.iso_fatter_right, Sli.iso_longer_right = Sli.iso_longer_right,
     Ryding_longer_right  = Ryding_longer_right,  Ryding_fatter_right  = Ryding_fatter_right,
@@ -413,7 +482,12 @@ saveRDS(
     Ratio_bigger_null_correct    = Ratio_bigger_null_correct,
     Ratio2_bigger_null_correct   = Ratio2_bigger_null_correct,
     Ryding_bigger_null_correct   = Ryding_bigger_null_correct,
-    Olsresid_bigger_null_correct = Olsresid_bigger_null_correct
+    Olsresid_bigger_null_correct = Olsresid_bigger_null_correct,
+
+    # SLI-isometry variance-rescaling check (supplementary)
+    Sli_iso_rescale_df = Sli_iso_rescale_df,
+    r_sli_iso_raw      = r_sli_iso_raw,
+    r_sli_iso_rescaled = r_sli_iso_rescaled
   ),
   "Derived/Rds/simulation_results.rds"
 )
