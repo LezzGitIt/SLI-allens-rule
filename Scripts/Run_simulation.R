@@ -38,12 +38,21 @@ Parms_mat <- expand_grid(
   r_23 = r_23
 ) %>%
   mutate(
+    # Population SMA slope of Append~Mass implied by b_avg_12 (average of OLS + SMA slope) and r_12.
+    true_b_sma = 2 * b_avg_12 / (r_12 + 1),
+    # Flag the "Proportionally smaller" design cells before r_13 is solved below, so the Longer/Fatter sign logic further down stays driven by the same untouched off-diagonal rows as before -- not by re-testing beta_iso_true == 0, which also happens to hold for one coincidental off-diagonal cell (b_avg_12=0.44, r_12=0.6, r_13=-0.3, r_23=-0.5; 0.3*0.55 == 0.33*0.5).
+    is_proportional = r_13 == r_23,
+    # Solve r_13 (instead of leaving it equal to r_23) so beta_iso_true = 0 exactly for every Proportionally smaller cell regardless of allometric scaling category -- r_13 = r_23 only zeroed it for Hypoallometric species; see Project_notes.md / Ground_truth_explainer.qmd "Round 7" for the derivation. Off-diagonal (Longer/Fatter) rows keep their original r_13.
+    r_13 = if_else(is_proportional, 0.33 * r_23 / true_b_sma, r_13),
+    # Closed-form sign of SLI-isometry's population coefficient on temperature -- this simulation's ground truth for "true" shape change (see Project_notes.md for derivation).
+    beta_iso_true = r_13 * true_b_sma - 0.33 * r_23,
     Temp_eff = case_when(
-      r_13 > r_23 ~ Shape[1],
-      r_13 == r_23 ~ Shape[2],
-      r_13 < r_23 ~ Shape[3]
+      is_proportional ~ Shape[2],
+      beta_iso_true > 0 ~ Shape[1],
+      beta_iso_true < 0 ~ Shape[3]
     ),
-    Strength = abs(r_13 - r_23)
+    Strength = abs(r_13 - r_23),
+    is_proportional = NULL
   ) %>%
   mutate(Scaling = case_when(
     b_avg_12 < 0.33 ~ "Hypoallometry",
@@ -51,18 +60,20 @@ Parms_mat <- expand_grid(
     near(b_avg_12, 0.33) ~ "Isometry"
   ))
 
-# Proportionally larger: mirror of the negative "Proportionally smaller" diagonal -- temperature increases wing and mass equally (rather than decreasing both), i.e. species get uniformly bigger with warming with no true shape change. Simulated analogue of empirical "Inverse Bergmann's" species.
+# Proportionally larger: mirror of the negative "Proportionally smaller" diagonal, on the positive-r_23 side -- temperature increases wing and mass with equal, not differential, pull. r_13 is solved (not set equal to r_23) so beta_iso_true = 0 exactly, same fix as Proportionally smaller above. Simulated analogue of empirical "Inverse Bergmann's" species.
 r_temp_pos <- c(.15, .3, .5, .7)
 
 Parms_big <- expand_grid(
   b_avg_12 = b_avg_12,
   r_12     = r_12,
-  r_temp   = r_temp_pos
+  r_23     = r_temp_pos
 ) %>%
-  mutate(r_13 = r_temp, r_23 = r_temp, r_temp = NULL,
-         Temp_eff = "Proportionally larger",
-         Strength = abs(r_13 - r_23),
-         Scaling  = case_when(
+  mutate(true_b_sma    = 2 * b_avg_12 / (r_12 + 1),
+         r_13          = 0.33 * r_23 / true_b_sma,
+         beta_iso_true = r_13 * true_b_sma - 0.33 * r_23,
+         Temp_eff      = "Proportionally larger",
+         Strength      = abs(r_13 - r_23),
+         Scaling       = case_when(
            b_avg_12 < 0.33 ~ "Hypoallometry",
            b_avg_12 > 0.33 ~ "Hyperallometry",
            near(b_avg_12, 0.33) ~ "Isometry"
@@ -150,13 +161,33 @@ extract_coefs <- function(Sim_df_s, coefs) {
   ratio2_app    <- lm(Append2_mass ~ Temp_inc, data = Sim_df_s, na.action = na.exclude)
   sli_iso_app   <- lm(sli_isometry  ~ Temp_inc, data = Sim_df_s, na.action = na.exclude)
   sli_est_app   <- lm(sli_estimated ~ Temp_inc, data = Sim_df_s, na.action = na.exclude)
+
+  # 95% CI on the Temp_inc coefficient for each method -- used downstream to define
+  # a stricter correctness criterion (point estimate right-signed AND CI excludes
+  # zero), not just point-estimate sign. "_app" suffix kept on every one of the six
+  # (Ratio/Ratio2 included) so a single pivot_longer(.value) can reshape coef/ci_lo/ci_hi
+  # together below.
+  ci_temp_inc <- function(mod) confint(mod)["Temp_inc", ]
+
   tibble(
     coef_sli_iso_app   = coef(sli_iso_app)["Temp_inc"],
     coef_sli_est_app   = coef(sli_est_app)["Temp_inc"],
     coef_ols_resid_app = coef(ols_resid_app)["Temp_inc"],
     coef_ryding_app    = coef(ryding_app)["Temp_inc"],
-    coef_ratio         = coef(ratio_app)["Temp_inc"],
-    coef_ratio2        = coef(ratio2_app)["Temp_inc"],
+    coef_ratio_app     = coef(ratio_app)["Temp_inc"],
+    coef_ratio2_app    = coef(ratio2_app)["Temp_inc"],
+    ci_lo_sli_iso_app   = ci_temp_inc(sli_iso_app)[1],
+    ci_hi_sli_iso_app   = ci_temp_inc(sli_iso_app)[2],
+    ci_lo_sli_est_app   = ci_temp_inc(sli_est_app)[1],
+    ci_hi_sli_est_app   = ci_temp_inc(sli_est_app)[2],
+    ci_lo_ols_resid_app = ci_temp_inc(ols_resid_app)[1],
+    ci_hi_ols_resid_app = ci_temp_inc(ols_resid_app)[2],
+    ci_lo_ryding_app    = ci_temp_inc(ryding_app)[1],
+    ci_hi_ryding_app    = ci_temp_inc(ryding_app)[2],
+    ci_lo_ratio_app     = ci_temp_inc(ratio_app)[1],
+    ci_hi_ratio_app     = ci_temp_inc(ratio_app)[2],
+    ci_lo_ratio2_app    = ci_temp_inc(ratio2_app)[1],
+    ci_hi_ratio2_app    = ci_temp_inc(ratio2_app)[2],
     est_b_sma          = coefs$est_b_sma,
     est_b_ols          = coefs$est_b_ols,
     # Per-species Pearson correlation between each method's individual-level
@@ -190,17 +221,30 @@ x_labs <- c(
   "Ratio"     = "Appendage / mass"
 )
 
+# Est_correct requires the whole 95% CI, not just the point estimate, to fall on the correct
+# side of zero -- a species simulated as Fatter with a negative point estimate but a CI spanning
+# zero does not count as correctly classified. This necessarily implies the point-estimate sign
+# is also correct (the point estimate always lies within its own CI). For Proportionally
+# smaller/larger species, the true effect is exactly 0 by construction (Effect classification),
+# so the criterion reverses: a method is correct there if its CI *includes* zero (correctly
+# failing to detect a nonexistent effect), not if it excludes it. Computed here (not per-qmd) so
+# every downstream consumer of Parms_tbl4 -- Eval_tbl, both fig-eval-style calibration scatters,
+# Results-paragraph percentages -- shares one definition of "correct."
 Parms_tbl4 <- Parms_tbl3 %>%
   pivot_longer(
-    cols = c(coef_sli_iso_app, coef_sli_est_app, coef_ols_resid_app,
-             coef_ryding_app, coef_ratio, coef_ratio2),
-    names_to  = "Model",
-    values_to = "b_temp_inc"
+    cols = matches("^(coef|ci_lo|ci_hi)_.+_app$"),
+    names_to = c(".value", "Model"),
+    names_pattern = "(coef|ci_lo|ci_hi)_(.+)_app"
   ) %>%
-  mutate(
-    Model = str_remove_all(Model, "coef_|_app"),
-    Model = str_to_sentence(Model)
-  )
+  rename(b_temp_inc = coef) %>%
+  mutate(Model = str_to_sentence(Model)) %>%
+  mutate(b_dir = if_else(b_temp_inc < 0, "Neg", "Pos")) %>%
+  mutate(Est_correct = case_when(
+    Temp_eff == "Longer" ~ ci_lo > 0,
+    Temp_eff == "Fatter" ~ ci_hi < 0,
+    Temp_eff %in% c("Proportionally smaller", "Proportionally larger") ~ ci_lo <= 0 & ci_hi >= 0,
+    .default = FALSE
+  ), .by = Model)
 
 # Per-species correlation between each method's metric and body mass ---------
 Mass_cor_tbl <- Parms_tbl3 %>%
@@ -215,24 +259,73 @@ Mass_cor_tbl <- Parms_tbl3 %>%
   )
 
 # Evaluation --------------------------------------------------------------
-Parms_tbl5 <- Parms_tbl4 %>%
-  mutate(b_dir = if_else(b_temp_inc < 0, "Neg", "Pos")) %>%
-  mutate(Est_correct = case_when(
-    Temp_eff == "Longer"      & b_dir == "Pos" ~ TRUE,
-    Temp_eff == "Fatter"      & b_dir == "Neg" ~ TRUE,
-    Temp_eff == "Proportionally smaller" ~ NA,
-    Temp_eff == "Proportionally larger"  ~ NA,
-    .default = FALSE
-  ), .by = Model)
-
-Eval_tbl <- Parms_tbl5 %>%
+Eval_tbl <- Parms_tbl4 %>%
   summarize(Prop_correct = sum(Est_correct, na.rm = TRUE) / n(),
             .by = c(Model, Temp_eff)) %>%
   mutate(Prop_correct = round(Prop_correct, 2)) %>%
-  filter(!Temp_eff %in% c("Proportionally smaller", "Proportionally larger")) %>%
   arrange(Model)
 
-Proportional_methods_eval <- Parms_tbl5 %>%
+# OLS-anchored robustness check (supplementary): recompute the ground truth with 0.33 compared against an OLS-scale reference slope instead of the adopted SMA-scale one, and re-score all six methods' sign-agreement against it. See Project_notes.md / Ground_truth_explainer.qmd "Round 3" for the derivation and the SMA-vs-OLS rationale it is checking (main text, Approach classification). Restricted to Longer/Fatter, matching Eval_tbl's convention: beta_iso_true is exactly 0 for both Proportional categories under the SMA anchor by design (Effect classification), so a signed sign-agreement comparison isn't meaningful for them under that anchor.
+Ols_anchor_df <- Parms_tbl4 %>%
+  filter(Temp_eff %in% c("Longer", "Fatter")) %>%
+  mutate(Model = str_replace_all(Model, x_labs),
+         b_true_ols        = r_12 * true_b_sma,
+         beta_iso_true_ols = r_13 * b_true_ols - 0.33 * r_23)
+
+# "Correct" requires the whole 95% CI, not just the point estimate, on the correct side of
+# zero -- same criterion as Est_correct above, applied here to both candidate ground truths.
+ci_correct <- function(true_val, ci_lo, ci_hi) (true_val > 0 & ci_lo > 0) | (true_val < 0 & ci_hi < 0)
+
+Ols_anchor_summary_tbl <- Ols_anchor_df %>%
+  group_by(Model) %>%
+  summarize(
+    `r (SMA-anchored)` = round(cor(beta_iso_true, b_temp_inc), 2),
+    `% correct (SMA)`  = round(mean(ci_correct(beta_iso_true, ci_lo, ci_hi)) * 100, 1),
+    `r (OLS-anchored)` = round(cor(beta_iso_true_ols, b_temp_inc), 2),
+    `% correct (OLS)`  = round(mean(ci_correct(beta_iso_true_ols, ci_lo, ci_hi)) * 100, 1),
+    .groups = "drop"
+  )
+
+# Precomputed r/pct_correct pair for the fig-eval-style calibration scatter in supplementary_info.qmd -- computed here, not in the qmd, matching this section's "no new stats inside the qmd" convention.
+Ols_anchor_stats <- Ols_anchor_df %>%
+  group_by(Model) %>%
+  summarize(r = round(cor(beta_iso_true_ols, b_temp_inc), 2),
+            pct_correct = round(mean(ci_correct(beta_iso_true_ols, ci_lo, ci_hi)) * 100, 1),
+            .groups = "drop")
+
+pull_ols_pct <- function(model, col, tbl = Ols_anchor_summary_tbl) {
+  tbl %>% filter(Model == {{ model }}) %>% pull({{ col }})
+}
+
+Sliiso_pct_sma   <- pull_ols_pct("SLI isometry",      `% correct (SMA)`)
+Sliiso_pct_ols   <- pull_ols_pct("SLI isometry",      `% correct (OLS)`)
+Ratio_pct_sma    <- pull_ols_pct("Appendage / mass",  `% correct (SMA)`)
+Ratio_pct_ols    <- pull_ols_pct("Appendage / mass",  `% correct (OLS)`)
+Ryding_pct_sma   <- pull_ols_pct("Mass as covariate", `% correct (SMA)`)
+Ryding_pct_ols   <- pull_ols_pct("Mass as covariate", `% correct (OLS)`)
+Olsresid_pct_sma <- pull_ols_pct("OLS residuals",     `% correct (SMA)`)
+Olsresid_pct_ols <- pull_ols_pct("OLS residuals",     `% correct (OLS)`)
+
+# SLI-isometry / beta_T rescaling check (supplementary): beta_iso_true only captures
+# Cov(log SLI, Temp), while SLI-isometry's actual fitted coefficient is that covariance divided by
+# sd(log SLI) too (a correlation, not a covariance) -- a species-specific variance term beta_iso_true
+# never accounted for. V = Var(Append - 0.33*Mass)/sd_M^2 = true_b_sma^2 + 0.33^2 - 2*0.33*r_12*true_b_sma;
+# dividing beta_iso_true by sqrt(V) restores the missing term and should put SLI-isometry almost
+# exactly on the 1:1 line (r ~ 0.9999) against a raw r ~ 0.97 -- see Project_notes.md /
+# Ground_truth_explainer.qmd for the derivation. Scoped to Longer/Fatter/Proportionally smaller,
+# matching fig-eval; Proportionally smaller collapses to 0 under both the raw and rescaled versions.
+Sli_iso_rescale_df <- Parms_tbl4 %>%
+  filter(Temp_eff != "Proportionally larger", Model == "Sli_iso") %>%
+  mutate(V = true_b_sma^2 + 0.33^2 - 2 * 0.33 * r_12 * true_b_sma,
+         beta_T_rescaled = beta_iso_true / sqrt(V))
+
+Sli_iso_rescale_stats <- Sli_iso_rescale_df %>%
+  summarize(r_raw = round(cor(beta_iso_true, b_temp_inc), 4),
+            r_rescaled = round(cor(beta_T_rescaled, b_temp_inc), 4))
+r_sli_iso_raw      <- Sli_iso_rescale_stats$r_raw
+r_sli_iso_rescaled <- Sli_iso_rescale_stats$r_rescaled
+
+Proportional_methods_eval <- Parms_tbl4 %>%
   filter(Temp_eff == "Proportionally smaller") %>%
   summarize(Prop_pos = sum(b_dir == "Pos") / n(), .by = c(Model, Temp_eff)) %>%
   mutate(Prop_neg = 1 - Prop_pos) %>%
@@ -241,19 +334,16 @@ Proportional_methods_eval <- Parms_tbl5 %>%
   mutate(Direction = str_remove(Direction, "Prop_"),
          Model = str_replace_all(Model, x_labs))
 
-Proportional_true_eff_tbl <- Parms_temp_bs %>%
-  filter(Temp_eff == "Proportionally smaller") %>%
-  mutate(True_temp_eff = if_else(Correlation > 0, "Longer", "Fatter")) %>%
-  janitor::tabyl(True_temp_eff)
+# True benchmark is now an exact analytic constant, not a quantity tabulated from beta_iso_true's sign (which is 0, not >0 or <0, for every row in both categories now that r_13 is solved above) -- an unbiased method's point-estimate sign should split ~50/50 by sampling noise alone, since the true effect is exactly null in every species in both categories.
+stopifnot(max(abs(Parms_mat3$beta_iso_true[Parms_mat3$Temp_eff == "Proportionally smaller"])) < 1e-9)
+stopifnot(max(abs(Parms_mat3$beta_iso_true[Parms_mat3$Temp_eff == "Proportionally larger"])) < 1e-9)
 
-Prop_fatter <- Proportional_true_eff_tbl %>%
-  filter(True_temp_eff == "Fatter") %>%
-  mutate(percent = round(percent, 2)) %>%
-  pull(percent)
-Prop_longer <- 1 - Prop_fatter
+Prop_true_null_pct <- 50
+Prop_fatter   <- 0.5
+Prop_longer   <- 0.5
 
 # "Proportionally larger" scenario: same "no true shape signal" evaluation as Proportionally smaller, just mirrored to the positive-r_13/r_23 diagonal (species getting bigger, not smaller). Kept as a parallel/duplicate computation rather than generalizing Proportional_methods_eval, so those objects remain unaffected.
-Bigger_methods_eval <- Parms_tbl5 %>%
+Bigger_methods_eval <- Parms_tbl4 %>%
   filter(Temp_eff == "Proportionally larger") %>%
   summarize(Prop_pos = sum(b_dir == "Pos") / n(), .by = c(Model, Temp_eff)) %>%
   mutate(Prop_neg = 1 - Prop_pos) %>%
@@ -262,16 +352,8 @@ Bigger_methods_eval <- Parms_tbl5 %>%
   mutate(Direction = str_remove(Direction, "Prop_"),
          Model = str_replace_all(Model, x_labs))
 
-Bigger_true_eff_tbl <- Parms_temp_bs %>%
-  filter(Temp_eff == "Proportionally larger") %>%
-  mutate(True_temp_eff = if_else(Correlation > 0, "Longer", "Fatter")) %>%
-  janitor::tabyl(True_temp_eff)
-
-Bigger_fatter <- Bigger_true_eff_tbl %>%
-  filter(True_temp_eff == "Fatter") %>%
-  mutate(percent = round(percent, 2)) %>%
-  pull(percent)
-Bigger_longer <- 1 - Bigger_fatter
+Bigger_fatter <- 0.5
+Bigger_longer <- 0.5
 
 # Inline percentages cited in the manuscript ------------------------------
 pull_percent <- function(Model, Temp_eff) {
@@ -294,16 +376,47 @@ Ryding_longer_right       <- pull_percent("Ryding",  "Longer")
 Ryding_fatter_right       <- pull_percent("Ryding",  "Fatter")
 Ratio_longer_right        <- pull_percent("Ratio",   "Longer")
 Ratio_fatter_right        <- pull_percent("Ratio",   "Fatter")
+Sli.est_longer_right      <- pull_percent("Sli_est", "Longer")
+Sli.est_fatter_right      <- pull_percent("Sli_est", "Fatter")
+
+Ratio2_fatter_right       <- pull_percent("Ratio2", "Fatter")
+# "Wrong" here matches Est_correct's CI-based criterion (Evaluation section above), not just
+# a wrong-signed point estimate -- a right-signed point estimate whose CI includes zero also counts as wrong.
+Ratio2_fatter_wrong_n <- Parms_tbl4 %>%
+  filter(Temp_eff == "Fatter", Model == "Ratio2", !Est_correct) %>% nrow()
+Fatter_n <- Parms_tbl4 %>% filter(Temp_eff == "Fatter", Model == "Ratio2") %>% nrow()
 
 Sli.iso_proportional_pos  <- pull_percent_proportional("SLI isometry", "pos")
-Dif_sli.iso <- Sli.iso_proportional_pos - (Prop_longer * 100)
-Dif_ryding  <- pull_percent_proportional("Mass as covariate", "neg") - (Prop_fatter * 100)
+Sli.est_proportional_pos  <- pull_percent_proportional("SLI estimated", "pos")
+Ratio_proportional_pos    <- pull_percent_proportional("Appendage / mass", "pos")
+Ratio2_proportional_fatter <- pull_percent_proportional("Appendage² / mass", "neg")
+Dif_sli.iso <- Sli.iso_proportional_pos - Prop_true_null_pct
+Dif_sli.est <- Sli.est_proportional_pos - Prop_true_null_pct
+Dif_ryding  <- pull_percent_proportional("Mass as covariate", "neg") - Prop_true_null_pct
+Dif_ratio   <- Ratio_proportional_pos - Prop_true_null_pct
 
 Sli.iso_bigger_pos <- pull_percent_proportional("SLI isometry",     "pos", tbl = Bigger_methods_eval)
 Sli.est_bigger_pos <- pull_percent_proportional("SLI estimated",    "pos", tbl = Bigger_methods_eval)
 Ratio_bigger_pos   <- pull_percent_proportional("Appendage / mass", "pos", tbl = Bigger_methods_eval)
 Ryding_bigger_pos  <- pull_percent_proportional("Mass as covariate","pos", tbl = Bigger_methods_eval)
 Bigger_longer_pct  <- round(Bigger_longer * 100, 0)
+
+# CI-based null-detection accuracy: % of species where the 95% CI correctly *includes* zero
+# (Est_correct's reversed criterion for the two Proportional categories, Evaluation section above).
+# Eval_tbl already carries these rows for every Model, so pull_percent() works unmodified.
+Sli.iso_proportional_null_correct   <- pull_percent("Sli_iso",   "Proportionally smaller")
+Sli.est_proportional_null_correct   <- pull_percent("Sli_est",   "Proportionally smaller")
+Ratio_proportional_null_correct     <- pull_percent("Ratio",     "Proportionally smaller")
+Ratio2_proportional_null_correct    <- pull_percent("Ratio2",    "Proportionally smaller")
+Ryding_proportional_null_correct    <- pull_percent("Ryding",    "Proportionally smaller")
+Olsresid_proportional_null_correct  <- pull_percent("Ols_resid", "Proportionally smaller")
+
+Sli.iso_bigger_null_correct   <- pull_percent("Sli_iso",   "Proportionally larger")
+Sli.est_bigger_null_correct   <- pull_percent("Sli_est",   "Proportionally larger")
+Ratio_bigger_null_correct     <- pull_percent("Ratio",     "Proportionally larger")
+Ratio2_bigger_null_correct    <- pull_percent("Ratio2",    "Proportionally larger")
+Ryding_bigger_null_correct    <- pull_percent("Ryding",    "Proportionally larger")
+Olsresid_bigger_null_correct  <- pull_percent("Ols_resid", "Proportionally larger")
 
 # Export --------------------------------------------------------------------
 dir.create("Derived/Rds", showWarnings = FALSE)
@@ -327,18 +440,54 @@ saveRDS(
     Eval_tbl                   = Eval_tbl,
     Proportional_methods_eval  = Proportional_methods_eval,
     Prop_fatter = Prop_fatter, Prop_longer = Prop_longer,
+    Prop_true_null_pct = Prop_true_null_pct,
     Bigger_methods_eval        = Bigger_methods_eval,
     Bigger_fatter = Bigger_fatter, Bigger_longer = Bigger_longer,
     Bigger_longer_pct = Bigger_longer_pct,
+
+    # OLS-anchored robustness check (supplementary)
+    Ols_anchor_df          = Ols_anchor_df,
+    Ols_anchor_summary_tbl = Ols_anchor_summary_tbl,
+    Ols_anchor_stats       = Ols_anchor_stats,
+    Sliiso_pct_sma = Sliiso_pct_sma, Sliiso_pct_ols = Sliiso_pct_ols,
+    Ratio_pct_sma  = Ratio_pct_sma,  Ratio_pct_ols  = Ratio_pct_ols,
+    Ryding_pct_sma = Ryding_pct_sma, Ryding_pct_ols = Ryding_pct_ols,
+    Olsresid_pct_sma = Olsresid_pct_sma, Olsresid_pct_ols = Olsresid_pct_ols,
 
     # Inline percentages
     Sli.iso_fatter_right = Sli.iso_fatter_right, Sli.iso_longer_right = Sli.iso_longer_right,
     Ryding_longer_right  = Ryding_longer_right,  Ryding_fatter_right  = Ryding_fatter_right,
     Ratio_longer_right   = Ratio_longer_right,   Ratio_fatter_right   = Ratio_fatter_right,
+    Sli.est_longer_right = Sli.est_longer_right, Sli.est_fatter_right = Sli.est_fatter_right,
+    Ratio2_fatter_right  = Ratio2_fatter_right,  Ratio2_fatter_wrong_n = Ratio2_fatter_wrong_n,
+    Fatter_n = Fatter_n,
     Sli.iso_proportional_pos = Sli.iso_proportional_pos,
-    Dif_sli.iso = Dif_sli.iso, Dif_ryding = Dif_ryding,
+    Sli.est_proportional_pos = Sli.est_proportional_pos,
+    Ratio_proportional_pos = Ratio_proportional_pos,
+    Ratio2_proportional_fatter = Ratio2_proportional_fatter,
+    Dif_sli.iso = Dif_sli.iso, Dif_sli.est = Dif_sli.est, Dif_ryding = Dif_ryding,
+    Dif_ratio = Dif_ratio,
     Sli.iso_bigger_pos = Sli.iso_bigger_pos, Sli.est_bigger_pos = Sli.est_bigger_pos,
-    Ratio_bigger_pos   = Ratio_bigger_pos,   Ryding_bigger_pos  = Ryding_bigger_pos
+    Ratio_bigger_pos   = Ratio_bigger_pos,   Ryding_bigger_pos  = Ryding_bigger_pos,
+
+    # CI-based null-detection accuracy (Proportionally smaller/larger)
+    Sli.iso_proportional_null_correct  = Sli.iso_proportional_null_correct,
+    Sli.est_proportional_null_correct  = Sli.est_proportional_null_correct,
+    Ratio_proportional_null_correct    = Ratio_proportional_null_correct,
+    Ratio2_proportional_null_correct   = Ratio2_proportional_null_correct,
+    Ryding_proportional_null_correct   = Ryding_proportional_null_correct,
+    Olsresid_proportional_null_correct = Olsresid_proportional_null_correct,
+    Sli.iso_bigger_null_correct  = Sli.iso_bigger_null_correct,
+    Sli.est_bigger_null_correct  = Sli.est_bigger_null_correct,
+    Ratio_bigger_null_correct    = Ratio_bigger_null_correct,
+    Ratio2_bigger_null_correct   = Ratio2_bigger_null_correct,
+    Ryding_bigger_null_correct   = Ryding_bigger_null_correct,
+    Olsresid_bigger_null_correct = Olsresid_bigger_null_correct,
+
+    # SLI-isometry variance-rescaling check (supplementary)
+    Sli_iso_rescale_df = Sli_iso_rescale_df,
+    r_sli_iso_raw      = r_sli_iso_raw,
+    r_sli_iso_rescaled = r_sli_iso_rescaled
   ),
   "Derived/Rds/simulation_results.rds"
 )
