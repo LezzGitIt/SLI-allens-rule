@@ -40,14 +40,19 @@ Parms_mat <- expand_grid(
   mutate(
     # Population SMA slope of Append~Mass implied by b_avg_12 (average of OLS + SMA slope) and r_12.
     true_b_sma = 2 * b_avg_12 / (r_12 + 1),
+    # Flag the "Proportionally smaller" design cells before r_13 is solved below, so the Longer/Fatter sign logic further down stays driven by the same untouched off-diagonal rows as before -- not by re-testing beta_iso_true == 0, which also happens to hold for one coincidental off-diagonal cell (b_avg_12=0.44, r_12=0.6, r_13=-0.3, r_23=-0.5; 0.3*0.55 == 0.33*0.5).
+    is_proportional = r_13 == r_23,
+    # Solve r_13 (instead of leaving it equal to r_23) so beta_iso_true = 0 exactly for every Proportionally smaller cell regardless of allometric scaling category -- r_13 = r_23 only zeroed it for Hypoallometric species; see Project_notes.md / Ground_truth_explainer.qmd "Round 7" for the derivation. Off-diagonal (Longer/Fatter) rows keep their original r_13.
+    r_13 = if_else(is_proportional, 0.33 * r_23 / true_b_sma, r_13),
     # Closed-form sign of SLI-isometry's population coefficient on temperature -- this simulation's ground truth for "true" shape change (see Project_notes.md for derivation).
     beta_iso_true = r_13 * true_b_sma - 0.33 * r_23,
     Temp_eff = case_when(
-      r_13 == r_23 ~ Shape[2],
+      is_proportional ~ Shape[2],
       beta_iso_true > 0 ~ Shape[1],
       beta_iso_true < 0 ~ Shape[3]
     ),
-    Strength = abs(r_13 - r_23)
+    Strength = abs(r_13 - r_23),
+    is_proportional = NULL
   ) %>%
   mutate(Scaling = case_when(
     b_avg_12 < 0.33 ~ "Hypoallometry",
@@ -55,20 +60,20 @@ Parms_mat <- expand_grid(
     near(b_avg_12, 0.33) ~ "Isometry"
   ))
 
-# Proportionally larger: mirror of the negative "Proportionally smaller" diagonal -- temperature increases wing and mass equally (rather than decreasing both), i.e. species get uniformly bigger with warming with no true shape change. Simulated analogue of empirical "Inverse Bergmann's" species.
+# Proportionally larger: mirror of the negative "Proportionally smaller" diagonal, on the positive-r_23 side -- temperature increases wing and mass with equal, not differential, pull. r_13 is solved (not set equal to r_23) so beta_iso_true = 0 exactly, same fix as Proportionally smaller above. Simulated analogue of empirical "Inverse Bergmann's" species.
 r_temp_pos <- c(.15, .3, .5, .7)
 
 Parms_big <- expand_grid(
   b_avg_12 = b_avg_12,
   r_12     = r_12,
-  r_temp   = r_temp_pos
+  r_23     = r_temp_pos
 ) %>%
-  mutate(r_13 = r_temp, r_23 = r_temp, r_temp = NULL,
-         Temp_eff = "Proportionally larger",
-         Strength = abs(r_13 - r_23),
-         true_b_sma = 2 * b_avg_12 / (r_12 + 1),
+  mutate(true_b_sma    = 2 * b_avg_12 / (r_12 + 1),
+         r_13          = 0.33 * r_23 / true_b_sma,
          beta_iso_true = r_13 * true_b_sma - 0.33 * r_23,
-         Scaling  = case_when(
+         Temp_eff      = "Proportionally larger",
+         Strength      = abs(r_13 - r_23),
+         Scaling       = case_when(
            b_avg_12 < 0.33 ~ "Hypoallometry",
            b_avg_12 > 0.33 ~ "Hyperallometry",
            near(b_avg_12, 0.33) ~ "Isometry"
@@ -247,16 +252,13 @@ Proportional_methods_eval <- Parms_tbl5 %>%
   mutate(Direction = str_remove(Direction, "Prop_"),
          Model = str_replace_all(Model, x_labs))
 
-Proportional_true_eff_tbl <- Parms_mat3 %>%
-  filter(Temp_eff == "Proportionally smaller") %>%
-  mutate(True_temp_eff = if_else(beta_iso_true > 0, "Longer", "Fatter")) %>%
-  janitor::tabyl(True_temp_eff)
+# True benchmark is now an exact analytic constant, not a quantity tabulated from beta_iso_true's sign (which is 0, not >0 or <0, for every row in both categories now that r_13 is solved above) -- an unbiased method's point-estimate sign should split ~50/50 by sampling noise alone, since the true effect is exactly null in every species in both categories.
+stopifnot(max(abs(Parms_mat3$beta_iso_true[Parms_mat3$Temp_eff == "Proportionally smaller"])) < 1e-9)
+stopifnot(max(abs(Parms_mat3$beta_iso_true[Parms_mat3$Temp_eff == "Proportionally larger"])) < 1e-9)
 
-Prop_fatter <- Proportional_true_eff_tbl %>%
-  filter(True_temp_eff == "Fatter") %>%
-  mutate(percent = round(percent, 2)) %>%
-  pull(percent)
-Prop_longer <- 1 - Prop_fatter
+Prop_true_null_pct <- 50
+Prop_fatter   <- 0.5
+Prop_longer   <- 0.5
 
 # "Proportionally larger" scenario: same "no true shape signal" evaluation as Proportionally smaller, just mirrored to the positive-r_13/r_23 diagonal (species getting bigger, not smaller). Kept as a parallel/duplicate computation rather than generalizing Proportional_methods_eval, so those objects remain unaffected.
 Bigger_methods_eval <- Parms_tbl5 %>%
@@ -268,16 +270,8 @@ Bigger_methods_eval <- Parms_tbl5 %>%
   mutate(Direction = str_remove(Direction, "Prop_"),
          Model = str_replace_all(Model, x_labs))
 
-Bigger_true_eff_tbl <- Parms_mat3 %>%
-  filter(Temp_eff == "Proportionally larger") %>%
-  mutate(True_temp_eff = if_else(beta_iso_true > 0, "Longer", "Fatter")) %>%
-  janitor::tabyl(True_temp_eff)
-
-Bigger_fatter <- Bigger_true_eff_tbl %>%
-  filter(True_temp_eff == "Fatter") %>%
-  mutate(percent = round(percent, 2)) %>%
-  pull(percent)
-Bigger_longer <- 1 - Bigger_fatter
+Bigger_fatter <- 0.5
+Bigger_longer <- 0.5
 
 # Inline percentages cited in the manuscript ------------------------------
 pull_percent <- function(Model, Temp_eff) {
@@ -312,9 +306,10 @@ Sli.iso_proportional_pos  <- pull_percent_proportional("SLI isometry", "pos")
 Sli.est_proportional_pos  <- pull_percent_proportional("SLI estimated", "pos")
 Ratio_proportional_pos    <- pull_percent_proportional("Appendage / mass", "pos")
 Ratio2_proportional_fatter <- pull_percent_proportional("Appendage² / mass", "neg")
-Dif_sli.iso <- Sli.iso_proportional_pos - (Prop_longer * 100)
-Dif_sli.est <- Sli.est_proportional_pos - (Prop_longer * 100)
-Dif_ryding  <- pull_percent_proportional("Mass as covariate", "neg") - (Prop_fatter * 100)
+Dif_sli.iso <- Sli.iso_proportional_pos - Prop_true_null_pct
+Dif_sli.est <- Sli.est_proportional_pos - Prop_true_null_pct
+Dif_ryding  <- pull_percent_proportional("Mass as covariate", "neg") - Prop_true_null_pct
+Dif_ratio   <- Ratio_proportional_pos - Prop_true_null_pct
 
 Sli.iso_bigger_pos <- pull_percent_proportional("SLI isometry",     "pos", tbl = Bigger_methods_eval)
 Sli.est_bigger_pos <- pull_percent_proportional("SLI estimated",    "pos", tbl = Bigger_methods_eval)
@@ -344,6 +339,7 @@ saveRDS(
     Eval_tbl                   = Eval_tbl,
     Proportional_methods_eval  = Proportional_methods_eval,
     Prop_fatter = Prop_fatter, Prop_longer = Prop_longer,
+    Prop_true_null_pct = Prop_true_null_pct,
     Bigger_methods_eval        = Bigger_methods_eval,
     Bigger_fatter = Bigger_fatter, Bigger_longer = Bigger_longer,
     Bigger_longer_pct = Bigger_longer_pct,
@@ -360,6 +356,7 @@ saveRDS(
     Ratio_proportional_pos = Ratio_proportional_pos,
     Ratio2_proportional_fatter = Ratio2_proportional_fatter,
     Dif_sli.iso = Dif_sli.iso, Dif_sli.est = Dif_sli.est, Dif_ryding = Dif_ryding,
+    Dif_ratio = Dif_ratio,
     Sli.iso_bigger_pos = Sli.iso_bigger_pos, Sli.est_bigger_pos = Sli.est_bigger_pos,
     Ratio_bigger_pos   = Ratio_bigger_pos,   Ryding_bigger_pos  = Ryding_bigger_pos
   ),
