@@ -83,7 +83,9 @@ build_direction_plot <- function(df_panel, direction, show_legend = FALSE) {
       color = guide_legend(override.aes = list(size = 3), ncol = 3),
       shape = guide_legend(override.aes = list(size = 3), ncol = 2)
     ) +
-    labs(x = NULL, y = expression(beta ~ "on wing shape"), title = direction) +
+    # Axis label wording matches fig-compare-approaches (Figure 3, Allens_methods_sim.qmd)
+    # so the two figures read as directly comparable quantities.
+    labs(x = NULL, y = expression(hat(beta)[T] ~ "on relative appendage length"), title = direction) +
     theme(
       axis.text.x  = element_text(angle = 60, hjust = 1, size = 7,
                                    color = axis_colors),
