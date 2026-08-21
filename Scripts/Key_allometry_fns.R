@@ -204,7 +204,7 @@ classify_direction <- function(mods_tbl, p_threshold = 0.05,
       Sig_trait = case_when(
         n_sig == 0 ~ "Neither",
         n_sig == 2 ~ "both",
-        TRUE       ~ dv[sig]
+        TRUE       ~ dv[sig][1]
       ),
       .groups = "drop"
     ) %>%
