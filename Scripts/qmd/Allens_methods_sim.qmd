@@ -547,34 +547,7 @@ Multiple regression attempts a partitioning goal similar to SLI-estimated's: bot
 
 Whether the OLS conditional relationship also corresponds to a directional causal relationship between mass and appendage is a separate question from how the two variables are statistically related. Interpreting $\hat{\beta}_T$ causally, as the direct effect of temperature on appendage length, requires a causal structure in which body mass causally influences appendage length ($Mass \rightarrow Appendage$). Alternative causal structures could produce the same observed statistical association but different interpretations of the conditional temperature coefficient. The covariance-based simulation used here deliberately specifies the statistical association between mass and appendage without specifying its causal origin. Consequently, it can evaluate how conditioning on mass behaves statistically, but cannot determine whether the resulting temperature coefficient represents a causal direct effect. The distinction between direct and size-mediated effects under an explicit causal model is developed in the companion paper.
 
-Under the covariance structure used in these simulations, the extent to which conditioning on mass displaces $\hat{\beta}_T$ from the isometric-relative reference quantity depends on the relative strength of the temperature–mass and temperature–appendage associations. The displacement is greatest when the correlation between mass and appendage is low, as the model attributes less variance in appendage length to mass and more to temperature (@fig-neg-bias-mvr). In species decreasing in size proportionally, stronger temperature-morphology correlations produce a more negative $\hat{\beta}_T$ (@fig-neg-bias-mvr, panel a). In species simulated to get relatively longer, the negative displacement is greatest at more negative temperature-appendage correlations, and when the effect of temperature on mass is relatively large compared to its effect on appendage (i.e., low 'Strengths' in @fig-neg-bias-mvr, panel b).
-
-```{r}
-#| label: fig-neg-bias-mvr
-#| fig-cap: "Magnitude of the negative bias in multiple regression (mass-as-covariate) as a function of correlation strength. (a) In species simulated to decrease in appendage length proportionally with mass (Proportionally smaller), the negative bias grew more extreme as the temperature-morphology correlation became more negative and as the correlation between appendage and mass decreased. Allometric scaling (point shape) did not affect the magnitude of bias. (b) In species simulated to become relatively longer, the negative bias was greatest at more negative temperature-appendage correlations. Point colour shows the difference between temperature's effect on wing and its effect on mass (Strength). Point size shows the appendage-mass correlation, confirming that the bias is more extreme when this correlation is low."
-#| fig-width: 10
-#| fig-height: 4.5
-#| fig-pos: 'H'
-
-p_bias_prop <- Parms_tbl4 %>%
-  filter(Temp_eff == "Proportionally smaller" & Model == "Ryding") %>%
-  ggplot(aes(x = r_13, y = b_temp_inc, color = factor(r_12))) +
-  geom_jitter(aes(shape = Scaling), alpha = .6, size = 3, width = 0.02) +
-  geom_smooth(method = "lm", se = TRUE, alpha = 0.2, formula = y ~ poly(x, 2)) +
-  labs(x = "Temperature-morphology correlation", y = expression(hat(beta)[T]),
-       color = "Mass-\nappendage\ncorrelation") +
-  guides(shape = "none")
-
-p_bias_longer <- Parms_tbl4 %>%
-  filter(Temp_eff == "Longer" & Model == "Ryding") %>%
-  ggplot(aes(x = r_13, y = b_temp_inc)) +
-  geom_point(aes(color = Strength, size = r_12), alpha = .6) +
-  geom_smooth(method = "lm", se = TRUE, alpha = 0.2, formula = y ~ poly(x, 2)) +
-  labs(x = "Temperature-appendage correlation", y = expression(hat(beta)[T]),
-       size = "Mass-\nappendage\ncorrelation", color = "Strength\nAllen's")
-
-ggarrange(p_bias_prop, p_bias_longer, labels = "auto")
-```
+Under the covariance structure used in these simulations, the extent to which conditioning on mass displaces $\hat{\beta}_T$ from the isometric-relative reference quantity depends on the relative strength of the temperature–mass and temperature–appendage associations, growing more extreme as the correlation between mass and appendage weakens. The companion paper characterizes this displacement in detail across the same covariance structures examined here.
 
 ## SLI standardizes against an explicit reference relationship
 
