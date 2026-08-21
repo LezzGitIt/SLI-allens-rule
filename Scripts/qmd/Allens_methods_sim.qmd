@@ -1,12 +1,12 @@
 ---
-title: "The Shape of Things to Come: Simulations Show Promise in a New Metric, the Standardized Length Index"
+title: "The Shape of Things to Come: The Standardized Length Index for Quantifying Relative Appendage Length"
 number-sections: true
 execute:
   echo: false
   message: false
   warning: false
 format: #docx
-  elsevier-pdf: 
+  elsevier-pdf:
     toc: false
     header-includes:
       - |
