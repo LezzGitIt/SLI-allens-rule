@@ -74,7 +74,12 @@ build_direction_plot <- function(df_panel, direction, show_legend = FALSE) {
     # so the two figures read as directly comparable quantities.
     labs(x = NULL, y = expression(hat(beta)[T] ~ "on relative appendage length"), title = direction) +
     theme(
-      axis.text.x  = element_text(angle = 55, hjust = 1, vjust = .58, size = 9),
+      # vjust = 1 + zero top margin pulls the rotated labels up against the axis;
+      # left plot margin widened so long labels ("Mass as covariate") aren't
+      # clipped by the panel's own left edge at this rotation angle.
+      axis.text.x  = element_text(angle = 55, hjust = 1, vjust = 1, size = 9,
+                                   margin = margin(t = 0)),
+      plot.margin  = margin(t = 5.5, r = 5.5, b = 5.5, l = 40),
       legend.title = element_blank(),
       plot.title   = element_text(size = 10, face = "plain")
     )
