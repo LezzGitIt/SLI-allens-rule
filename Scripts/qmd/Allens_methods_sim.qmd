@@ -59,7 +59,7 @@ ggplot2::theme_set(theme_cowplot())
 #| label: load-lit-review-results
 #| include: false
 
-# Literature review is processed separately by Scripts/Lit_review.R (re-run it any time the underlying spreadsheet or classification logic changes) and saved to Derived/Rds/lit_review_results.rds. This brings Lit_review, Unclear_exclude, and every inline-cited percentage into scope by name.
+# Literature review is processed separately by Scripts/03_Lit_review.R (re-run it any time the underlying spreadsheet or classification logic changes) and saved to Derived/Rds/lit_review_results.rds. This brings Lit_review, Unclear_exclude, and every inline-cited percentage into scope by name.
 
 list2env(readRDS("Derived/Rds/lit_review_results.rds"), envir = .GlobalEnv)
 ```
@@ -104,14 +104,14 @@ pct_mass_control    <- round(100 * n_mass_control / n_relative_studies, 0)
 ```{r}
 #| label: source-key-fns
 #| include: false
-source("Scripts/Key_allometry_fns.R")
+source("Scripts/00_Key_allometry_fns.R")
 ```
 
 ```{r}
 #| label: load-simulation-results
 #| include: false
 
-# Simulation is run separately by Scripts/Run_simulation.R (re-run it any time the parameter grid, sample size, or evaluation logic changes) and saved to Derived/Rds/simulation_results.rds
+# Simulation is run separately by Scripts/01_Run_simulation.R (re-run it any time the parameter grid, sample size, or evaluation logic changes) and saved to Derived/Rds/simulation_results.rds
 # Both this manuscript and supplementary_info.qmd just read the result. This brings N_spp, Parms_mat3, Parms_tbl4, Eval_tbl, and every inline-cited percentage into scope by name.
 
 list2env(readRDS("Derived/Rds/simulation_results.rds"), envir = .GlobalEnv)
@@ -352,7 +352,7 @@ Eval_scatter_df <- Parms_tbl4 %>%
   filter(Temp_eff != "Proportionally larger") %>%
   mutate(Model = str_replace_all(Model, x_labs))
 
-# Includes Longer, Fatter, and Proportionally smaller -- "correct" uses Est_correct (Run_simulation.R,
+# Includes Longer, Fatter, and Proportionally smaller -- "correct" uses Est_correct (01_Run_simulation.R,
 # Evaluation section) throughout: whole-CI-on-the-correct-side for Longer/Fatter, CI-includes-zero
 # (reversed) for Proportionally smaller, since its true effect is exactly 0 by construction.
 Eval_scatter_stats <- Eval_scatter_df %>%

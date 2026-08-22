@@ -12,7 +12,7 @@ library(patchwork)
 ggplot2::theme_set(theme_cowplot())
 
 library(sliR)   # SLI + simulation functions; see github.com/LezzGitIt/sliR
-source("Scripts/Key_allometry_fns.R")
+source("Scripts/00_Key_allometry_fns.R")
 
 Weeks_path <- "/Users/aaronskinner/Library/CloudStorage/OneDrive-UBC/Academia/Datasets_external/Weeks_etal_2020_Data.csv"
 Weeks20    <- read_csv(Weeks_path, skip = 2)

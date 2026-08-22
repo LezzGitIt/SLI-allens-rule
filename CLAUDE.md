@@ -22,7 +22,7 @@ Quarto's `output-dir: Rendered/` (set in `_quarto.yml`) still mirrors the source
 
 ## Key Architecture
 
-### Core functions (`Scripts/Key_allometry_fns.R`)
+### Core functions (`Scripts/00_Key_allometry_fns.R`)
 Must be sourced before running most other scripts. Key functions:
 - `gen_data()` / `gen_cov_mat()`: Generate multivariate normal morphological data on the log scale with controllable allometric slope (`b_avg_12`), correlations, and error types (measurement vs. transient)
 - `build_sli_slopes_tbl()`: Fit per-group SMA slopes (e.g., by Age × Sex) for SLI estimation; averages slopes across control variables
@@ -40,12 +40,12 @@ Simulation study comparing six approaches for estimating relative appendage leng
 Exploratory script for SMA vs OLS slope behaviour under different error structures.
 
 ### Empirical scripts
-All three export CSVs to `Derived/Csv/` and are combined by `Scripts/Empirical_combined.R`:
-- `Scripts/Nightjar_shape.R`: Caprimulgidae museum/banding data; temperature from WorldClim (cached to `Data/Nightjar_temp.rds`); uses `B.Temp` (WorldClim BIO1 at banding location); three species (Nighthawk, Nightjar, Whip-poor-will)
-- `Scripts/Weeks_2020_ral.R`: Temporal shape-shifting (1979–2016); year replaces temperature; Wing + Tarsus as appendages; Mass as sole anchor
-- `Scripts/Atlantic_birds_shape.R`: Atlantic bird dataset; Wing + Tarsus appendages
+All three export CSVs to `Derived/Csv/` and are combined by `Scripts/05_Empirical_combined.R`:
+- `Scripts/04a_Nightjar_shape.R`: Caprimulgidae museum/banding data; temperature from WorldClim (cached to `Data/Nightjar_temp.rds`); uses `B.Temp` (WorldClim BIO1 at banding location); three species (Nighthawk, Nightjar, Whip-poor-will)
+- `Scripts/04b_Weeks_2020_ral.R`: Temporal shape-shifting (1979–2016); year replaces temperature; Wing + Tarsus as appendages; Mass as sole anchor
+- `Scripts/04c_Atlantic_birds_shape.R`: Atlantic bird dataset; Wing + Tarsus appendages
 
-### Combined figure (`Scripts/Empirical_combined.R`)
+### Combined figure (`Scripts/05_Empirical_combined.R`)
 Reads the three CSVs from `Derived/Csv/` and produces `Figures/Empirical_combined.png`. Species colored by Study.
 
 ## Key Statistical Concepts

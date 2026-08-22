@@ -29,14 +29,14 @@ library(ggpubr)
 library(cowplot)
 library(ggpmisc)
 ggplot2::theme_set(theme_cowplot())
-source("Scripts/Key_allometry_fns.R")
+source("Scripts/00_Key_allometry_fns.R")
 ```
 
 ```{r}
 #| label: load-simulation-results
 #| include: false
 
-# Simulation is run by Scripts/Run_simulation.R and saved to
+# Simulation is run by Scripts/01_Run_simulation.R and saved to
 # Derived/Rds/simulation_results.rds; the main manuscript reads the same file.
 # This brings Parms_mat3, Parms_tbl4, Parms_temp_bs, sma_or_ma, x_labs, and
 # every Proportionally-larger-scenario percentage into scope by name.

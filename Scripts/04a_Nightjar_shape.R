@@ -11,7 +11,7 @@ select <- dplyr::select
 ggplot2::theme_set(theme_cowplot())
 
 library(sliR)   # SLI + simulation functions; see github.com/LezzGitIt/sliR
-source("Scripts/Key_allometry_fns.R")
+source("Scripts/00_Key_allometry_fns.R")
 nj_raw <- read.csv("Data/Capri_BA_compare03.29.26.csv")
 
 # Control parameters --------------------------------------------------------
