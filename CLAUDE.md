@@ -39,8 +39,8 @@ Simulation study comparing six approaches for estimating relative appendage leng
 ### Conceptual figure (`Scripts/04a_SLI_concept_figure.R`)
 Builds Figure 3 (main text, Methods): panel (a) the general SLI mechanism on an independent illustrative dataset, panel (b) the two-pathways decomposition on a simulated example species from `simulation_results.rds`. Saves `Figures/SLI_concept.png` (embedded in the manuscript via `png::readPNG()`, matching `04b_Empirical_combined.R`'s pattern) and `Derived/Rds/Ex_df_hypo_hyper.rds` (the panel-(b) example species, reused by `fig-ols-sma` later in the Discussion).
 
-### Simulation script (`Scripts/Allometric_scaling_simulation.R`)
-Exploratory script for SMA vs OLS slope behaviour under different error structures.
+### Simulation script (`Extra_scripts/Allometric_scaling_simulation.R`)
+Exploratory script for SMA vs OLS slope behaviour under different error structures. Kept in `Extra_scripts/` alongside the superseded `SMA_body_shape_methods.qmd` (see README.md) since neither is part of the numbered reproducibility pipeline.
 
 ### Empirical scripts
 All three export CSVs to `Derived/Csv/` and are combined by `Scripts/04b_Empirical_combined.R`:

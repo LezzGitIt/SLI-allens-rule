@@ -4,7 +4,7 @@
 # Called directly as sliR::... at the analysis-script call sites: calc_sli(), build_sli_slopes_tbl(), sim_allometric() (see gen_ex_data below), sim_correlated().
 # Kept as thin local wrappers here, because the paper's vocabulary differs from sliR's generic API:
 #   gen_data()   -> sim_allometric()  (adds the paper's Temp_inc/Temp_bin columns via format_temp(); driven by pmap() over a b_avg_12/r_12/r_13/r_23 parameter grid whose column names must match the wrapper's arguments)
-#   gen_cov_mat()-> build_cov_mat()   (rescales the gradient block to sd_temp; displayed as teaching content in SMA_body_shape_methods.qmd)
+#   gen_cov_mat()-> build_cov_mat()   (rescales the gradient block to sd_temp; displayed as teaching content in Extra_scripts/SMA_body_shape_methods.qmd)
 #   build_group_cor_tbl() -> its sliR namesake (renames r/p_value back to the r_mw/p_mw that ~6 downstream filters per empirical script depend on)
 # Still local, deliberately not in sliR: format_temp, rm_outliers, run_sma_mod, format_sma_parms, gen_ex_data, calc_lambda, classify_direction.
 
