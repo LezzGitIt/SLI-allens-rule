@@ -15,13 +15,16 @@ Scripts/
   qmd/
     Allens_methods_sim.qmd      # Main manuscript (Quarto)
     supplementary_info.qmd      # Supplementary Information (Quarto)
-  Key_allometry_fns.R           # Shared functions (sourced by all scripts)
-  Run_simulation.R              # Runs the simulation, saves Derived/Rds/simulation_results.rds
-  Allometric_scaling_simulation.R  # Exploratory SMA vs OLS simulation
-  Nightjar_shape.R              # Empirical case study: Caprimulgidae
-  Weeks_2020_ral.R              # Empirical case study: Weeks et al. (2020)
-  Atlantic_birds_shape.R        # Empirical case study: Atlantic Forest birds
-  Empirical_combined.R          # Combined empirical figure
+  00_Key_allometry_fns.R        # Shared functions (sourced by all scripts)
+  01_Run_simulation.R           # Runs the simulation, saves Derived/Rds/simulation_results.rds
+  02_Lit_review.R               # Processes the literature-review spreadsheet
+  03a_Nightjar_shape.R          # Empirical case study: Caprimulgidae
+  03b_Weeks_2020_ral.R          # Empirical case study: Weeks et al. (2020)
+  03c_Atlantic_birds_shape.R    # Empirical case study: Atlantic Forest birds
+  04a_SLI_concept_figure.R      # Builds Figure 3 (SLI mechanism + two-pathways decomposition);
+                                 # saves Figures/SLI_concept.png and Derived/Rds/Ex_df_hypo_hyper.rds
+  04b_Empirical_combined.R      # Combined empirical figure
+  Allometric_scaling_simulation.R  # Exploratory SMA vs OLS simulation (not part of the numbered run order)
 
 Suppfiles/                      # Bibliography, journal metadata, title-page partial
 _extensions/                    # Quarto elsevier journal-format extension (needed to render)
@@ -39,11 +42,13 @@ Manuscript `.qmd` files live in `Scripts/qmd/`, separate from the analysis `.R` 
 All scripts use paths relative to the project root. Run the simulation and the three empirical case studies before rendering either manuscript:
 
 ``` r
-source("Scripts/Run_simulation.R")
-source("Scripts/Nightjar_shape.R")
-source("Scripts/Weeks_2020_ral.R")
-source("Scripts/Atlantic_birds_shape.R")
-source("Scripts/Empirical_combined.R")
+source("Scripts/01_Run_simulation.R")
+source("Scripts/02_Lit_review.R")
+source("Scripts/03a_Nightjar_shape.R")
+source("Scripts/03b_Weeks_2020_ral.R")
+source("Scripts/03c_Atlantic_birds_shape.R")
+source("Scripts/04a_SLI_concept_figure.R")
+source("Scripts/04b_Empirical_combined.R")
 ```
 
 Then render the manuscript and supplement from the project root:

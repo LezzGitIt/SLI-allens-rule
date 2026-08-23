@@ -29,14 +29,14 @@ library(ggpubr)
 library(cowplot)
 library(ggpmisc)
 ggplot2::theme_set(theme_cowplot())
-source("Scripts/Key_allometry_fns.R")
+source("Scripts/00_Key_allometry_fns.R")
 ```
 
 ```{r}
 #| label: load-simulation-results
 #| include: false
 
-# Simulation is run by Scripts/Run_simulation.R and saved to
+# Simulation is run by Scripts/01_Run_simulation.R and saved to
 # Derived/Rds/simulation_results.rds; the main manuscript reads the same file.
 # This brings Parms_mat3, Parms_tbl4, Parms_temp_bs, sma_or_ma, x_labs, and
 # every Proportionally-larger-scenario percentage into scope by name.
@@ -381,12 +381,12 @@ Under **panel a (mass causes appendage)**, mass-as-covariate is exactly the mode
 
 Under **panel b (appendage causes mass, i.e. mass as a collider)**, none of the six methods' 95% CIs include the true value (`r round(true_beta_causal_b,2)`), and -- unlike panel a -- mass-as-covariate is no longer the standout: its estimate (`r round(Causal_dgp_b$Estimate[Causal_dgp_b$Model=="Mass as covariate"],2)`) overshoots the truth by more than half, a similar magnitude of error to Ratio2 and SLI-estimated. OLS-residuals is the least biased of the six here (`r round(Causal_dgp_b$Estimate[Causal_dgp_b$Model=="OLS residuals"],2)`) but still misses; Ratio, SLI-isometry, and the rest cluster at similarly inflated values. This is not a failure specific to any one method; it is a direct consequence of every one of the six approaches conditioning on mass in some way (as a ratio denominator, an explicit covariate, a first-stage regressor, or a size-standardization exponent), and mass here is a collider, not a common cause. Conditioning on a collider does not isolate a direct effect — it induces a spurious association between temperature and appendage through the very act of standardizing by mass, and the size of that spurious association scales with how strongly temperature and appendage each drive the collider (deliberately set large here so the bias is visible against sampling noise at $n = 50{,}000$, not merely present in direction). There is consequently no principled way, among these six approaches, to recover "relative appendage length" when appendage causally precedes mass: the entire premise of standardizing appendage by body size presumes body size is a common cause of variation to be controlled for, not a downstream consequence of the trait being measured -- and critically, panel a's apparent winner offers no protection here, since which method looks best depends entirely on which causal structure holds, not on any inherent property of the method itself. Which of panel a or panel b better describes a given empirical system is not something this simulation can adjudicate — it is a biological question about the species and traits under study, one that determines whether any of these six methods are appropriate to apply at all.
 
-# Mixed - Wingier and Mixed - Fatter empirical species
+# Empirical case studies: per-species detail
 
-In addition to the Bergmann's and Inverse Bergmann's species reported in the main text (Empirical case studies section), some species in the empirical datasets showed **Mixed - Wingier** responses: wing length increasing while body mass decreased, so that Allen's and Bergmann's rules reinforce one another. This is the empirical analogue of the simulated species whose mass and wing responses combine most strongly to produce an unambiguously longer relative appendage. A single Atlantic Forest species showed the opposite **Mixed - Fatter** response (wing length decreasing while body mass increased; main text species-accounting table).
+Figure 5 in the main text summarizes each method's estimates across species, grouped by method. This section shows the same underlying per-species estimates individually, in the format used in earlier drafts, with asterisks marking species whose rank order across methods is consistent with the simulation-predicted order.
 
 ```{r}
-#| label: load-mixed-data
+#| label: load-empirical-shared
 #| include: false
 
 study_order  <- c("Nightjar", "Weeks (2020)", "Atlantic birds")
@@ -419,6 +419,113 @@ load_direction <- function(direction) {
       Approach  = factor(Approach, levels = c("Ratio", "Ratio2", "Ryding", "Resid_ols", "Sli_est", "Sli_iso"))
     )
 }
+
+# Per-species panel builder, as used in the main text before Figure 5 was redesigned around a
+# per-method boxplot: species on the x-axis, dodged by Approach, axis text colored by Study, with
+# an asterisk over any species whose rank order matches the simulation-predicted order.
+build_direction_plot_species <- function(df_panel, direction, show_legend = FALSE) {
+  species_meta <- df_panel %>%
+    group_by(species, Study) %>%
+    summarise(mean_est = mean(estimate, na.rm = TRUE), .groups = "drop") %>%
+    mutate(Study = factor(Study, levels = study_order)) %>%
+    arrange(Study, mean_est)
+
+  species_levels <- species_meta$species
+  axis_colors    <- study_colors[as.character(species_meta$Study)]
+
+  star_df <- df_panel %>%
+    group_by(species) %>%
+    summarise(y_star          = max(UCI95, na.rm = TRUE),
+              rank_consistent = first(rank_consistent),
+              .groups = "drop") %>%
+    filter(!is.na(rank_consistent) & rank_consistent == TRUE)
+
+  p <- df_panel %>%
+    mutate(species = factor(species, levels = species_levels)) %>%
+    ggplot(aes(x = species, y = estimate, color = Approach,
+               group = interaction(species, Approach))) +
+    geom_hline(yintercept = 0, linetype = "dashed") +
+    geom_errorbar(aes(ymin = LCI95, ymax = UCI95),
+                  alpha = 0.8, width = 0,
+                  position = position_dodge(width = 0.75)) +
+    geom_point(aes(shape = Sig_trait), size = 1.5,
+               position = position_dodge(width = 0.75)) +
+    scale_color_hue(labels = approach_labs) +
+    scale_shape_manual(values = shape_scale, drop = FALSE) +
+    guides(
+      color = guide_legend(override.aes = list(size = 3), ncol = 3),
+      shape = guide_legend(override.aes = list(size = 3), ncol = 2)
+    ) +
+    labs(x = NULL, y = expression(hat(beta)[T] ~ "on relative appendage length"), title = direction) +
+    theme(
+      axis.text.x  = element_text(angle = 60, hjust = 1, size = 7, color = axis_colors),
+      legend.title = element_blank(),
+      plot.title   = element_text(size = 10, face = "plain")
+    )
+
+  if (nrow(star_df) > 0) {
+    p <- p + geom_text(
+      data = star_df,
+      aes(x = species, y = y_star + 0.05, label = "*"),
+      color = "black", size = 4, inherit.aes = FALSE
+    )
+  }
+
+  if (!show_legend) {
+    p <- p + theme(legend.position = "none")
+  } else {
+    p <- p + theme(legend.position = "top", legend.box = "horizontal")
+  }
+  p
+}
+
+parms_bergmanns     <- load_direction("Bergmann's")
+parms_inv_bergmanns <- load_direction("Inverse Bergmann's")
+
+n_bergs_supp     <- n_distinct(parms_bergmanns$species)
+n_inv_bergs_supp <- n_distinct(parms_inv_bergmanns$species)
+# Floor raised from 6 to 8in -- the shared 6-color + 4-shape legend (side by side via
+# legend.box = "horizontal") needs more horizontal room than 6in to avoid clipping its
+# rightmost entries, regardless of how many species columns the panels themselves need.
+fig_width_species <- max(8, n_bergs_supp * 0.13)
+
+fig_cap_empirical_species <- glue::glue("Per-species detail underlying Figure 5 (main text): estimated effect ($\\hat{{\\beta}}$) of the environmental gradient on relative wing length across three empirical avian datasets (Nightjars: red labels; North American migrants: blue labels; Atlantic Forest birds: green labels), grouped by direction of body size change: (a) Bergmann's ($n$ = {n_bergs_supp} species) and (b) Inverse Bergmann's ($n$ = {n_inv_bergs_supp} species). Only species with a significant ($p < 0.05$) mass or wing response are shown. Points are mean parameter estimates ($\\hat{{\\beta}}$) and error bars are 95% confidence intervals. The y-axis label matches Figure 3's (main text) to indicate that both figures show the same quantity, temperature's estimated effect on relative appendage length. A positive slope indicates birds become relatively longer with increasing temperature (or through time). A negative slope indicates they become relatively fatter. Asterisks mark species for which the rank order is consistent with simulation results (Bergmann's: Ratio > SLI > OLS; Inverse Bergmann's: Ratio < SLI < OLS).")
+```
+
+```{r}
+#| label: fig-empirical-species
+#| fig-cap: !expr fig_cap_empirical_species
+#| fig-width: !expr fig_width_species
+#| fig-height: 8
+#| fig-pos: 'H'
+
+p_bergs               <- build_direction_plot_species(parms_bergmanns, "Bergmann's")
+p_inv_bergs           <- build_direction_plot_species(parms_inv_bergmanns, "Inverse Bergmann's")
+shared_legend_species <- ggpubr::get_legend(
+  build_direction_plot_species(parms_bergmanns, "Bergmann's", show_legend = TRUE)
+)
+
+# Legend has 6 colors (ncol=3) + 4 shapes (ncol=2) side by side -- needs more than a token
+# sliver of vertical room, or it overflows into panel a's title/axis-label area below it.
+plot_grid(
+  shared_legend_species,
+  plot_grid(p_bergs, labels = "a", label_size = 10),
+  plot_grid(p_inv_bergs, labels = "b", label_size = 10),
+  ncol        = 1,
+  rel_heights = c(0.18, 1, 1)
+)
+```
+
+# Mixed - Wingier and Mixed - Fatter empirical species
+
+In addition to the Bergmann's and Inverse Bergmann's species reported in the main text (Empirical case studies section), some species in the empirical datasets showed **Mixed - Wingier** responses: wing length increasing while body mass decreased, so that Allen's and Bergmann's rules reinforce one another. This is the empirical analogue of the simulated species whose mass and wing responses combine most strongly to produce an unambiguously longer relative appendage. A single Atlantic Forest species showed the opposite **Mixed - Fatter** response (wing length decreasing while body mass increased; main text species-accounting table).
+
+```{r}
+#| label: load-mixed-data
+#| include: false
+
+# study_order, study_colors, approach_labs, shape_scale, and load_direction() are
+# already defined above (load-empirical-shared chunk).
 
 # Builds one panel: orders species by mean estimate within study, colors axis text by study (matching main-text @fig-empirical), and optionally shows a legend.
 build_mixed_plot <- function(df_panel, show_legend = FALSE) {

@@ -28,7 +28,6 @@ parms_all <- bind_rows(
       species == "Whip-poor-will" ~ "Antrostomus vociferus",
       TRUE ~ species
     ),
-    Sig_trait = str_to_sentence(Sig_trait),
     Approach  = factor(Approach,
                        levels = c("Ratio", "Ratio2", "Ryding", "Resid_ols", "Sli_est", "Sli_iso"))
   )
@@ -46,63 +45,49 @@ approach_labs <- c(
   "Sli_iso"   = "SLI isometry"
 )
 
-shape_scale <- c("Both" = 15, "Mass" = 16, "Neither" = 17, "Wing" = 18)
-
 # Per-direction panel builder ---------------------------------------------
+# Grouped by method (matching fig-compare-approaches / Figure 3's format) rather
+# than by species: boxplot summarizes each method's distribution across species,
+# jittered points colored by dataset. Percentage in the top-right corner of each
+# panel is the share of species whose rank order across methods matches the
+# simulation-predicted order (same rank_consistent field used for tbl-species-
+# accounting / the Results prose in Allens_methods_sim.qmd's rank-consistency chunk).
 build_direction_plot <- function(df_panel, direction, show_legend = FALSE) {
-  species_meta <- df_panel %>%
-    group_by(species, Study) %>%
-    summarise(mean_est = mean(estimate, na.rm = TRUE), .groups = "drop") %>%
-    mutate(Study = factor(Study, levels = study_order)) %>%
-    arrange(Study, mean_est)
+  df_panel <- df_panel %>% mutate(Study = factor(Study, levels = study_order))
 
-  species_levels <- species_meta$species
-  axis_colors    <- study_colors[as.character(species_meta$Study)]
-
-  star_df <- df_panel %>%
-    group_by(species) %>%
-    summarise(y_star          = max(UCI95, na.rm = TRUE),
-              rank_consistent = first(rank_consistent),
-              .groups = "drop") %>%
-    filter(!is.na(rank_consistent) & rank_consistent == TRUE)
+  pct_consistent <- df_panel %>%
+    distinct(species, rank_consistent) %>%
+    summarise(pct = round(100 * mean(rank_consistent, na.rm = TRUE))) %>%
+    pull(pct)
 
   p <- df_panel %>%
-    mutate(species = factor(species, levels = species_levels)) %>%
-    ggplot(aes(x = species, y = estimate, color = Approach,
-               group = interaction(species, Approach))) +
-    geom_hline(yintercept = 0, linetype = "dashed") +
-    geom_errorbar(aes(ymin = LCI95, ymax = UCI95),
-                  alpha = 0.8, width = 0,
-                  position = position_dodge(width = 0.75)) +
-    geom_point(aes(shape = Sig_trait), size = 1.5,
-               position = position_dodge(width = 0.75)) +
-    scale_color_hue(labels = approach_labs) +
-    scale_shape_manual(values = shape_scale, drop = FALSE) +
-    # Approach: 3 cols × 2 rows; Sig_trait: 2 cols × 2 rows — side-by-side via legend.box
-    guides(
-      color = guide_legend(override.aes = list(size = 3), ncol = 3),
-      shape = guide_legend(override.aes = list(size = 3), ncol = 2)
-    ) +
-    labs(x = NULL, y = expression(beta ~ "on wing shape"), title = direction) +
+    ggplot(aes(x = Approach, y = estimate)) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
+    geom_boxplot(outlier.shape = NA) +
+    geom_jitter(aes(color = Study), width = 0.15, height = 0, alpha = .6, size = 1.8) +
+    annotate("text", x = Inf, y = Inf, hjust = 1.1, vjust = 1.5, size = 3.2,
+             fontface = "italic",
+             label = paste0(pct_consistent, "% rank-order consistent")) +
+    scale_x_discrete(labels = approach_labs) +
+    scale_color_manual(values = study_colors) +
+    # Axis label wording matches fig-compare-approaches (Figure 3, Allens_methods_sim.qmd)
+    # so the two figures read as directly comparable quantities.
+    labs(x = NULL, y = expression(hat(beta)[T] ~ "on relative appendage length"), title = direction) +
     theme(
-      axis.text.x  = element_text(angle = 60, hjust = 1, size = 7,
-                                   color = axis_colors),
+      # vjust = 1 + zero top margin pulls the rotated labels up against the axis;
+      # left plot margin widened so long labels ("Mass as covariate") aren't
+      # clipped by the panel's own left edge at this rotation angle.
+      axis.text.x  = element_text(angle = 55, hjust = 1, vjust = 1, size = 9,
+                                   margin = margin(t = 0)),
+      plot.margin  = margin(t = 5.5, r = 5.5, b = 5.5, l = 40),
       legend.title = element_blank(),
       plot.title   = element_text(size = 10, face = "plain")
     )
 
-  if (nrow(star_df) > 0) {
-    p <- p + geom_text(
-      data = star_df,
-      aes(x = species, y = y_star + 0.05, label = "*"),
-      color = "black", size = 4, inherit.aes = FALSE
-    )
-  }
-
   if (!show_legend) {
     p <- p + theme(legend.position = "none")
   } else {
-    p <- p + theme(legend.position = "top", legend.box = "horizontal")
+    p <- p + theme(legend.position = "top")
   }
   p
 }
@@ -133,9 +118,9 @@ combined <- plot_grid(
 )
 combined
 
-# Export: full text width × tall enough for three effective rows ----------
-n_bergs <- n_distinct(parms_all$species[parms_all$Direction == "Bergmann's"])
-fig_width <- max(6, n_bergs * 0.13)   # ~0.13" per species in Bergmann's row
+# Export: fixed size -- x-axis is now the 6 methods (not per-species), so width
+# no longer needs to scale with species count the way the old per-species plot did.
+fig_width <- 7
 
 ggsave("Figures/Empirical_combined.png", combined,
        bg = "white", width = fig_width, height = 7.5, units = "in", dpi = 300)

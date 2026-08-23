@@ -22,7 +22,7 @@ Quarto's `output-dir: Rendered/` (set in `_quarto.yml`) still mirrors the source
 
 ## Key Architecture
 
-### Core functions (`Scripts/Key_allometry_fns.R`)
+### Core functions (`Scripts/00_Key_allometry_fns.R`)
 Must be sourced before running most other scripts. Key functions:
 - `gen_data()` / `gen_cov_mat()`: Generate multivariate normal morphological data on the log scale with controllable allometric slope (`b_avg_12`), correlations, and error types (measurement vs. transient)
 - `build_sli_slopes_tbl()`: Fit per-group SMA slopes (e.g., by Age × Sex) for SLI estimation; averages slopes across control variables
@@ -36,16 +36,19 @@ Must be sourced before running most other scripts. Key functions:
 ### Main manuscript (`Scripts/qmd/Allens_methods_sim.qmd`)
 Simulation study comparing six approaches for estimating relative appendage length along a temperature gradient. Approaches: Ratio, Ratio2, Mass-as-covariate (Ryding), OLS residuals, SLI-isometry, SLI-estimated.
 
+### Conceptual figure (`Scripts/04a_SLI_concept_figure.R`)
+Builds Figure 3 (main text, Methods): panel (a) the general SLI mechanism on an independent illustrative dataset, panel (b) the two-pathways decomposition on a simulated example species from `simulation_results.rds`. Saves `Figures/SLI_concept.png` (embedded in the manuscript via `png::readPNG()`, matching `04b_Empirical_combined.R`'s pattern) and `Derived/Rds/Ex_df_hypo_hyper.rds` (the panel-(b) example species, reused by `fig-ols-sma` later in the Discussion).
+
 ### Simulation script (`Scripts/Allometric_scaling_simulation.R`)
 Exploratory script for SMA vs OLS slope behaviour under different error structures.
 
 ### Empirical scripts
-All three export CSVs to `Derived/Csv/` and are combined by `Scripts/Empirical_combined.R`:
-- `Scripts/Nightjar_shape.R`: Caprimulgidae museum/banding data; temperature from WorldClim (cached to `Data/Nightjar_temp.rds`); uses `B.Temp` (WorldClim BIO1 at banding location); three species (Nighthawk, Nightjar, Whip-poor-will)
-- `Scripts/Weeks_2020_ral.R`: Temporal shape-shifting (1979–2016); year replaces temperature; Wing + Tarsus as appendages; Mass as sole anchor
-- `Scripts/Atlantic_birds_shape.R`: Atlantic bird dataset; Wing + Tarsus appendages
+All three export CSVs to `Derived/Csv/` and are combined by `Scripts/04b_Empirical_combined.R`:
+- `Scripts/03a_Nightjar_shape.R`: Caprimulgidae museum/banding data; temperature from WorldClim (cached to `Data/Nightjar_temp.rds`); uses `B.Temp` (WorldClim BIO1 at banding location); three species (Nighthawk, Nightjar, Whip-poor-will)
+- `Scripts/03b_Weeks_2020_ral.R`: Temporal shape-shifting (1979–2016); year replaces temperature; Wing + Tarsus as appendages; Mass as sole anchor
+- `Scripts/03c_Atlantic_birds_shape.R`: Atlantic bird dataset; Wing + Tarsus appendages
 
-### Combined figure (`Scripts/Empirical_combined.R`)
+### Combined figure (`Scripts/04b_Empirical_combined.R`)
 Reads the three CSVs from `Derived/Csv/` and produces `Figures/Empirical_combined.png`. Species colored by Study.
 
 ## Key Statistical Concepts

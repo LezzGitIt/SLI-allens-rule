@@ -14,7 +14,7 @@ suppressPackageStartupMessages({
 })
 
 library(sliR)   # SLI + simulation functions; see github.com/LezzGitIt/sliR
-source("Scripts/Key_allometry_fns.R")
+source("Scripts/00_Key_allometry_fns.R")
 
 # Global settings -----------------------------------------------------------
 sma_or_ma <- "SMA"
