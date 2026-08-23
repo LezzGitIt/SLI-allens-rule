@@ -294,7 +294,7 @@ Retained covariates were incorporated in only certain methods. For the ratio ($A
 
 To evaluate whether the same rank-order patterns were observed in empirical data, I averaged the gradient coefficients within each method family (Ratio: $A / S$ Ratio and $A^2 / S$ Ratio; OLS: multiple regression and OLS-residual; SLI: SLI-isometry and SLI-estimated) for each species and compared their rank order with the simulation results. Because the expected ordering depends on the direction of body size change (Supplementary Figure X), species were first classified according to whether they exhibited Bergmannian, inverse Bergmannian, stable, or mixed size trends (@tbl-classification). Bergmannian species exhibited declines in wing length, body mass, or both along the gradient, whereas inverse Bergmannian species exhibited increases in one or both traits ($p < 0.05$). Stable species showed no significant change in either trait, while mixed species exhibited opposing trends in wing length and body mass. Only Bergmannian and inverse Bergmannian species were used to evaluate agreement with the simulation results because these scenarios correspond directly to the simulated data-generating process. Species with stable or mixed size trends are reported separately in the Supplementary Information. Importantly, SMA regression is unreliable when the correlation between appendage and body mass is weak [@smithUseMisuseReduced2009]. Thus, SLI-estimated was calculated only for species with $r \geq 0.3$.
 
-Finally, past authors have noted that ratio methods tend to be highly correlated with the denominator variable. To test this, I calculated the Pearson correlation between both ratio metrics and body mass for every species in the three empirical datasets.
+Finally, past authors have noted that ratio methods tend to be highly correlated with the denominator variable. To test this, and to assess whether SLI's use of an explicit allometric exponent reduces this dependence relative to an implicit ratio, I calculated the Pearson correlation between body mass and each of the ratio metrics, SLI-isometry, and SLI-estimated for every species in the three empirical datasets.
 
 ```{r}
 #| label: tbl-classification
@@ -532,10 +532,22 @@ pct_rmc2_strong_neg <- round(100 * mean(Ratio2_cor_only$r < -0.7))
 n_sli_iso_total <- Ratio_mass_cor_all %>% filter(Metric == "Sli_iso") %>% nrow()
 n_sli_est_total <- Ratio_mass_cor_all %>% filter(Metric == "Sli_est") %>% nrow()
 
+# SLI-isometry / SLI-estimated mass correlations -- the SLI counterpart to the
+# Ratio/Ratio2 stats above, for the Results paragraph's brief SLI comparison.
+Sli_iso_cor_only <- Ratio_mass_cor_all %>% filter(Metric == "Sli_iso")
+mean_rmc_sli_iso  <- round(mean(Sli_iso_cor_only$r), 2)
+range_rmc_sli_iso <- paste0(round(min(Sli_iso_cor_only$r), 2), " to ",
+                            round(max(Sli_iso_cor_only$r), 2))
+
+Sli_est_cor_only <- Ratio_mass_cor_all %>% filter(Metric == "Sli_est")
+mean_rmc_sli_est  <- round(mean(Sli_est_cor_only$r), 2)
+range_rmc_sli_est <- paste0(round(min(Sli_est_cor_only$r), 2), " to ",
+                            round(max(Sli_est_cor_only$r), 2))
+
 tbl_cap_ratio_mass_summary <- glue::glue("Median per-species Pearson correlation with body mass, by empirical dataset, for the wing/mass ratio ($\\log(A/S)$), its squared counterpart ($\\log(A^2/S)$), SLI-isometry, and SLI-estimated. SLI-estimated is reported for fewer species ({n_sli_est_total} of {n_sli_iso_total} across all three datasets) than the other three metrics, because it is undefined for species that failed the per-group allometric-correlation filter (Methods).")
 ```
 
-Across `r n_rmc_total` species, the ratio metric was consistently and strongly negatively correlated with mass (mean $r$ = `r mean_rmc_all`, range `r range_rmc_all`). `r pct_rmc_strong_neg`% of species had a correlation more negative than $-0.7$. This pattern held regardless of taxon, gradient type (spatial or temporal), or geographic region, confirming that the ratio's dependence on body size is a general mechanical property of the metric rather than a quirk of any one dataset (@tbl-ratio-mass-summary). I calculated the same correlation for the squared-ratio metric ($\log(A^2/S)$) - the correlation between $\log(A^2/S)$ and body mass was still strongly negative, but consistently weaker in magnitude than its unsquared counterpart (mean $r$ = `r mean_rmc2_all`, range `r range_rmc2_all`, `r pct_rmc2_strong_neg`% of species below $-0.7$, @tbl-ratio-mass-summary).
+Across `r n_rmc_total` species, the ratio metric was consistently and strongly negatively correlated with mass (mean $r$ = `r mean_rmc_all`, range `r range_rmc_all`). `r pct_rmc_strong_neg`% of species had a correlation more negative than $-0.7$. This pattern held regardless of taxon, gradient type (spatial or temporal), or geographic region, confirming that the ratio's dependence on body size is a general mechanical property of the metric rather than a quirk of any one dataset (@tbl-ratio-mass-summary). I calculated the same correlation for the squared-ratio metric ($\log(A^2/S)$) - the correlation between $\log(A^2/S)$ and body mass was still strongly negative, but consistently weaker in magnitude than its unsquared counterpart (mean $r$ = `r mean_rmc2_all`, range `r range_rmc2_all`, `r pct_rmc2_strong_neg`% of species below $-0.7$, @tbl-ratio-mass-summary). Both SLI parameterizations were less correlated with mass than either ratio metric (SLI-isometry: mean $r$ = `r mean_rmc_sli_iso`, range `r range_rmc_sli_iso`; SLI-estimated: mean $r$ = `r mean_rmc_sli_est`, range `r range_rmc_sli_est`), consistent with SLI's explicit allometric standardization rather than an implicit ratio (@tbl-ratio-mass-summary; Supplementary Figure 3).
 
 ```{r}
 #| label: tbl-ratio-mass-summary

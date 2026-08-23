@@ -98,7 +98,50 @@ vary_scaling_tbl %>%
 
 # Correlation between relative appendage length metrics and body mass
 
-The main text attributes the ratio methods' upward bias under Bergmann's rule to a mechanical correlation between the ratio metric and body mass, a pattern confirmed empirically across three datasets (main text, ratio/mass correlation table). Here I extend that check to the simulated data and to all five methods that produce an individual-level shape metric; mass-as-covariate is excluded because it returns only a regression coefficient, not an index that can be correlated with mass.
+The main text attributes the ratio methods' upward bias under Bergmann's rule to a mechanical correlation between the ratio metric and body mass, and reports each metric's median per-species correlation with mass across the three empirical datasets (main text, Table 4). @fig-mass-cor-empirical shows the full per-species distribution underlying those medians.
+
+```{r}
+#| label: mass-cor-empirical-stats
+#| include: false
+
+Mass_cor_emp_all <- bind_rows(
+  read_csv("Derived/Csv/Nightjar_mass_cor.csv",  show_col_types = FALSE),
+  read_csv("Derived/Csv/Weeks_mass_cor.csv",     show_col_types = FALSE),
+  read_csv("Derived/Csv/Atlantic_mass_cor.csv",  show_col_types = FALSE)
+) %>%
+  dplyr::select(Study, species, Metric, n, r, p_value) %>%
+  filter(Metric %in% c("Ratio", "Ratio2", "Sli_iso", "Sli_est")) %>%
+  mutate(Metric = factor(Metric, levels = c("Ratio", "Ratio2", "Sli_iso", "Sli_est"),
+                          labels = c("Wing / Mass", "Wing² / Mass", "SLI-isometry", "SLI-estimated")))
+
+n_sli_iso_emp_total <- Mass_cor_emp_all %>% filter(Metric == "SLI-isometry")  %>% nrow()
+n_sli_est_emp_total <- Mass_cor_emp_all %>% filter(Metric == "SLI-estimated") %>% nrow()
+
+fig_cap_mass_cor_empirical <- glue::glue("Distribution of per-species Pearson correlations between each metric and body mass, by empirical dataset. Boxes show the median (also given as a numeric label, matching main text Table 4) and interquartile range; points are individual species, jittered horizontally. SLI-estimated has fewer points than the other three metrics ({n_sli_est_emp_total} of {n_sli_iso_emp_total} species across all three datasets) because it is undefined for species that failed the per-group allometric-correlation filter (main text, Methods).")
+```
+
+```{r}
+#| label: fig-mass-cor-empirical
+#| fig-cap: !expr fig_cap_mass_cor_empirical
+#| fig-width: 8
+#| fig-height: 5
+#| fig-pos: 'H'
+
+Mass_cor_emp_all %>%
+  ggplot(aes(x = Metric, y = r)) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(width = 0.15, alpha = 0.5) +
+  stat_summary(fun = median, geom = "label",
+               aes(label = sprintf("%.2f", after_stat(y))),
+               size = 3, label.size = 0, label.padding = unit(0.12, "lines"),
+               fill = "white", alpha = 0.85) +
+  facet_wrap(~Study) +
+  labs(x = NULL, y = "Correlation with body mass") +
+  theme(axis.text.x = element_text(size = 9, vjust = .58, angle = 30))
+```
+
+Here I extend the same check to the simulated data and to all five methods that produce an individual-level shape metric; mass-as-covariate is excluded because it returns only a regression coefficient, not an index that can be correlated with mass.
 
 ```{r}
 #| label: mass-cor-sim-stats
