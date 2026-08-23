@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is an academic R/Quarto project producing a methods paper on Allen's rule and the Standardized Length Index (SLI). The paper argues for using SMA regression over OLS-based approaches when detecting shape-shifting across environmental gradients, and proposes SLI as the preferred metric for measuring relative appendage length. Target journal: Methods in Ecology and Evolution.
+This is an academic R/Quarto project producing a methods paper on Allen's rule and the Standardized Length Index (SLI). As of the `reframe-paper1-estimand` merge (session 29), the paper does **not** argue that SMA regression / SLI is superior to OLS-based approaches (ratio, mass-as-covariate, OLS residuals). It instead asks which *estimand* each body-size-standardization method targets, showing that different methods (ratios, OLS-based approaches, SLI-isometry, SLI-estimated) define relative appendage size against different reference relationships and can therefore estimate different quantities — a modelling decision, not neutral preprocessing. The isometric benchmark used to evaluate methods in simulation is presented as one theoretically-motivated reference point, not a universal ground truth every method should be ranked against. Target journal: Methods in Ecology and Evolution.
 
 **Main manuscript:** `Scripts/qmd/Allens_methods_sim.qmd`
 **Supplement:** `Scripts/qmd/supplementary_info.qmd`
