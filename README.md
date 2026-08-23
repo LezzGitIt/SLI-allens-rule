@@ -24,7 +24,10 @@ Scripts/
   04a_SLI_concept_figure.R      # Builds Figure 3 (SLI mechanism + two-pathways decomposition);
                                  # saves Figures/SLI_concept.png and Derived/Rds/Ex_df_hypo_hyper.rds
   04b_Empirical_combined.R      # Combined empirical figure
-  Allometric_scaling_simulation.R  # Exploratory SMA vs OLS simulation (not part of the numbered run order)
+
+Extra_scripts/                  # Exploratory/superseded material, not part of the numbered pipeline
+  Allometric_scaling_simulation.R  # Exploratory SMA vs OLS simulation
+  SMA_body_shape_methods.qmd    # Superseded pre-repo-split manuscript (kept locally; not tracked, see .gitignore)
 
 Suppfiles/                      # Bibliography, journal metadata, title-page partial
 _extensions/                    # Quarto elsevier journal-format extension (needed to render)
@@ -35,7 +38,7 @@ Figures/                        # Saved plots (recreatable; not tracked)
 Rendered/                       # Final rendered PDFs, flat (recreatable; not tracked)
 ```
 
-Manuscript `.qmd` files live in `Scripts/qmd/`, separate from the analysis `.R` scripts, so that Quarto's per-render byproducts don't clutter `Scripts/`. `_quarto.yml`, `_extensions/`, and `Suppfiles/` are tracked because they're required to reproduce the exact PDF output — not just the analysis code. The final PDFs land flat in `Rendered/<file>.pdf` — a `post-render` hook copies them there after each render, and a `pre-render` hook cleans up the nested copy Quarto itself creates (see `CLAUDE.md` for why it's a two-step copy-then-clean rather than a single move).
+Manuscript `.qmd` files live in `Scripts/qmd/`, separate from the analysis `.R` scripts, so that Quarto's per-render byproducts don't clutter `Scripts/`. `_quarto.yml`, `_extensions/`, and `Suppfiles/` are tracked because they're required to reproduce the exact PDF output — not just the analysis code. The final PDFs land flat in `Rendered/<file>.pdf` — a `post-render` hook copies them there after each render, and a `pre-render` hook cleans up the nested copy Quarto itself creates (see `CLAUDE.md` for why it's a two-step copy-then-clean rather than a single move). `Extra_scripts/` holds material outside the reproducibility pipeline — an exploratory SMA-vs-OLS script, and the pre-repo-split manuscript this project grew out of, kept only for reference.
 
 ## Reproducing the analysis
 
