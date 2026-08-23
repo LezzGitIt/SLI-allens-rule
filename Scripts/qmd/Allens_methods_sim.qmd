@@ -59,7 +59,7 @@ ggplot2::theme_set(theme_cowplot())
 #| label: load-lit-review-results
 #| include: false
 
-# Literature review is processed separately by Scripts/03_Lit_review.R (re-run it any time the underlying spreadsheet or classification logic changes) and saved to Derived/Rds/lit_review_results.rds. This brings Lit_review, Unclear_exclude, and every inline-cited percentage into scope by name.
+# Literature review is processed separately by Scripts/02_Lit_review.R (re-run it any time the underlying spreadsheet or classification logic changes) and saved to Derived/Rds/lit_review_results.rds. This brings Lit_review, Unclear_exclude, and every inline-cited percentage into scope by name.
 
 list2env(readRDS("Derived/Rds/lit_review_results.rds"), envir = .GlobalEnv)
 ```
@@ -228,6 +228,27 @@ where $A_i$ is the appendage length of individual $i$, $M_i$ is the mass of indi
 **Standardized Length Index — isometry (SLI-isometry):** Identical to SLI-estimated but replacing the estimated $b_{SLI}$ by $b_{SLI} = 0.33$, the isometric scaling exponent for a linear versus volumetric measurement.
 
 Although the present study focuses on appendage length relative to body mass, the SLI framework can also be applied when both the body-size measure and the appendage measure are linear dimensions (e.g., body length and wing length). In this case, the isometric reference exponent is $b_{SLI} = 1$, because both measurements scale linearly with length rather than volumetrically. This formulation may be particularly useful when body condition is expected to vary systematically with temperature or another environmental gradient.
+
+Because SLI-isometry standardizes against the fixed isometric exponent while SLI-estimated standardizes against each species' own SMA slope, the two parameterizations are structurally capable of detecting different components of the isometric-relative reference quantity defined above (@fig-sli-concept). Panel (a) illustrates the general SLI mechanism: an individual's appendage length is reprojected along its own allometric curve to the value it would take at the population's mean mass, $M_0$. Panel (b) illustrates why this reference curve matters. SLI-isometry's exponent ($b_{SLI} = 0.33$) generally differs from a species' true SMA slope, so it remains sensitive to both the allometry-vs-isometry component and the differential temperature-association component. SLI-estimated's exponent is by definition the species' own SMA slope, so the allometry-vs-isometry component vanishes identically, leaving only the differential temperature-association component. This is a structural property of the two formulas, not a difference in estimation performance: it is precisely why the two approaches diverge in the Proportionally smaller/larger categories, where species were simulated with zero differential temperature association by construction, so any signal SLI-isometry detects there comes from the allometry-vs-isometry component alone. This decomposition is algebraic rather than causal: the two components describe distinct contributions to the isometric-relative quantity but do not imply distinct causal pathways.
+
+```{r}
+#| label: fig-sli-concept
+#| fig-cap: "The Standardized Length Index (SLI), adapted from the Scaled Mass Index [@peigNewPerspectivesEstimating2009]. (a) General mechanism, illustrated with a hypothetical dataset (grayscale; not one of the paper's simulated species): each individual's appendage length is reprojected along its own allometric curve -- sharing the population-level SMA slope $b_{SLI}$ but with its own intercept -- to the value it would take at the population's mean mass, $M_0$. Two example individuals (filled points) are shown sliding along their own curves (dashed black, extended across the full mass range for comparison; solid black with arrows over the segment actually used) to their standardized values (open points) where these curves cross $M_0$; the solid grey curve is the population-level relationship. (b) Why the reference curve matters for Allen's rule specifically, for a simulated hyperallometric species whose appendage length increases with warming. Points are a representative subset of individuals, coloured by simulated temperature increase; the white-filled point marks the model-predicted phenotype for an individual experiencing a 0.5 temperature increase. The solid blue line ('Estimated allometry') is the empirical SMA relationship ($b_{SMA} = 0.68$), which provides the reference relationship for SLI-estimated; the dashed grey line ('Isometric reference') is the isometric reference ($b_{SMA} = 0.33$), which provides the reference relationship for SLI-isometry. The green arrow shows the allometry-isometry component: the gap between the two reference lines at this individual's predicted body size. The red arrow shows the temperature-association component: the additional displacement associated with temperature, measured from the isometric line to this individual's predicted appendage length. SLI-isometry incorporates both components; SLI-estimated removes the allometry-isometry component and captures the temperature-association component relative to the species' empirical allometric relationship."
+#| fig-pos: 'H'
+#| fig-width: 13
+#| fig-height: 5.7
+
+# fig-width matches the ggsave() dimensions in Scripts/04a_SLI_concept_figure.R exactly, so
+# the R graphics device's aspect ratio matches the source PNG's and draw_grob() below doesn't
+# stretch it -- LaTeX still scales the final image down to fit the text column width.
+# Both panels are built in Scripts/04a_SLI_concept_figure.R (re-run it any time either panel's
+# code changes) and saved to Figures/SLI_concept.png; that script also exports the panel-(b)
+# example species to Derived/Rds/Ex_df_hypo_hyper.rds for fig-ols-sma (Discussion) to reuse.
+sli_concept_img  <- png::readPNG("Figures/SLI_concept.png")
+sli_concept_grob <- grid::rasterGrob(sli_concept_img, width = grid::unit(1, "npc"),
+                                      height = grid::unit(1, "npc"))
+cowplot::ggdraw() + cowplot::draw_grob(sli_concept_grob)
+```
 
 I log-transformed all variables and then standardised to unit variance before fitting regression models so that coefficients were comparable across species and methods.
 
@@ -555,8 +576,9 @@ Under the covariance structure used here, the displacement of the OLS estimate f
 #| fig-pos: 'H'
 #| fig-height: 4.5
 
-# Reuses Ex_df_hypo_hyper, the same example species already generated for
-# @fig-sli-concept panel (b) in Methods.
+# Reuses Ex_df_hypo_hyper, the same example species already generated for @fig-sli-concept
+# panel (b) by Scripts/04a_SLI_concept_figure.R, which exports it here for reuse.
+Ex_df_hypo_hyper <- readRDS("Derived/Rds/Ex_df_hypo_hyper.rds")
 xy_lims <- Ex_df_hypo_hyper %>%
   summarize(max.append = max(Append_log), min.append = min(Append_log),
             max.mass   = max(Mass_log),   min.mass   = min(Mass_log))
