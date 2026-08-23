@@ -491,23 +491,18 @@ cowplot::ggdraw() + cowplot::draw_grob(emp_grob)
 #| include: false
 
 Ratio_mass_cor_all <- bind_rows(
-  read_csv("Derived/Csv/Nightjar_ratio_mass_cor.csv",  show_col_types = FALSE),
-  read_csv("Derived/Csv/Weeks_ratio_mass_cor.csv",     show_col_types = FALSE),
-  read_csv("Derived/Csv/Atlantic_ratio_mass_cor.csv",  show_col_types = FALSE)
+  read_csv("Derived/Csv/Nightjar_mass_cor.csv",  show_col_types = FALSE),
+  read_csv("Derived/Csv/Weeks_mass_cor.csv",     show_col_types = FALSE),
+  read_csv("Derived/Csv/Atlantic_mass_cor.csv",  show_col_types = FALSE)
 ) %>%
   dplyr::select(Study, species, Metric, n, r, p_value)
 
+# One row per Study x Metric (Ratio, Ratio2, Sli_iso, Sli_est), median r only --
+# pivoted to one column per metric for display (tbl-ratio-mass-summary).
 Ratio_mass_summary_tbl <- Ratio_mass_cor_all %>%
-  summarize(N_species = n(), Mean_r = mean(r), Median_r = median(r),
-            Min_r = min(r), Max_r = max(r), .by = c(Study, Metric)) %>%
-  bind_rows(
-    Ratio_mass_cor_all %>%
-      summarize(Study = "All studies combined", N_species = n(),
-                Mean_r = mean(r), Median_r = median(r),
-                Min_r = min(r), Max_r = max(r), .by = Metric)
-  ) %>%
-  mutate(across(c(Mean_r, Median_r, Min_r, Max_r), \(x) round(x, 2)),
-         Metric = factor(Metric, levels = c("Ratio", "Ratio2"))) %>%
+  summarize(N_species = n(), Median_r = median(r), .by = c(Study, Metric)) %>%
+  mutate(Median_r = round(Median_r, 2),
+         Metric = factor(Metric, levels = c("Ratio", "Ratio2", "Sli_iso", "Sli_est"))) %>%
   arrange(Study, Metric)
 
 Ratio_mass_species_tbl <- Ratio_mass_cor_all %>%
@@ -530,21 +525,27 @@ mean_rmc2_all       <- round(mean(Ratio2_cor_only$r), 2)
 range_rmc2_all      <- paste0(round(min(Ratio2_cor_only$r), 2), " to ",
                               round(max(Ratio2_cor_only$r), 2))
 pct_rmc2_strong_neg <- round(100 * mean(Ratio2_cor_only$r < -0.7))
+
+# SLI-isometry / SLI-estimated species counts, for the table caption's sample-size
+# caveat -- SLI-estimated is undefined (dropped, not NA-padded) for species that
+# failed the per-group allometric-correlation filter, so it always has n <= SLI-isometry's.
+n_sli_iso_total <- Ratio_mass_cor_all %>% filter(Metric == "Sli_iso") %>% nrow()
+n_sli_est_total <- Ratio_mass_cor_all %>% filter(Metric == "Sli_est") %>% nrow()
+
+tbl_cap_ratio_mass_summary <- glue::glue("Median per-species Pearson correlation with body mass, by empirical dataset, for the wing/mass ratio ($\\log(A/S)$), its squared counterpart ($\\log(A^2/S)$), SLI-isometry, and SLI-estimated. SLI-estimated is reported for fewer species ({n_sli_est_total} of {n_sli_iso_total} across all three datasets) than the other three metrics, because it is undefined for species that failed the per-group allometric-correlation filter (Methods).")
 ```
 
 Across `r n_rmc_total` species, the ratio metric was consistently and strongly negatively correlated with mass (mean $r$ = `r mean_rmc_all`, range `r range_rmc_all`). `r pct_rmc_strong_neg`% of species had a correlation more negative than $-0.7$. This pattern held regardless of taxon, gradient type (spatial or temporal), or geographic region, confirming that the ratio's dependence on body size is a general mechanical property of the metric rather than a quirk of any one dataset (@tbl-ratio-mass-summary). I calculated the same correlation for the squared-ratio metric ($\log(A^2/S)$) - the correlation between $\log(A^2/S)$ and body mass was still strongly negative, but consistently weaker in magnitude than its unsquared counterpart (mean $r$ = `r mean_rmc2_all`, range `r range_rmc2_all`, `r pct_rmc2_strong_neg`% of species below $-0.7$, @tbl-ratio-mass-summary).
 
 ```{r}
 #| label: tbl-ratio-mass-summary
-#| tbl-cap: "Summary of the per-species Pearson correlation between the wing/mass ratio metric ($\\log(A/S)$) and its squared counterpart ($\\log(A^2/S)$) and body mass, by empirical dataset."
+#| tbl-cap: !expr tbl_cap_ratio_mass_summary
 
 Ratio_mass_summary_tbl %>%
-  filter(Study != "All studies combined") %>%
-  mutate(Metric = recode(Metric, "Ratio" = "Wing / Mass", "Ratio2" = "Wing² / Mass"),
-         Range = paste(Min_r, "to", Max_r)) %>%
-  dplyr::select(Study, Metric, Median_r, Range) %>%
+  dplyr::select(Study, Metric, Median_r) %>%
+  pivot_wider(names_from = Metric, values_from = Median_r) %>%
   knitr::kable(
-    col.names = c("Study", "Metric", "Median", "Range")
+    col.names = c("Study", "Wing / Mass", "Wing² / Mass", "SLI-isometry", "SLI-estimated")
   )
 ```
 

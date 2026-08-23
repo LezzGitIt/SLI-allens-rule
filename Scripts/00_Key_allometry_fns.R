@@ -6,7 +6,7 @@
 #   gen_data()   -> sim_allometric()  (adds the paper's Temp_inc/Temp_bin columns via format_temp(); driven by pmap() over a b_avg_12/r_12/r_13/r_23 parameter grid whose column names must match the wrapper's arguments)
 #   gen_cov_mat()-> build_cov_mat()   (rescales the gradient block to sd_temp; displayed as teaching content in Extra_scripts/SMA_body_shape_methods.qmd)
 #   build_group_cor_tbl() -> its sliR namesake (renames r/p_value back to the r_mw/p_mw that ~6 downstream filters per empirical script depend on)
-# Still local, deliberately not in sliR: format_temp, rm_outliers, run_sma_mod, format_sma_parms, gen_ex_data, calc_lambda, classify_direction.
+# Still local, deliberately not in sliR: format_temp, rm_outliers, run_sma_mod, format_sma_parms, gen_ex_data, calc_lambda, classify_direction, build_sli_mass_cor_tbl.
 
 # Load required libraries
 # MASS is no longer used by this file, but is left attached because supplementary_info.qmd sources this script without loading MASS itself; dropping it here would change that document's search path.
@@ -153,6 +153,25 @@ build_group_cor_tbl <- function(df, Append, Mass = Mass, control,
                             control = control, unknown_codes = unknown_codes) %>%
     dplyr::rename(r_mw = r, p_mw = p_value) %>%
     dplyr::group_by(dplyr::across(dplyr::all_of(control)))
+}
+
+# Per-species Pearson correlation between wing-based SLI-isometry/SLI-estimated
+# (columns must be named sli_isometry/sli_estimated, as produced by calc_sli())
+# and body mass. Exported alongside the ratio-mass correlations for tbl-ratio-mass-summary.
+# SLI-estimated contributes no row when it is NA for every individual (species
+# failed the upstream per-group allometric-correlation filter).
+build_sli_mass_cor_tbl <- function(df, Mass = Mass) {
+  mass_vec <- rlang::eval_tidy(rlang::enquo(Mass), df)
+  ct_iso <- cor.test(df$sli_isometry, mass_vec)
+  rows <- tibble::tibble(Metric = "Sli_iso", n = nrow(df),
+                         r = as.numeric(ct_iso$estimate), p_value = ct_iso$p.value)
+  if (any(!is.na(df$sli_estimated))) {
+    ok <- !is.na(df$sli_estimated)
+    ct_est <- cor.test(df$sli_estimated[ok], mass_vec[ok])
+    rows <- dplyr::bind_rows(rows, tibble::tibble(Metric = "Sli_est", n = sum(ok),
+                                                   r = as.numeric(ct_est$estimate), p_value = ct_est$p.value))
+  }
+  rows
 }
 
 # calc_lambda function: calculate the empirical coefficients of variation

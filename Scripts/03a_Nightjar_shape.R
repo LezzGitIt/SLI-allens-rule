@@ -221,12 +221,13 @@ Ratio_mass_cor_nj <- imap(nj_df_l3, \(df, sp) {
   ct2 <- cor.test(df$wing2_mass, df$Mass)
   bind_rows(
     tibble(Metric = "Ratio",  n = nrow(df), r = as.numeric(ct1$estimate), p_value = ct1$p.value),
-    tibble(Metric = "Ratio2", n = nrow(df), r = as.numeric(ct2$estimate), p_value = ct2$p.value)
+    tibble(Metric = "Ratio2", n = nrow(df), r = as.numeric(ct2$estimate), p_value = ct2$p.value),
+    build_sli_mass_cor_tbl(df, Mass = Mass)
   )
 }) %>% list_rbind(names_to = "Species") %>%
   mutate(Study = "Nightjar", species = Species)
 
-write_csv(Ratio_mass_cor_nj, "Derived/Csv/Nightjar_ratio_mass_cor.csv")
+write_csv(Ratio_mass_cor_nj, "Derived/Csv/Nightjar_mass_cor.csv")
 
 # Run models & extract parms ----------------------------------------------
 parms_df <- imap(nj_df_l3, \(df, sp) {
