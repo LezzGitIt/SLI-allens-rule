@@ -52,6 +52,8 @@ The main text simulates species by crossing correlations between temperature, ma
 ```{r}
 #| label: fig-cor-allometry-values
 #| fig-cap: "Correlation between binned temperature and the SMA intercept (a proxy for each species' own realized scaling relationship, not the isometric ground truth used elsewhere in this paper) for every simulated species, used to validate that Fatter and Longer species moved in their intended direction. Fatter species should show a negative correlation and Longer species a positive correlation. Proportionally smaller and Proportionally larger species are not expected to straddle zero here, despite having an exactly null isometric-relative effect by design (see main text); species falling on the wrong side of zero for their category (e.g., points above the dashed line for Fatter species) were excluded from further analysis, an exclusion rule that was not applied to the Proportionally smaller/larger categories. Point shape distinguishes models fit with a fixed slope ('No interaction') from models allowing the slope to vary with temperature ('Interaction'); point size indicates allometric scaling category and colour indicates the strength of the difference between temperature's effect on appendage length and mass."
+#| fig-width: 8
+#| fig-height: 6
 #| fig-pos: 'H'
 
 Parms_temp_bs %>%
@@ -60,7 +62,7 @@ Parms_temp_bs %>%
   geom_boxplot(outlier.shape = NA) +
   geom_point(position = position_jitter(width = .3), alpha = .3,
              aes(color = Strength, shape = SMA_mod, size = Scaling)) +
-  labs(x = NULL, y = "Correlation between temperature\nand SMA intercept",
+  labs(x = NULL, y = "Correlation between\ntemperature and\nSMA intercept",
        shape = "Model", size = "Scaling", color = "Strength\nAllen's") +
   theme(axis.text.x = element_text(size = 10, vjust = .58, angle = 30))
 ```
@@ -92,8 +94,11 @@ vary_scaling_tbl %>%
   geom_smooth(method = "lm", color = "red", se = FALSE) +
   ggpmisc::stat_ma_line(method = sma_or_ma, se = FALSE, color = "blue") +
   scale_color_viridis_c(option = "plasma") +
+  scale_x_continuous(breaks = scales::breaks_pretty(n = 3)) +
   facet_grid(Scaling ~ r_12_lab) +
-  labs(x = "Log(mass)", y = "Log(appendage)", color = "Temperature\nincrease")
+  labs(x = "Log(mass)", y = "Log(appendage)", color = "Temperature\nincrease") +
+  theme(panel.spacing.x = unit(1, "lines"),
+        axis.text.x = element_text(size = 9))
 ```
 
 # Correlation between relative appendage length metrics and body mass
@@ -222,8 +227,10 @@ The main text anchors "isometric" (0.33) to the SMA scale (main text, Approach c
 ```{r}
 #| label: tbl-ols-anchor
 #| tbl-cap: "Sign-agreement of each method's estimated coefficient against the adopted (SMA-anchored) ground truth versus an alternative OLS-anchored ground truth, among Longer and Fatter species."
+#| tbl-pos: 'H'
 
-knitr::kable(Ols_anchor_summary_tbl)
+knitr::kable(Ols_anchor_summary_tbl, format = "latex", booktabs = TRUE, linesep = "") %>%
+  kableExtra::column_spec(1, width = "3.4cm")
 ```
 
 SLI-isometry's agreement drops sharply (`r Sliiso_pct_sma`% to `r Sliiso_pct_ols`%) under OLS-anchoring, as expected since the ground truth no longer matches its own formula. Ratio, by contrast, improves substantially (`r Ratio_pct_sma`% to `r Ratio_pct_ols`%) — closing much of the gap with the SLI variants, though not matching them or Ratio² under either anchor — while Mass-as-covariate and OLS-residuals both fall further behind (`r Ryding_pct_sma`% to `r Ryding_pct_ols`%, and `r Olsresid_pct_sma`% to `r Olsresid_pct_ols`%, respectively) — the opposite of what "they're OLS-based methods, so they should track an OLS-anchored truth" would predict, because both test deviation from each species' own estimated relationship rather than from a fixed external anchor, and so are structurally insensitive to the allometry-vs-anchor pathway regardless of which scale that anchor is stated on. This confirms the SMA-vs-OLS choice for 0.33 is consequential, not a relabeling, while leaving the case for anchoring to SMA (main text, Approach classification) unchanged.
@@ -260,14 +267,6 @@ $$V = \beta_{SMA}^2 + 0.33^2 - 2 \cdot 0.33 \cdot \rho_{12} \cdot \beta_{SMA}$$
 which varies species to species (it depends on each species' own $\beta_{SMA}$ and $\rho_{12}$), and $\beta_T$ never accounted for it — only the *sign* claim survives that omission, since $\sqrt{V}>0$ always. Dividing $\beta_T$ by $\sqrt{V}$ restores the missing term.
 
 ```{r}
-#| label: tbl-sli-iso-rescale
-#| tbl-cap: "Correlation between SLI-isometry's fitted coefficient and the ground truth, before and after the variance correction."
-
-tibble::tibble(Version = c("Raw", "Variance-corrected"), r = c(r_sli_iso_raw, r_sli_iso_rescaled)) %>%
-  knitr::kable()
-```
-
-```{r}
 #| label: fig-sli-iso-rescale
 #| fig-cap: "SLI-isometry's fitted coefficient against the ground truth, raw (left) and variance-corrected (right; main text, Effect classification and this section). Longer, Fatter, and Proportionally smaller species, matching the main text's calibration scatter; the dashed line is 1:1, not a fitted trend."
 #| fig-width: 8
@@ -296,7 +295,7 @@ ggplot(Sli_iso_rescale_long, aes(x = x, y = b_temp_inc, color = Temp_eff, shape 
   theme(legend.position = "top", legend.box = "vertical")
 ```
 
-The variance correction takes the correlation from `r round(r_sli_iso_raw,2)` to `r round(r_sli_iso_rescaled,4)`, and the points sit almost exactly on the 1:1 line once it's applied. This isn't unique to SLI-isometry — every one of the six methods has a closed-form standardized coefficient that reaches a similarly exact correlation (0.9999–1.0000) against its own correctly-scaled natural anchor (e.g. Mass-as-covariate against the textbook standardized partial-regression coefficient $(\rho_{13}-\rho_{12}\rho_{23})/(1-\rho_{23}^2)$), confirming that the ground truth used in the main text is not merely correlated with SLI-isometry's formula but algebraically equivalent to it up to this one scaling factor — which is precisely why SLI-isometry's own strong performance should be read as confirmation that the simulation and ground-truth calculation behave as expected, not as a comparative win over the other five approaches (main text, Approach classification).
+The variance correction takes the correlation from `r sprintf("%.2f", r_sli_iso_raw)` to `r sprintf("%.2f", r_sli_iso_rescaled)`, and the points sit almost exactly on the 1:1 line once it's applied. This isn't unique to SLI-isometry — every one of the six methods has a closed-form standardized coefficient that reaches a similarly exact correlation (0.9999–1.0000) against its own correctly-scaled natural anchor (e.g. Mass-as-covariate against the textbook standardized partial-regression coefficient $(\rho_{13}-\rho_{12}\rho_{23})/(1-\rho_{23}^2)$), confirming that the ground truth used in the main text is not merely correlated with SLI-isometry's formula but algebraically equivalent to it up to this one scaling factor — which is precisely why SLI-isometry's own strong performance should be read as confirmation that the simulation and ground-truth calculation behave as expected, not as a comparative win over the other five approaches (main text, Approach classification).
 
 # Does the direction of causality between mass and appendage matter?
 
@@ -593,6 +592,11 @@ build_mixed_plot <- function(df_panel, show_legend = FALSE) {
                position = position_dodge(width = 0.75)) +
     scale_color_hue(labels = approach_labs) +
     scale_shape_manual(values = shape_scale, drop = FALSE) +
+    ## Extra top/bottom headroom (vs. ggplot's 5% default) so a narrow-range panel
+    ## (e.g. the single-species Mixed-Fatter panel) doesn't read as clipped -- the
+    ## dashed zero line sitting flush against the plot border looks like missing
+    ## data rather than the panel's natural range.
+    scale_y_continuous(expand = expansion(mult = 0.15)) +
     labs(x = NULL, y = expression(beta ~ "on wing shape"), color = NULL, shape = NULL) +
     theme(axis.text.x = element_text(angle = 60, hjust = 1, size = 8, color = axis_colors_p))
 
