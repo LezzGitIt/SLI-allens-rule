@@ -15,13 +15,18 @@ source("Scripts/00_Key_allometry_fns.R")
 nj_raw <- read.csv("Data/Capri_BA_compare03.29.26.csv")
 
 # Control parameters --------------------------------------------------------
-control_age_sex_6mod <- TRUE  # include Age/Sex control in the six OLS-based approaches
-# Nighthawk: Sex only; Nightjar/Whip-poor-will: Age + Sex
-just_am              <- FALSE   # restrict entire analysis to Adult Males only
-# (Age == "Adult" & Sex == "M"); incompatible with control_age_sex_6mod
+control_age_sex <- TRUE   # TRUE: include age / sex as covariates where they significantly affect body size
+just_am         <- FALSE  # restrict entire analysis to Adult Males only
+# (Age == "Adult" & Sex == "M"); incompatible with control_age_sex
+p_age_sex       <- 0.10   # p-value threshold: age / sex covariate inclusion
+min_n_age_group <- 100    # min individuals per age group to include age control
+min_n_sex_group <- 100    # min individuals per sex group to include sex control
+cor_min         <- 0.3    # min Pearson r (mass ~ wing) within group for allometric correlation filter
+cor_p_max       <- 0.05   # max p-value for mass ~ wing within group
+pos_allom       <- TRUE   # retain only species with cor_mw > cor_min & p_mw < cor_p_max for SLI-estimated
 
-if (just_am && control_age_sex_6mod) {
-  stop("`just_am = TRUE` is incompatible with `control_age_sex_6mod`. Update control flags")
+if (just_am && control_age_sex) {
+  stop("`just_am = TRUE` is incompatible with `control_age_sex`. Update control flags")
 }
 
 # Download temperature data -------------------------------------------------
@@ -105,15 +110,77 @@ Spp_metadata <- map(nj_df_analysis_l, \(df){
          b_ols   = cor(df$log_wing, df$log_mass, use = "complete.obs") * b_sma)
 }) %>% list_rbind(names_to = "Species")
 
+## Pearson r (not a regression slope, so it's on the same [-1,1] scale as cor_min
+## below) between Mass and Wing, matching Weeks_2020_ral.R / Atlantic_birds_shape.R.
 Cors_tbl <- map(nj_df_analysis_l, \(df){
-  tidy(lm(Mass ~ Wing, data = df))
-}) %>% list_rbind(names_to = "Species") %>%
-  filter(term == "Wing") %>%
-  dplyr::select(Species, estimate, p.value) %>%
-  rename(cor_mw = estimate, p_mw = p.value)
+  ct <- cor.test(df$Mass, df$Wing, use = "complete.obs")
+  tibble(cor_mw = as.numeric(ct$estimate), p_mw = ct$p.value)
+}) %>% list_rbind(names_to = "Species")
 
 Spp_metadata <- left_join(Spp_metadata, Cors_tbl, by = "Species")
 Spp_metadata
+
+# Species-level allometric-correlation filter (same as Weeks / Atlantic): gates
+# whether SLI-estimated is computed at all for a species (sli_estimated = NA
+# otherwise), since SMA is unreliable when the mass-wing correlation is weak
+# (Smith 2009).
+Spp_metadata <- Spp_metadata %>%
+  mutate(Keep = ifelse(cor_mw > cor_min & p_mw < cor_p_max, "Include", "Exclude"))
+
+Spp_keep_vec <- Spp_metadata %>%
+  filter(Keep == "Include") %>%
+  pull(Species)
+Spp_keep_vec
+
+if (pos_allom) message(length(Spp_keep_vec), " / ", nrow(Spp_metadata), " species pass allometric filter (sli_est will be NA for the rest)")
+
+# Species-level mass~wing correlation (exported for manuscript) -----------
+# Used in Discussion, Limitations of the SLI approaches, to report what
+# fraction of species per study fall below the cor_min allometric-reliability
+# threshold.
+Allometric_cor_nj <- Spp_metadata %>%
+  dplyr::select(species = Species, cor_mw, p_mw, Keep) %>%
+  mutate(Study = "Nightjar")
+write_csv(Allometric_cor_nj, "Derived/Csv/Nightjar_allometric_cor.csv")
+
+# Age / Sex significance testing -------------------------------------------
+# Test whether Age / Sex significantly affect Mass or Wing, controlling for
+# B.Temp -- only species where Age or Sex show a significant effect (p < p_age_sex)
+# are considered for age/sex-stratified covariates or per-group SMA slopes below
+# (same logic as Weeks_2020_ral.R / Atlantic_birds_shape.R's sig_age_any/sig_sex_any).
+Age_tbl <- bind_rows(
+  test_group_effect(nj_df_analysis_l, dv = "Mass", iv = "Age", gradient = "B.Temp", min_n_per_group = min_n_age_group),
+  test_group_effect(nj_df_analysis_l, dv = "Wing", iv = "Age", gradient = "B.Temp", min_n_per_group = min_n_age_group)
+) %>% mutate(sig = p.value < p_age_sex)
+
+Sex_tbl <- bind_rows(
+  test_group_effect(nj_df_analysis_l, dv = "Mass", iv = "Sex", gradient = "B.Temp", min_n_per_group = min_n_sex_group),
+  test_group_effect(nj_df_analysis_l, dv = "Wing", iv = "Sex", gradient = "B.Temp", min_n_per_group = min_n_sex_group)
+) %>% mutate(sig = p.value < p_age_sex)
+
+Age_tbl %>% filter(sig) %>% dplyr::select(species_, dv, estimate, p.value)
+Sex_tbl %>% filter(sig) %>% dplyr::select(species_, dv, estimate, p.value)
+
+sig_age_mass <- Age_tbl %>% filter(dv == "Mass", sig) %>% pull(species_)
+sig_age_wing <- Age_tbl %>% filter(dv == "Wing", sig) %>% pull(species_)
+sig_sex_mass <- Sex_tbl %>% filter(dv == "Mass", sig) %>% pull(species_)
+sig_sex_wing <- Sex_tbl %>% filter(dv == "Wing", sig) %>% pull(species_)
+
+# Union: if age/sex affects either morphometric, include in all downstream models
+sig_age_any <- unique(c(sig_age_mass, sig_age_wing))
+sig_sex_any <- unique(c(sig_sex_mass, sig_sex_wing))
+
+# Nighthawk was not reliably aged (Age = "Unk" for the large majority of records) --
+# exclude it from Age-covariate consideration outright, rather than relying on
+# min_n_age_group to filter it out incidentally (its small Adult/Young subgroups
+# already fall below that threshold today, but this is a data-quality exclusion,
+# not a sample-size one, so it shouldn't depend on that threshold staying put).
+sig_age_any <- setdiff(sig_age_any, "Nighthawk")
+
+if (!control_age_sex) {
+  sig_age_any <- character(0)
+  sig_sex_any <- character(0)
+}
 
 # Coefficient of variation ------------------------------------------------
 # Very low CVs, suggesting that the variance in wing is very low compared to the variance in mass (relative to the means)
@@ -149,26 +216,40 @@ map(sma_mod_l, \(sma_mod){
 ## NOTE: if you scale first, then the variance of both log_mass & log_wing is 1,
 ## & SMA slope = MA slope = 1 × OLS slope so these are identical.
 
-# Per-species covariate helper for the six OLS-based approaches.
-# Nighthawk: Sex only (Age is mostly "Unk" for this species).
-# Nightjar / Whip-poor-will: Age + Sex.
-# Returns character(0) when control_age_sex_6mod = FALSE (no control applied).
-get_6mod_covs <- function(sp) {
-  if (!control_age_sex_6mod) return(character(0))
-  if (sp == "Nighthawk") return("Sex")
-  c("Age", "Sex")
-}
-
+# Per species: covariates are only considered when Age/Sex showed a significant
+# effect in the first place (sig_age_any/sig_sex_any above); among those species,
+# a covariate is used only if >=2 groups remain after the min_n_*_group and
+# per-group allometric-correlation (cor_min/cor_p_max) filters -- same logic as
+# Weeks_2020_ral.R / Atlantic_birds_shape.R's Weeks_l3/Atl_birds_l3 blocks.
 nj_df_l2 <- imap(nj_df_analysis_l, \(df, sp) {
-  covs     <- get_6mod_covs(sp)
-  covs_str <- if (length(covs)) paste("+", paste(covs, collapse = " + ")) else ""
+  covs <- character(0)
 
-  # Drop unknown-coded rows early so predict() never encounters new factor levels.
-  # For Nighthawk (covs = "Sex"): removes Sex == "U" / NA only.
-  # For Nightjar / Whip-poor-will (covs = c("Age","Sex")): also removes Age == "Unk" / NA.
-  if (length(covs)) {
-    df <- df %>% filter(if_all(all_of(covs), \(x) !is.na(x) & x != "Unk" & x != "U"))
+  if (sp %in% sig_age_any) {
+    valid_age <- df %>%
+      filter(!is.na(Age) & Age != "Unk") %>%
+      count(Age) %>% filter(n >= min_n_age_group) %>% pull(Age)
+    if (length(valid_age) >= 1) df <- df %>% filter(Age %in% valid_age)
+    if (length(valid_age) >= 2) {
+      passing_age <- build_group_cor_tbl(df, Append = Wing, Mass = Mass, control = "Age") %>%
+        ungroup() %>% filter(r_mw > cor_min & p_mw <= cor_p_max) %>% pull(Age)
+      if (length(passing_age) >= 1) df <- df %>% filter(Age %in% passing_age)
+      if (length(passing_age) >= 2) covs <- c(covs, "Age")
+    }
   }
+  if (sp %in% sig_sex_any) {
+    valid_sex <- df %>%
+      filter(!is.na(Sex) & Sex != "U") %>%
+      count(Sex) %>% filter(n >= min_n_sex_group) %>% pull(Sex)
+    if (length(valid_sex) >= 1) df <- df %>% filter(Sex %in% valid_sex)
+    if (length(valid_sex) >= 2) {
+      passing_sex <- build_group_cor_tbl(df, Append = Wing, Mass = Mass, control = "Sex") %>%
+        ungroup() %>% filter(r_mw > cor_min & p_mw <= cor_p_max) %>% pull(Sex)
+      if (length(passing_sex) >= 1) df <- df %>% filter(Sex %in% passing_sex)
+      if (length(passing_sex) >= 2) covs <- c(covs, "Sex")
+    }
+  }
+
+  covs_str <- if (length(covs)) paste("+", paste(covs, collapse = " + ")) else ""
 
   ols_mod   <- lm(as.formula(paste("log_wing ~ log_mass", covs_str)), data = df)
   sma_mod   <- sma(log_wing ~ log_mass, data = df, method = "SMA")
@@ -181,18 +262,38 @@ nj_df_l2 <- imap(nj_df_analysis_l, \(df, sp) {
   ## Estimated SLI: per-group SMA slopes when this species has valid covariates, otherwise the species-wide SMA slope. Kept as separate calls because sliR::calc_sli() ignores b_sli whenever control is supplied, so passing both would silently discard one of them.
   df_iso <- df %>% sliR::calc_sli(b_sli = 0.33, Append = Wing, rename_col = "sli_isometry")
 
-  if (length(covs)) {
-    sliR::calc_sli(df_iso, Append = Wing, control = covs, rename_col = "sli_estimated")
+  ## sli_estimated is only computed for species passing the species-level allometric
+  ## correlation filter (Spp_keep_vec); NA otherwise, matching Weeks_l3/Atl_birds_l3.
+  if (sp %in% Spp_keep_vec) {
+    if (length(covs)) {
+      sliR::calc_sli(df_iso, Append = Wing, control = covs, rename_col = "sli_estimated")
+    } else {
+      sliR::calc_sli(df_iso, Append = Wing, b_sli = est_b_sma, rename_col = "sli_estimated")
+    }
   } else {
-    sliR::calc_sli(df_iso, Append = Wing, b_sli = est_b_sma, rename_col = "sli_estimated")
+    df_iso %>% mutate(sli_estimated = NA_real_)
   }
 })
 
-# Per-species per-group SMA slope summary (10 rows total when control_age_sex_6mod = TRUE):
-# 2 rows for Nighthawk (Sex), 4 for Nightjar (Age x Sex), 4 for Whip-poor-will (Age x Sex).
-if (control_age_sex_6mod) {
+# Per-group allometric correlation (Mass ~ Wing within each Age × Sex combination) --
+# Inspect r_mw and p_mw per group; groups with pass = FALSE lack a meaningful
+# allometric relationship and should not drive per-group SMA slope estimates.
+if (control_age_sex) {
+  group_cor_wing <- imap(nj_df_analysis_l, \(df, sp) {
+    covs <- c(if (sp %in% sig_age_any) "Age", if (sp %in% sig_sex_any) "Sex")
+    if (!length(covs)) return(NULL)
+    build_group_cor_tbl(df, Append = Wing, Mass = Mass, control = covs) %>%
+      mutate(Species = sp, .before = 1)
+  }) %>% list_rbind() %>%
+    mutate(pass = r_mw > cor_min & p_mw <= cor_p_max)
+  print(group_cor_wing)
+}
+
+# Per-species per-group SMA slope summary (only for species where Age/Sex is
+# actually used as a covariate; see sig_age_any/sig_sex_any above).
+if (control_age_sex) {
   sli_slopes_tbl <- imap(nj_df_analysis_l, \(df, sp) {
-    covs <- get_6mod_covs(sp)
+    covs <- c(if (sp %in% sig_age_any) "Age", if (sp %in% sig_sex_any) "Sex")
     if (!length(covs)) return(NULL)
     sliR::build_sli_slopes_tbl(df, Append = Wing, control = covs)
   }) %>% list_rbind(names_to = "Species")
@@ -230,23 +331,27 @@ Ratio_mass_cor_nj <- imap(nj_df_l3, \(df, sp) {
 write_csv(Ratio_mass_cor_nj, "Derived/Csv/Nightjar_mass_cor.csv")
 
 # Run models & extract parms ----------------------------------------------
+# Approach-specific covariate rules (matching Weeks_2020_ral.R / Atlantic_birds_shape.R):
+#   Ratio/Ratio2/Sli_iso: no Age/Sex by design
+#   Resid_ols: Age/Sex cleaned in first model (nj_df_l2); no additional covariates
+#   Ryding: include Age/Sex in combined model (B.Temp conditional on both), only for
+#     species where Age/Sex showed a significant effect (sig_age_any/sig_sex_any)
+#   Sli_est: per-group SMA slopes handled upstream via sliR::calc_sli(control = covs);
+#     NA for species failing the allometric-correlation filter (Spp_keep_vec)
 parms_df <- imap(nj_df_l3, \(df, sp) {
-  # df is already filtered (Unk/U rows dropped in nj_df_l2) so no further subsetting needed.
-  covs     <- get_6mod_covs(sp)
+  covs     <- c(if (sp %in% sig_age_any) "Age", if (sp %in% sig_sex_any) "Sex")
+  covs     <- covs[vapply(covs, \(v) length(unique(na.omit(df[[v]]))) >= 2, logical(1))]
   covs_str <- if (length(covs)) paste("+", paste(covs, collapse = " + ")) else ""
 
-  # Resid_ols: residuals already age/sex-cleaned via first OLS model in nj_df_l2.
   mod_resid_ols   <- lm(resid_ols    ~ B.Temp, data = df) %>% tidy() %>% mutate(Approach = "Resid_ols")
-  # Ryding: age/sex as covariates in the combined model (B.Temp conditional on both).
   mod_coef_ols    <- lm(as.formula(paste("Wing ~ Mass + B.Temp", covs_str)), data = df) %>%
     tidy() %>% mutate(Approach = "Ryding")
-  # Ratio/Ratio2/Sli_iso: no age/sex control by design.
   mod_coef_ratio  <- lm(wing_mass    ~ B.Temp, data = df) %>% tidy() %>% mutate(Approach = "Ratio")
   mod_coef_ratio2 <- lm(wing2_mass   ~ B.Temp, data = df) %>% tidy() %>% mutate(Approach = "Ratio2")
   mod_sli_iso     <- lm(sli_isometry ~ B.Temp, data = df) %>% tidy() %>% mutate(Approach = "Sli_iso")
-  # Sli_est: per-group SMA slopes (from calc_sli) already handle age/sex variation;
-  # no covariates in the final regression. NA rows dropped automatically.
-  mod_sli_est     <- lm(sli_estimated ~ B.Temp, data = df) %>% tidy() %>% mutate(Approach = "Sli_est")
+  mod_sli_est <- if (any(!is.na(df$sli_estimated))) {
+    lm(sli_estimated ~ B.Temp, data = df) %>% tidy() %>% mutate(Approach = "Sli_est")
+  } else tibble()
 
   bind_rows(mod_coef_ratio, mod_coef_ratio2, mod_coef_ols, mod_resid_ols, mod_sli_est, mod_sli_iso)
 }) %>% list_rbind(names_to = "Species") %>%

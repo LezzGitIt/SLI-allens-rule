@@ -18,7 +18,7 @@ Weeks_path <- "/Users/aaronskinner/Library/CloudStorage/OneDrive-UBC/Academia/Da
 Weeks20    <- read_csv(Weeks_path, skip = 2)
 
 # Run parameters ----------------------------------------------------------
-min_n_obs       <- 150    # minimum observations per species
+min_n_obs       <- 100    # minimum observations per species
 year_cutoff     <- 1978   # exclude records from this year and before
 p_bergmann      <- 0.05   # threshold for temporal trend classification (mass, wing)
 p_age_sex       <- 0.10   # threshold for age / sex covariate inclusion
@@ -79,43 +79,18 @@ Weeks_df %>% tabyl(Sex)
 # Test whether Age / Sex significantly affect each morphometric, controlling for year.
 # Age levels: AHY (after-hatch-year = adult) and HY (hatch-year = juvenile).
 # Sex levels: m, f.
-test_group_effect <- function(df_list, dv, iv, temp_name = "year",
-                              min_n_per_group = 0) {
-  map(df_list, \(df) {
-    df_filt <- df %>% filter(!is.na(.data[[iv]]) & .data[[iv]] != "Unknown")
-    if (nrow(df_filt) < 10) return(NULL)
-
-    valid_grps <- df_filt %>%
-      count(.data[[iv]]) %>%
-      filter(n >= min_n_per_group) %>%
-      pull(.data[[iv]])
-    if (length(valid_grps) < 2) return(NULL)
-    df_filt <- df_filt %>% filter(.data[[iv]] %in% valid_grps)
-
-    n_counts <- df_filt %>%
-      count(.data[[iv]], name = "n") %>%
-      mutate(lbl = paste0("n_", tolower(.data[[iv]]))) %>%
-      dplyr::select(lbl, n) %>%
-      pivot_wider(names_from = lbl, values_from = n)
-    fmla <- as.formula(paste(dv, "~", temp_name, "+", iv))
-    tidy(lm(fmla, data = df_filt)) %>%
-      filter(str_starts(term, iv)) %>%
-      mutate(dv = dv) %>%
-      bind_cols(n_counts)
-  }) %>%
-    list_rbind(names_to = "species_")
-}
+# test_group_effect() is shared across the three empirical scripts (00_Key_allometry_fns.R).
 
 Age_tbl <- bind_rows(
-  test_group_effect(Weeks_l, dv = "Mass",   iv = "Age", min_n_per_group = min_n_age_group),
-  test_group_effect(Weeks_l, dv = "Wing",   iv = "Age", min_n_per_group = min_n_age_group),
-  test_group_effect(Weeks_l, dv = "Tarsus", iv = "Age", min_n_per_group = min_n_age_group)
+  test_group_effect(Weeks_l, dv = "Mass",   iv = "Age", gradient = "year", min_n_per_group = min_n_age_group),
+  test_group_effect(Weeks_l, dv = "Wing",   iv = "Age", gradient = "year", min_n_per_group = min_n_age_group),
+  test_group_effect(Weeks_l, dv = "Tarsus", iv = "Age", gradient = "year", min_n_per_group = min_n_age_group)
 ) %>% mutate(sig = p.value < p_age_sex)
 
 Sex_tbl <- bind_rows(
-  test_group_effect(Weeks_l, dv = "Mass",   iv = "Sex", min_n_per_group = min_n_sex_group),
-  test_group_effect(Weeks_l, dv = "Wing",   iv = "Sex", min_n_per_group = min_n_sex_group),
-  test_group_effect(Weeks_l, dv = "Tarsus", iv = "Sex", min_n_per_group = min_n_sex_group)
+  test_group_effect(Weeks_l, dv = "Mass",   iv = "Sex", gradient = "year", min_n_per_group = min_n_sex_group),
+  test_group_effect(Weeks_l, dv = "Wing",   iv = "Sex", gradient = "year", min_n_per_group = min_n_sex_group),
+  test_group_effect(Weeks_l, dv = "Tarsus", iv = "Sex", gradient = "year", min_n_per_group = min_n_sex_group)
 ) %>% mutate(sig = p.value < p_age_sex)
 
 Age_tbl %>% filter(sig) %>% dplyr::select(species_, dv, estimate, p.value)
@@ -253,6 +228,15 @@ Spp_keep_vec
 
 # Weeks_l2 is NOT filtered to Spp_keep_vec here; sli_est is set NA for non-passing species in Weeks_l3
 if (pos_allom) message(length(Spp_keep_vec), " / ", length(Weeks_l2), " species pass allometric filter (sli_est will be NA for the rest)")
+
+# Species-level mass~wing correlation (exported for manuscript) -----------
+# Used in Discussion, Limitations of the SLI approaches, to report what
+# fraction of species per study fall below the cor_min allometric-reliability
+# threshold.
+Allometric_cor_weeks <- Spp_metadata2 %>%
+  dplyr::select(species_, cor_mw, p_mw, Keep) %>%
+  mutate(Study = "Weeks (2020)", species = str_replace(species_, "_", " "))
+write_csv(Allometric_cor_weeks, "Derived/Csv/Weeks_allometric_cor.csv")
 
 # Visualize allometry across retained species
 Weeks_df2 %>%

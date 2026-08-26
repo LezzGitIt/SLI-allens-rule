@@ -15,7 +15,7 @@ ggplot2::theme_set(theme_cowplot())
 Atlantic_birds <- read_csv("/Users/aaronskinner/Library/CloudStorage/OneDrive-UBC/Academia/Datasets_external/Ecology/Atlantic_bird_traits/ATLANTIC_BIRD_TRAITS_completed_2018_11_d05.csv")
 
 # Run parameters ----------------------------------------------------------
-min_n_obs       <- 150    # minimum observations per species to be included
+min_n_obs       <- 100    # minimum observations per species to be included
 year_cutoff     <- 1990   # exclude records from this year and before
 p_bergmann      <- 0.05   # p-value threshold: Bergmann / Allen response classification
 p_age_sex       <- 0.10   # p-value threshold: age / sex covariate inclusion
@@ -96,46 +96,21 @@ Atlantic_birds4 %>% tabyl(sex)
 # Test effect of a grouping variable (iv = "age" or "sex") on a morphometric DV.
 # Filters Unknown/NA for iv, then drops individual groups below min_n_per_group.
 # If fewer than 2 valid groups remain, returns NULL for that species.
-test_group_effect <- function(df_list, dv, iv, min_n_per_group = 0) {
-  map(df_list, \(df) {
-    df_filt <- df %>% filter(.data[[iv]] != "Unknown" & !is.na(.data[[iv]]))
-    if (nrow(df_filt) < 10) return(NULL)
-
-    valid_grps <- df_filt %>%
-      count(.data[[iv]]) %>%
-      filter(n >= min_n_per_group) %>%
-      pull(.data[[iv]])
-    if (length(valid_grps) < 2) return(NULL)
-    df_filt <- df_filt %>% filter(.data[[iv]] %in% valid_grps)
-
-    n_counts <- df_filt %>%
-      count(.data[[iv]], name = "n") %>%
-      mutate(lbl = paste0("n_", tolower(.data[[iv]]))) %>%
-      dplyr::select(lbl, n) %>%
-      pivot_wider(names_from = lbl, values_from = n)
-
-    fmla <- as.formula(paste(dv, "~ B.Tavg +", iv))
-    tidy(lm(fmla, data = df_filt)) %>%
-      filter(str_starts(term, iv)) %>%
-      mutate(dv = dv) %>%
-      bind_cols(n_counts)
-  }) %>%
-    list_rbind(names_to = "species_")
-}
+# test_group_effect() is shared across the three empirical scripts (00_Key_allometry_fns.R).
 
 # Age and sex effects on mass, wing, and tarsus
 # Groups below min_n_age_group / min_n_sex_group are dropped inside the function;
 # species with fewer than 2 valid groups are excluded entirely.
 Age_tbl <- bind_rows(
-  test_group_effect(Atl_birds_l, dv = "mass",   iv = "age", min_n_per_group = min_n_age_group),
-  test_group_effect(Atl_birds_l, dv = "wing",   iv = "age", min_n_per_group = min_n_age_group),
-  test_group_effect(Atl_birds_l, dv = "tarsus", iv = "age", min_n_per_group = min_n_age_group)
+  test_group_effect(Atl_birds_l, dv = "mass",   iv = "age", gradient = "B.Tavg", min_n_per_group = min_n_age_group),
+  test_group_effect(Atl_birds_l, dv = "wing",   iv = "age", gradient = "B.Tavg", min_n_per_group = min_n_age_group),
+  test_group_effect(Atl_birds_l, dv = "tarsus", iv = "age", gradient = "B.Tavg", min_n_per_group = min_n_age_group)
 ) %>% mutate(sig = p.value < p_age_sex)
 
 Sex_tbl <- bind_rows(
-  test_group_effect(Atl_birds_l, dv = "mass",   iv = "sex", min_n_per_group = min_n_sex_group),
-  test_group_effect(Atl_birds_l, dv = "wing",   iv = "sex", min_n_per_group = min_n_sex_group),
-  test_group_effect(Atl_birds_l, dv = "tarsus", iv = "sex", min_n_per_group = min_n_sex_group)
+  test_group_effect(Atl_birds_l, dv = "mass",   iv = "sex", gradient = "B.Tavg", min_n_per_group = min_n_sex_group),
+  test_group_effect(Atl_birds_l, dv = "wing",   iv = "sex", gradient = "B.Tavg", min_n_per_group = min_n_sex_group),
+  test_group_effect(Atl_birds_l, dv = "tarsus", iv = "sex", gradient = "B.Tavg", min_n_per_group = min_n_sex_group)
 ) %>% mutate(sig = p.value < p_age_sex)
 
 # Inspect: which species × DV combinations are significant?
@@ -291,6 +266,15 @@ Spp_keep_vec
 
 # Atl_birds_l2 is NOT filtered to Spp_keep_vec here; sli_est is set NA for non-passing species in Atl_birds_l3
 if (pos_allom) message(length(Spp_keep_vec), " / ", length(Atl_birds_l2), " species pass allometric filter (sli_est will be NA for the rest)")
+
+# Species-level mass~wing correlation (exported for manuscript) -----------
+# Used in Discussion, Limitations of the SLI approaches, to report what
+# fraction of species per study fall below the cor_min allometric-reliability
+# threshold.
+Allometric_cor_atl <- Spp_metadata2 %>%
+  dplyr::select(species_, cor_mw, p_mw, Keep) %>%
+  mutate(Study = "Atlantic birds", species = str_replace_all(species_, "_", " "))
+write_csv(Allometric_cor_atl, "Derived/Csv/Atlantic_allometric_cor.csv")
 
 # Per-group allometric correlation (mass ~ wing within each age × sex combination) -----
 # Inspect r_mw and p_mw per group; groups with pass = FALSE lack a meaningful

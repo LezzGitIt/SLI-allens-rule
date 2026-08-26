@@ -6,7 +6,7 @@
 #   gen_data()   -> sim_allometric()  (adds the paper's Temp_inc/Temp_bin columns via format_temp(); driven by pmap() over a b_avg_12/r_12/r_13/r_23 parameter grid whose column names must match the wrapper's arguments)
 #   gen_cov_mat()-> build_cov_mat()   (rescales the gradient block to sd_temp; displayed as teaching content in Extra_scripts/SMA_body_shape_methods.qmd)
 #   build_group_cor_tbl() -> its sliR namesake (renames r/p_value back to the r_mw/p_mw that ~6 downstream filters per empirical script depend on)
-# Still local, deliberately not in sliR: format_temp, rm_outliers, run_sma_mod, format_sma_parms, gen_ex_data, calc_lambda, classify_direction, build_sli_mass_cor_tbl.
+# Still local, deliberately not in sliR: format_temp, rm_outliers, run_sma_mod, format_sma_parms, gen_ex_data, calc_lambda, classify_direction, build_sli_mass_cor_tbl, test_group_effect.
 
 # Load required libraries
 # MASS is no longer used by this file, but is left attached because supplementary_info.qmd sources this script without loading MASS itself; dropping it here would change that document's search path.
@@ -172,6 +172,40 @@ build_sli_mass_cor_tbl <- function(df, Mass = Mass) {
                                                    r = as.numeric(ct_est$estimate), p_value = ct_est$p.value))
   }
   rows
+}
+
+# Test whether a grouping variable (Age/Sex) significantly affects a morphometric
+# DV, controlling for the environmental gradient, per species in df_list. Drops
+# unknown-coded/NA iv rows, then individual groups below min_n_per_group; returns
+# NULL for a species with <2 valid groups remaining (too few to test/use as a
+# covariate). Used to decide, per species, whether Age/Sex should be considered
+# as covariates at all -- shared across the three empirical scripts so the same
+# significance-gating logic can't drift between them.
+test_group_effect <- function(df_list, dv, iv, gradient, min_n_per_group = 0,
+                              unknown_codes = c("Unk", "U", "Unknown")) {
+  purrr::map(df_list, \(df) {
+    df_filt <- df %>% dplyr::filter(!is.na(.data[[iv]]) & !(.data[[iv]] %in% unknown_codes))
+    if (nrow(df_filt) < 10) return(NULL)
+
+    valid_grps <- df_filt %>%
+      dplyr::count(.data[[iv]]) %>%
+      dplyr::filter(n >= min_n_per_group) %>%
+      dplyr::pull(.data[[iv]])
+    if (length(valid_grps) < 2) return(NULL)
+    df_filt <- df_filt %>% dplyr::filter(.data[[iv]] %in% valid_grps)
+
+    n_counts <- df_filt %>%
+      dplyr::count(.data[[iv]], name = "n") %>%
+      dplyr::mutate(lbl = paste0("n_", tolower(.data[[iv]]))) %>%
+      dplyr::select(lbl, n) %>%
+      tidyr::pivot_wider(names_from = lbl, values_from = n)
+    fmla <- as.formula(paste(dv, "~", gradient, "+", iv))
+    broom::tidy(lm(fmla, data = df_filt)) %>%
+      dplyr::filter(stringr::str_starts(term, iv)) %>%
+      dplyr::mutate(dv = dv) %>%
+      dplyr::bind_cols(n_counts)
+  }) %>%
+    purrr::list_rbind(names_to = "species_")
 }
 
 # calc_lambda function: calculate the empirical coefficients of variation
