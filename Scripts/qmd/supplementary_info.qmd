@@ -28,6 +28,8 @@ library(tidyverse)
 library(ggpubr)
 library(cowplot)
 library(ggpmisc)
+library(png)
+library(grid)
 ggplot2::theme_set(theme_cowplot())
 source("Scripts/00_Key_allometry_fns.R")
 ```
@@ -43,6 +45,35 @@ source("Scripts/00_Key_allometry_fns.R")
 list2env(readRDS("Derived/Rds/simulation_results.rds"), envir = environment())
 
 Parms_tbl4_bigger <- Parms_tbl4 %>% filter(Temp_eff == "Proportionally larger")
+```
+
+```{r}
+#| label: load-lit-review-results
+#| include: false
+
+# Literature review is processed separately by Scripts/02_Lit_review.R (re-run it any time the underlying spreadsheet or classification logic changes) and saved to Derived/Rds/lit_review_results.rds. This brings Lr_per_pooled into scope by name, matching the main manuscript's own loader chunk.
+
+list2env(readRDS("Derived/Rds/lit_review_results.rds"), envir = environment())
+
+tot_approach_uses <- unique(Lr_per_pooled$Tot_studies)
+```
+
+# Literature review: methodological approaches
+
+The main text (Literature review) summarizes how the approaches used to quantify relative appendage length are distributed across the studies reviewed there; Figure 1 shows the full distribution referenced in that section.
+
+```{r}
+#| label: fig-lit-review
+#| fig-cap: !expr fig_cap_lit_review
+#| fig-height: 6.5
+#| fig-pos: 'H'
+
+fig_cap_lit_review <- glue::glue("Frequency of the primary methodological approaches used across 45 studies testing Allen's rule since 2021. Each point represents one analytical approach (n = {tot_approach_uses}) to classify relative appendage length, and colored lines connect a single study with multiple approaches. Percentages are computed as the proportion of total approaches rather than the proportion of studies.")
+
+lit_review_img  <- png::readPNG("Figures/lit_review.png")
+lit_review_grob <- grid::rasterGrob(lit_review_img, width = grid::unit(1, "npc"),
+                                     height = grid::unit(1, "npc"))
+cowplot::ggdraw() + cowplot::draw_grob(lit_review_grob)
 ```
 
 # Validation of simulated species direction
@@ -299,7 +330,7 @@ The variance correction takes the correlation from `r sprintf("%.2f", r_sli_iso_
 
 # Does the direction of causality between mass and appendage matter?
 
-The main text's simulation deliberately draws mass and appendage from a joint distribution rather than a directional model, so that no method is favoured by construction (main text, Data simulation). The Discussion's causal DAGs (main text, Figure 7) instead consider what happens when a genuine directional relationship *does* hold, and argue that the six methods' validity depends on which direction that relationship runs. Here I make that argument concrete with a small, targeted simulation: one example species ($b_{avg} \approx 0.33$ and appendage-mass correlation $\approx 0.35$, matching the main text's realistic ranges, and a mean temperature of 1°C), simulated at a larger sample size ($n=50{,}000$) than the main text's per-species $n=3{,}000$ so that each method's point estimate reflects the population-level pattern rather than sampling noise from one particular random draw, generated under each of two directional structural models — the main text's Figure 7 panel a (mass causes appendage) and panel b (appendage causes mass, i.e. mass as a collider) — with the same direct temperature-on-appendage effect ($\beta_T = 0.3$, standardized, exact by construction in both DGPs) injected into both, so any difference in what the six methods recover is attributable to the causal direction alone, not to the size of the effect or to incidental differences in how realistic each simulated species looks.
+The main text's simulation deliberately draws mass and appendage from a joint distribution rather than a directional model, so that no method is favoured by construction (main text, Data simulation). The causal DAG instead considers what happens when a genuine directional relationship *does* hold, and argues that the six methods' validity depends on which direction that relationship runs. Here I make that argument concrete with a small, targeted simulation: one example species ($b_{avg} \approx 0.33$ and appendage-mass correlation $\approx 0.35$, matching the main text's realistic ranges, and a mean temperature of 1°C), simulated at a larger sample size ($n=50{,}000$) than the main text's per-species $n=3{,}000$ so that each method's point estimate reflects the population-level pattern rather than sampling noise from one particular random draw, generated under each of two directional structural models — with the same direct temperature-on-appendage effect ($\beta_T = 0.3$, standardized, exact by construction in both DGPs) injected into both, so any difference in what the six methods recover is attributable to the causal direction alone, not to the size of the effect or to incidental differences in how realistic each simulated species looks.
 
 ```{r}
 #| label: causal-dgp-sim
@@ -453,12 +484,12 @@ load_direction <- function(direction) {
   ) %>%
     filter(
       Direction == direction,
-      Approach  %in% c("Ratio", "Ratio2", "Ryding", "Resid_ols", "Sli_est", "Sli_iso"),
+      Approach  %in% c("Ratio", "Ratio2", "Ryding", "Sli_est", "Sli_iso"),
       std.error < 0.5
     ) %>%
     mutate(
       Sig_trait = str_to_sentence(Sig_trait),
-      Approach  = factor(Approach, levels = c("Ratio", "Ratio2", "Ryding", "Resid_ols", "Sli_est", "Sli_iso"))
+      Approach  = factor(Approach, levels = c("Ratio", "Ratio2", "Ryding", "Sli_est", "Sli_iso"))
     )
 }
 
@@ -531,7 +562,7 @@ n_inv_bergs_supp <- n_distinct(parms_inv_bergmanns$species)
 # rightmost entries, regardless of how many species columns the panels themselves need.
 fig_width_species <- max(8, n_bergs_supp * 0.13)
 
-fig_cap_empirical_species <- glue::glue("Per-species detail underlying Figure 5 (main text): estimated effect ($\\hat{{\\beta}}$) of the environmental gradient on relative wing length across three empirical avian datasets (Nightjars: red labels; North American migrants: blue labels; Atlantic Forest birds: green labels), grouped by direction of body size change: (a) Bergmann's ($n$ = {n_bergs_supp} species) and (b) Inverse Bergmann's ($n$ = {n_inv_bergs_supp} species). Only species with a significant ($p < 0.05$) mass or wing response are shown. Points are mean parameter estimates ($\\hat{{\\beta}}$) and error bars are 95% confidence intervals. The y-axis label matches Figure 3's (main text) to indicate that both figures show the same quantity, temperature's estimated effect on relative appendage length. A positive slope indicates birds become relatively longer with increasing temperature (or through time). A negative slope indicates they become relatively fatter. Asterisks mark species for which the rank order is consistent with simulation results (Bergmann's: Ratio > SLI > OLS; Inverse Bergmann's: Ratio < SLI < OLS).")
+fig_cap_empirical_species <- glue::glue("Per-species detail underlying Figure 5 (main text): estimated effect ($\\hat{{\\beta}}$) of the gradient of interest on relative wing length across three empirical avian datasets (Nightjars: red labels; North American migrants: blue labels; Atlantic Forest birds: green labels), grouped by direction of body size change: (a) Bergmann's ($n$ = {n_bergs_supp} species) and (b) Inverse Bergmann's ($n$ = {n_inv_bergs_supp} species). Only species with a significant ($p < 0.05$) mass or wing response are shown. Points are mean parameter estimates ($\\hat{{\\beta}}$) and error bars are 95% confidence intervals. The y-axis label matches Figure 3's (main text) to indicate that both figures show the same quantity, temperature's estimated effect on relative appendage length. A positive slope indicates birds become relatively longer with increasing temperature (or through time). A negative slope indicates they become relatively fatter. Asterisks mark species for which the rank order is consistent with simulation results (Bergmann's: Ratio > SLI > OLS; Inverse Bergmann's: Ratio < SLI < OLS).")
 ```
 
 ```{r}
@@ -614,7 +645,7 @@ parms_fatter  <- load_direction("Mixed - Fatter")
 n_mixed_wingier <- n_distinct(parms_wingier$species)
 n_mixed_fatter  <- n_distinct(parms_fatter$species)
 
-fig_cap_mixed <- glue::glue("Estimated effect of the environmental gradient on relative wing length across three empirical datasets (Nightjars — red labels; North American migratory birds — blue labels; Atlantic Forest birds — green labels): (a) Mixed - Wingier species (wing length increasing while body mass decreased; $n$ = {n_mixed_wingier}) and (b) Mixed - Fatter species (wing length decreasing while body mass increased; $n$ = {n_mixed_fatter}). Only species with a significant ($p < 0.05$) mass or wing response are shown. Points are mean parameter estimates; error bars are 95% confidence intervals.")
+fig_cap_mixed <- glue::glue("Estimated effect of the gradient of interest on relative wing length across three empirical datasets (Nightjars — red labels; North American migratory birds — blue labels; Atlantic Forest birds — green labels): (a) Mixed - Wingier species (wing length increasing while body mass decreased; $n$ = {n_mixed_wingier}) and (b) Mixed - Fatter species (wing length decreasing while body mass increased; $n$ = {n_mixed_fatter}). Only species with a significant ($p < 0.05$) mass or wing response are shown. Points are mean parameter estimates; error bars are 95% confidence intervals.")
 ```
 
 ```{r}
@@ -641,7 +672,7 @@ Across `r n_mixed_wingier` Mixed - Wingier species (panel a), the rank-order pat
 
 # Stable empirical species
 
-Species showing no significant ($p < 0.05$) change in either mass or wing length along the environmental gradient were classified as **Stable** (main text classification table) and excluded from the main-text rank-order comparison, since the predicted rank order (Ratio \> SLI \> OLS, or its reverse) is only defined relative to a directional shape response.
+Species showing no significant ($p < 0.05$) change in either mass or wing length along the gradient of interest were classified as **Stable** (main text classification table) and excluded from the main-text rank-order comparison, since the predicted rank order (Ratio \> SLI \> OLS, or its reverse) is only defined relative to a directional shape response.
 
 ```{r}
 #| label: load-stable-data
@@ -654,12 +685,12 @@ parms_stable <- bind_rows(
 ) %>%
   filter(
     Direction == "Stable",
-    Approach  %in% c("Ratio", "Ratio2", "Ryding", "Resid_ols", "Sli_est", "Sli_iso"),
+    Approach  %in% c("Ratio", "Ratio2", "Ryding", "Sli_est", "Sli_iso"),
     std.error < 0.5
   ) %>%
   mutate(
     Sig_trait = str_to_sentence(Sig_trait),
-    Approach  = factor(Approach, levels = c("Ratio", "Ratio2", "Ryding", "Resid_ols", "Sli_est", "Sli_iso"))
+    Approach  = factor(Approach, levels = c("Ratio", "Ratio2", "Ryding", "Sli_est", "Sli_iso"))
   )
 
 species_meta_stable <- parms_stable %>%
@@ -672,7 +703,7 @@ species_levels_stable <- species_meta_stable$species
 axis_colors_stable     <- study_colors[as.character(species_meta_stable$Study)]
 n_stable                <- n_distinct(parms_stable$species)
 
-fig_cap_stable <- glue::glue("Estimated effect of the environmental gradient on relative wing length for Stable species (no significant change in mass or wing length) across three empirical datasets (Nightjars — red labels; North American migratory birds — blue labels; Atlantic Forest birds — green labels); $n$ = {n_stable} species. Points are mean parameter estimates; error bars are 95% confidence intervals. Because neither trait changed significantly, these species have no true directional shape signal to recover, and the six methods are not expected to agree on rank order.")
+fig_cap_stable <- glue::glue("Estimated effect of the gradient of interest on relative wing length for Stable species (no significant change in mass or wing length) across three empirical datasets (Nightjars — red labels; North American migratory birds — blue labels; Atlantic Forest birds — green labels); $n$ = {n_stable} species. Points are mean parameter estimates; error bars are 95% confidence intervals. Because neither trait changed significantly, these species have no true directional shape signal to recover, and these five methods (OLS-residuals omitted here for readability) are not expected to agree on rank order.")
 ```
 
 ```{r}
@@ -701,7 +732,67 @@ parms_stable %>%
   )
 ```
 
-Across `r n_stable` Stable species, estimates cluster closer to zero than in the directional categories, as expected, though the six methods still disagree in both magnitude and, occasionally, sign — underscoring that even a "null" result can look different depending on the method used.
+Across `r n_stable` Stable species, estimates cluster closer to zero than in the directional categories, as expected, though the five methods shown still disagree in both magnitude and, occasionally, sign — underscoring that even a "null" result can look different depending on the method used.
+
+# Robustness check: rank order without family averaging
+
+The main text's rank-order comparison (Empirical case studies) first averages each species' gradient coefficient within three method families (Ratio, OLS-based, SLI) before checking whether the averaged values fall in the predicted order. Four of the six methods have a fixed, species-invariant implicit scaling exponent rather than one estimated from the data: $A/S$ ($\beta = 1$), $A^2/S$ ($\beta = 0.5$), SLI-isometry ($\beta = 0.33$), and multiple regression (which conditions on mass directly rather than using an explicit exponent, but is consistently the most negative of the OLS-based approaches; main text, Discussion). Because these four have a fixed reference relationship, the same rank order predicted at the family level should also hold for these four *individual* methods, without any averaging. SLI-estimated is excluded from this check because its exponent is each species' own empirically estimated SMA slope rather than a fixed constant, so it has no fixed position in such a chain; OLS-residuals is excluded because it is not part of this stricter ordering either.
+
+```{r}
+#| label: rank-consistency-strict
+#| include: false
+
+Rank_strict_all <- bind_rows(
+  read_csv("Derived/Csv/Nightjar_parms.csv",  show_col_types = FALSE),
+  read_csv("Derived/Csv/Weeks_parms.csv",     show_col_types = FALSE),
+  read_csv("Derived/Csv/Atlantic_parms.csv",  show_col_types = FALSE)
+) %>%
+  distinct(species, Study, Direction, rank_consistent, rank_strict_consistent) %>%
+  filter(Direction %in% c("Bergmann's", "Inverse Bergmann's"))
+
+summarize_rank <- function(col) {
+  Rank_strict_all %>%
+    group_by(Direction) %>%
+    summarize(n = n(), pct = round(100 * mean(.data[[col]], na.rm = TRUE)), .groups = "drop") %>%
+    mutate(Check = col)
+}
+
+Rank_check_tbl <- bind_rows(summarize_rank("rank_consistent"), summarize_rank("rank_strict_consistent")) %>%
+  pivot_wider(names_from = Direction, values_from = c(n, pct)) %>%
+  mutate(Check = if_else(Check == "rank_consistent", "Family-averaged (main text)", "Strict, no averaging")) %>%
+  dplyr::select(Check, `n_Bergmann's`, `pct_Bergmann's`, `n_Inverse Bergmann's`, `pct_Inverse Bergmann's`)
+
+pull_rank_strict_stat <- function(dir, col) {
+  Rank_strict_all %>%
+    group_by(Direction) %>%
+    summarize(n = n(), pct = round(100 * mean(rank_strict_consistent, na.rm = TRUE)), .groups = "drop") %>%
+    filter(Direction == dir) %>%
+    pull({{ col }})
+}
+
+n_rank_strict_total     <- nrow(Rank_strict_all)
+pct_rank_strict_overall <- round(100 * mean(Rank_strict_all$rank_strict_consistent, na.rm = TRUE))
+pct_rank_overall_main   <- round(100 * mean(Rank_strict_all$rank_consistent, na.rm = TRUE))
+
+pct_rank_strict_bergmanns     <- pull_rank_strict_stat("Bergmann's", pct)
+n_rank_strict_bergmanns       <- pull_rank_strict_stat("Bergmann's", n)
+pct_rank_strict_inv_bergmanns <- pull_rank_strict_stat("Inverse Bergmann's", pct)
+n_rank_strict_inv_bergmanns   <- pull_rank_strict_stat("Inverse Bergmann's", n)
+```
+
+```{r}
+#| label: tbl-rank-strict
+#| tbl-cap: "Percentage of directionally classified species whose methods fall in the simulation-predicted order, comparing the main text's family-averaged check (Ratio, OLS-based, and SLI coefficients each averaged within family before comparing) against a stricter check applied directly to four individual methods with a fixed implicit scaling exponent ($A/S$, $A^2/S$, SLI-isometry, multiple regression), with no averaging."
+#| tbl-pos: 'H'
+
+knitr::kable(Rank_check_tbl,
+             col.names = c("Check", "n", "%", "n", "%"),
+             format = "latex", booktabs = TRUE, linesep = "") %>%
+  kableExtra::add_header_above(c(" " = 1, "Bergmann's" = 2, "Inverse Bergmann's" = 2)) %>%
+  kableExtra::column_spec(1, width = "4.5cm")
+```
+
+`r pct_rank_strict_overall`% of the `r n_rank_strict_total` directionally classified species satisfied the full strict order (`r pct_rank_strict_bergmanns`% of `r n_rank_strict_bergmanns` Bergmann's species and `r pct_rank_strict_inv_bergmanns`% of `r n_rank_strict_inv_bergmanns` Inverse Bergmann's species), somewhat lower than the `r pct_rank_overall_main`% obtained with family averaging (main text, Empirical case studies; @tbl-rank-strict). This is expected: averaging within a method family smooths over noise that a strict four-term inequality cannot, so the strict check is a harder bar to clear even when the underlying pattern is genuine. That the large majority of species still satisfy the full ordering under this less forgiving test supports reading the rank-order pattern as reflecting the methods' differing fixed reference relationships, rather than as an artifact of family-level averaging.
 
 # EXTRAS - delete
 
