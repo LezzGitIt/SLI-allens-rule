@@ -23,11 +23,18 @@ min_n_age_group <- 100    # min individuals per age group to include age control
 min_n_sex_group <- 100    # min individuals per sex group to include sex control
 cor_min         <- 0.3    # min Pearson r (mass ~ wing) within group for allometric correlation filter
 cor_p_max       <- 0.05   # max p-value for mass ~ wing within group
-pos_allom       <- TRUE   # retain only species with cor_mw > cor_min & p_mw < cor_p_max for SLI-estimated
+pos_allom       <- TRUE   # retain only species with cor_mw >= cor_min & p_mw < cor_p_max for SLI-estimated
 
 if (just_am && control_age_sex) {
   stop("`just_am = TRUE` is incompatible with `control_age_sex`. Update control flags")
 }
+# Age and Sex are held to the same per-group sample-size bar everywhere they're used as a
+# single-covariate grouping (Ryding/OLS-residual's covariate decision, and
+# calc_sli_hierarchical()'s Level-2 marginal check) -- min_n_age_group is passed explicitly
+# as that function's n_min_marginal, so this assertion is what actually keeps them tied
+# together rather than the two just happening to be set to the same number.
+stopifnot("min_n_age_group and min_n_sex_group must match -- both feed calc_sli_hierarchical()'s single n_min_marginal argument" =
+            min_n_age_group == min_n_sex_group)
 
 # Download temperature data -------------------------------------------------
 # WorldClim Annual Max Temperature, °C
@@ -125,7 +132,7 @@ Spp_metadata
 # otherwise), since SMA is unreliable when the mass-wing correlation is weak
 # (Smith 2009).
 Spp_metadata <- Spp_metadata %>%
-  mutate(Keep = ifelse(cor_mw > cor_min & p_mw < cor_p_max, "Include", "Exclude"))
+  mutate(Keep = ifelse(cor_mw >= cor_min & p_mw < cor_p_max, "Include", "Exclude"))
 
 Spp_keep_vec <- Spp_metadata %>%
   filter(Keep == "Include") %>%
@@ -216,37 +223,37 @@ map(sma_mod_l, \(sma_mod){
 ## NOTE: if you scale first, then the variance of both log_mass & log_wing is 1,
 ## & SMA slope = MA slope = 1 × OLS slope so these are identical.
 
-# Per species: covariates are only considered when Age/Sex showed a significant
-# effect in the first place (sig_age_any/sig_sex_any above); among those species,
-# a covariate is used only if >=2 groups remain after the min_n_*_group and
-# per-group allometric-correlation (cor_min/cor_p_max) filters -- same logic as
-# Weeks_2020_ral.R / Atlantic_birds_shape.R's Weeks_l3/Atl_birds_l3 blocks.
+# Per species: no individuals are excluded from df for age/sex-group reliability reasons --
+# the full species dataset feeds all six approaches (see Project_notes.md for the
+# rationale). Two separate, independently-gated uses of Age/Sex follow:
+#   (1) covs: Ryding/OLS-residual's covariate decision -- Age/Sex enters those two
+#       regressions' formula only when >=2 of its levels each have >= min_n_*_group
+#       individuals, a strict, species-level, all-or-nothing decision. No mass-wing
+#       correlation requirement here: a plain factor covariate in an OLS regression doesn't
+#       need a strong within-group correlation to be well-estimated -- that requirement is
+#       specific to SMA slopes (SMA slope = OLS slope / r, so a weak r makes the slope
+#       numerically unstable; Smith 2009), which is why it still gates (2) below. Unknown-
+#       coded individuals are excluded only from this decision (not from df); if the
+#       covariate is included, they pick up their own "Unk"/"U" factor level in the fitted
+#       regression like any other level.
+#   (2) covs_sli (below): SLI-estimated's per-individual hierarchical cascade
+#       (calc_sli_hierarchical()), gated only by whether the covariate was significant at
+#       all (sig_age_any/sig_sex_any) -- looser than covs, since the cascade itself
+#       determines per individual whether a cell/marginal group is reliable enough to use
+#       (including the r>=cor_min/p<cor_p_max SMA-reliability check), falling back to the
+#       species-wide pooled slope otherwise.
 nj_df_l2 <- imap(nj_df_analysis_l, \(df, sp) {
   covs <- character(0)
 
   if (sp %in% sig_age_any) {
-    valid_age <- df %>%
-      filter(!is.na(Age) & Age != "Unk") %>%
+    valid_age <- df %>% filter(!is.na(Age) & Age != "Unk") %>%
       count(Age) %>% filter(n >= min_n_age_group) %>% pull(Age)
-    if (length(valid_age) >= 1) df <- df %>% filter(Age %in% valid_age)
-    if (length(valid_age) >= 2) {
-      passing_age <- build_group_cor_tbl(df, Append = Wing, Mass = Mass, control = "Age") %>%
-        ungroup() %>% filter(r_mw > cor_min & p_mw <= cor_p_max) %>% pull(Age)
-      if (length(passing_age) >= 1) df <- df %>% filter(Age %in% passing_age)
-      if (length(passing_age) >= 2) covs <- c(covs, "Age")
-    }
+    if (length(valid_age) >= 2) covs <- c(covs, "Age")
   }
   if (sp %in% sig_sex_any) {
-    valid_sex <- df %>%
-      filter(!is.na(Sex) & Sex != "U") %>%
+    valid_sex <- df %>% filter(!is.na(Sex) & Sex != "U") %>%
       count(Sex) %>% filter(n >= min_n_sex_group) %>% pull(Sex)
-    if (length(valid_sex) >= 1) df <- df %>% filter(Sex %in% valid_sex)
-    if (length(valid_sex) >= 2) {
-      passing_sex <- build_group_cor_tbl(df, Append = Wing, Mass = Mass, control = "Sex") %>%
-        ungroup() %>% filter(r_mw > cor_min & p_mw <= cor_p_max) %>% pull(Sex)
-      if (length(passing_sex) >= 1) df <- df %>% filter(Sex %in% passing_sex)
-      if (length(passing_sex) >= 2) covs <- c(covs, "Sex")
-    }
+    if (length(valid_sex) >= 2) covs <- c(covs, "Sex")
   }
 
   covs_str <- if (length(covs)) paste("+", paste(covs, collapse = " + ")) else ""
@@ -262,17 +269,14 @@ nj_df_l2 <- imap(nj_df_analysis_l, \(df, sp) {
   ## Estimated SLI: per-group SMA slopes when this species has valid covariates, otherwise the species-wide SMA slope. Kept as separate calls because sliR::calc_sli() ignores b_sli whenever control is supplied, so passing both would silently discard one of them.
   df_iso <- df %>% sliR::calc_sli(b_sli = 0.33, Append = Wing, rename_col = "sli_isometry")
 
-  ## sli_estimated is only computed for species passing the species-level allometric
-  ## correlation filter (Spp_keep_vec); NA otherwise, matching Weeks_l3/Atl_birds_l3.
-  if (sp %in% Spp_keep_vec) {
-    if (length(covs)) {
-      sliR::calc_sli(df_iso, Append = Wing, control = covs, rename_col = "sli_estimated")
-    } else {
-      sliR::calc_sli(df_iso, Append = Wing, b_sli = est_b_sma, rename_col = "sli_estimated")
-    }
-  } else {
-    df_iso %>% mutate(sli_estimated = NA_real_)
-  }
+  ## SLI-estimated: calc_sli_hierarchical() now handles the species-level reliability gate
+  ## internally (returns NA for every individual if the species-wide correlation itself is
+  ## unreliable) and falls back to the plain pooled slope when no covariate was significant
+  ## (covs_sli empty), so one unconditional call covers every species -- matches Spp_keep_vec
+  ## exactly, since both check the same species-wide mass~wing correlation.
+  covs_sli <- c(if (sp %in% sig_age_any) "Age", if (sp %in% sig_sex_any) "Sex")
+  calc_sli_hierarchical(df_iso, Append = Wing, covariates = covs_sli, rename_col = "sli_estimated",
+                        n_min_marginal = min_n_age_group)
 })
 
 # Per-group allometric correlation (Mass ~ Wing within each Age × Sex combination) --
@@ -285,7 +289,7 @@ if (control_age_sex) {
     build_group_cor_tbl(df, Append = Wing, Mass = Mass, control = covs) %>%
       mutate(Species = sp, .before = 1)
   }) %>% list_rbind() %>%
-    mutate(pass = r_mw > cor_min & p_mw <= cor_p_max)
+    mutate(pass = r_mw >= cor_min & p_mw < cor_p_max)
   print(group_cor_wing)
 }
 
@@ -418,11 +422,32 @@ rank_nj <- parms_df %>%
   ) %>%
   dplyr::select(Species, rank_consistent)
 
+# Strict rank-order check (no family averaging): A/S > A2/S > SLI-isometry > multiple regression
+# for Bergmann's species (reversed for Inverse Bergmann's), following each method's implicit
+# scaling exponent directly (A/S: beta=1, A2/S: beta=0.5, SLI-isometry: beta=0.33) rather than
+# family-averaged coefficients. SLI-estimated is excluded because its exponent is each species'
+# own empirical SMA slope, not a fixed constant, so it has no fixed position in this chain;
+# OLS-residuals is excluded because it isn't part of the proposed ordering either.
+rank_strict_nj <- parms_df %>%
+  filter(term == "B.Temp", Approach %in% c("Ratio", "Ratio2", "Sli_iso", "Ryding")) %>%
+  dplyr::select(Species, Approach, estimate) %>%
+  pivot_wider(names_from = Approach, values_from = estimate) %>%
+  left_join(Direction_nj, by = "Species") %>%
+  mutate(
+    rank_strict_consistent = case_when(
+      Direction == "Bergmann's"         ~ Ratio > Ratio2 & Ratio2 > Sli_iso & Sli_iso > Ryding,
+      Direction == "Inverse Bergmann's" ~ Ratio < Ratio2 & Ratio2 < Sli_iso & Sli_iso < Ryding,
+      TRUE ~ NA
+    )
+  ) %>%
+  dplyr::select(Species, rank_strict_consistent)
+
 # CSV export ---------------------------------------------------------------
 nj_parms_out <- parms_df %>%
   filter(term == "B.Temp") %>%
   left_join(Direction_nj, by = "Species") %>%
   left_join(rank_nj, by = "Species") %>%
+  left_join(rank_strict_nj, by = "Species") %>%
   mutate(
     Study    = "Nightjar",
     species_ = str_replace_all(Species, " ", "_"),

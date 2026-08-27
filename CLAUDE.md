@@ -31,7 +31,7 @@ Must be sourced before running most other scripts. Key functions:
 - `calc_lambda()`: Empirical coefficient of variation ratio (var_append / var_mass)
 - `classify_direction()`: Classify shapeshifting direction (Bergmann's / Inverse Bergmann's / Mixed / Stable) from tidy lm output per species
 - `gen_cor_vars()`: Generate correlated mass/appendage pairs for pairwise exploration
-- `format_temp()`: Bin temperature for plotting; `rm_outliers()`: remove >3 SD outliers
+- `format_temp()`: Bin temperature for plotting
 
 ### Main manuscript (`Scripts/qmd/Allens_methods_sim.qmd`)
 Simulation study comparing six approaches for estimating relative appendage length along a temperature gradient. Approaches: Ratio, Ratio2, Mass-as-covariate (Ryding), OLS residuals, SLI-isometry, SLI-estimated.
