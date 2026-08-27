@@ -1,6 +1,9 @@
 ## Literature review of methods used to test Allen's rule since 2021.
-## Loads and cleans Methods_ecogeographic_rules_5.7.26.xlsx, tabulates the
-## analytical approaches used across studies, examines body-size-control
+## Loads Data/Lit_review_allens.csv -- the curated list of Allen's-rule-relevant
+## studies (originally cross-referenced from Skinner et al.'s Bergmann's/Allen's
+## review against Methods_ecogeographic_rules_7.6.26.xlsx's approach coding, then
+## hand-edited; see Project_notes.md session 32 for full provenance) -- tabulates
+## the analytical approaches used across studies, examines body-size-control
 ## variable choice, and produces Figures/lit_review.png. Exports the values
 ## cited inline by Scripts/qmd/Allens_methods_sim.qmd to
 ## Derived/Rds/lit_review_results.rds.
@@ -8,20 +11,21 @@
 # Libraries ---------------------------------------------------------------
 
 library(tidyverse)
-library(readxl)
 library(janitor)
 
 # Lit review formatting ---------------------------------------------------
 
-Lit_review <- read_excel("../Lit_review/Methods_ecogeographic_rules_7.6.26.xlsx",
-                         sheet = "Allens") %>%
+Lit_review <- read_csv("Data/Lit_review_allens.csv", show_col_types = FALSE) %>%
   clean_names()
-Unclear_exclude <- Lit_review %>% filter(include_exclude == "Exclude")
+
+# approach_unclear is a per-study flag (not per-approach): studies whose
+# approach coding was flagged unclear are excluded from the approach-usage
+# analysis entirely.
+Unclear_exclude <- Lit_review %>% filter(!is.na(approach_unclear))
+
 Lr <- Lit_review %>%
-  anti_join(Unclear_exclude) %>%
-  dplyr::select(
-    authors, year, regression_used, class, body_size_control, starts_with("approach")
-  ) %>%
+  anti_join(Unclear_exclude, by = c("authors", "year")) %>%
+  dplyr::select(authors, year, class, body_size_control, starts_with("approach")) %>%
   mutate(study = factor(row_number()))
 
 Lr_pivot <- Lr %>%
@@ -29,9 +33,7 @@ Lr_pivot <- Lr %>%
                names_to = "approach",
                values_to = "primary_v_secondary") %>%
   mutate(approach = str_remove(approach, "approach_")) %>%
-  filter(!is.na(primary_v_secondary) & primary_v_secondary != "M") %>%
-  mutate(approach_unclear = ifelse(is.na(approach_unclear), "No", "Yes")) %>%
-  filter(approach_unclear == "No")
+  filter(!is.na(primary_v_secondary) & primary_v_secondary != "M")
 
 Lr_per <- Lr_pivot %>%
   summarize(num_studies = n(), .by = c(approach, class)) %>%
@@ -79,12 +81,9 @@ Lr_stack_pooled <- Lr_pivot %>%
   left_join(Lr_per_pooled %>% distinct(approach, approach_label), by = "approach")
 
 # Body size control  --------------------------------------------------------
-# 46 approaches across 36 studies
-Lr %>% filter(approach_raw_values == "P") %>%
-  dplyr::select(-regression_used)
 
 ## De-duplicate to one row per study before tabulating (body_size_control doesn't vary by approach)
-# A study with multiple qualifying approaches would otherwise have its control variables counted once per approach instead of once; the literal string "NA" (typed into some cells) and true NA both mean "no body-size control reported".
+# A study with multiple qualifying approaches would otherwise have its control variables counted once per approach instead of once; na_if() is defensive -- Data/Lit_review_allens.csv should already have true NAs, not the literal string "NA", but this guards against that creeping back in on a future hand-edit.
 Body_size_control_studies <- Lr_pivot %>%
   filter(approach != "raw_values") %>%
   distinct(study, body_size_control) %>%
@@ -94,7 +93,7 @@ Body_size_control_studies <- Lr_pivot %>%
 Mass_control_tbl <- Body_size_control_studies %>%
   mutate(Mass_control = str_detect(body_size_control, regex("mass", ignore_case = TRUE))) %>%
   tabyl(Mass_control)
-Mass_control_tbl 
+Mass_control_tbl
 
 ## 2) Overall trait distribution pooled across studies
 # Format by splitting multi-control entries by comma, standardize whitespace/capitalization, then classify each individual mention into Mass / Linear / Other.
@@ -112,10 +111,10 @@ Body_size_control_traits <- Body_size_control_studies %>%
   separate_longer_delim(body_size_control, delim = ",") %>%
   mutate(body_size_control = str_squish(body_size_control),
          body_size_control = str_to_sentence(body_size_control),
-         control_group = classify_control(body_size_control)) %>% 
+         control_group = classify_control(body_size_control)) %>%
   filter(body_size_control != "Mass^2")
 Trait_group_tbl <- Body_size_control_traits %>% tabyl(control_group)
-Trait_group_tbl 
+Trait_group_tbl
 
 # Figure ------------------------------------------------------------------
 # Produce lit review figure: approaches pooled across classes into a single
@@ -154,6 +153,6 @@ saveRDS(
     Lr_per = Lr_per,
     Lr_per_pooled = Lr_per_pooled,
     Mass_control_tbl = Mass_control_tbl
-  ), 
+  ),
   file = "Derived/Rds/lit_review_results.rds"
 )
