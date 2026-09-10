@@ -193,7 +193,7 @@ extract_coefs <- function(Sim_df_s, coefs) {
     # Per-species Pearson correlation between each method's individual-level
     # metric and body mass (@fig-mass-cor-sim in supplementary_info.qmd),
     # confirming in simulated data the mechanical ratio/mass dependence shown
-    # empirically in the main text (@tbl-ratio-mass-summary). Mass-as-covariate
+    # empirically in the main text (@tbl-ratio-mass-summary). Multiple regression
     # is excluded: it has no individual-level shape metric to correlate, only
     # a model coefficient.
     cor_ratio          = as.numeric(cor(Sim_df_s$Mass_log, Sim_df_s$Append_mass)),
@@ -216,7 +216,7 @@ x_labs <- c(
   "Sli_est"   = "SLI estimated",
   "Sli_iso"   = "SLI isometry",
   "Ols_resid" = "OLS residuals",
-  "Ryding"    = "Mass as covariate",
+  "Ryding"    = "Multiple regression",
   "Ratio2"    = "Appendage² / mass",
   "Ratio"     = "Appendage / mass"
 )
@@ -301,8 +301,8 @@ Sliiso_pct_sma   <- pull_ols_pct("SLI isometry",      `% correct (SMA)`)
 Sliiso_pct_ols   <- pull_ols_pct("SLI isometry",      `% correct (OLS)`)
 Ratio_pct_sma    <- pull_ols_pct("Appendage / mass",  `% correct (SMA)`)
 Ratio_pct_ols    <- pull_ols_pct("Appendage / mass",  `% correct (OLS)`)
-Ryding_pct_sma   <- pull_ols_pct("Mass as covariate", `% correct (SMA)`)
-Ryding_pct_ols   <- pull_ols_pct("Mass as covariate", `% correct (OLS)`)
+Ryding_pct_sma   <- pull_ols_pct("Multiple regression", `% correct (SMA)`)
+Ryding_pct_ols   <- pull_ols_pct("Multiple regression", `% correct (OLS)`)
 Olsresid_pct_sma <- pull_ols_pct("OLS residuals",     `% correct (SMA)`)
 Olsresid_pct_ols <- pull_ols_pct("OLS residuals",     `% correct (OLS)`)
 
@@ -392,13 +392,13 @@ Ratio_proportional_pos    <- pull_percent_proportional("Appendage / mass", "pos"
 Ratio2_proportional_fatter <- pull_percent_proportional("Appendage² / mass", "neg")
 Dif_sli.iso <- Sli.iso_proportional_pos - Prop_true_null_pct
 Dif_sli.est <- Sli.est_proportional_pos - Prop_true_null_pct
-Dif_ryding  <- pull_percent_proportional("Mass as covariate", "neg") - Prop_true_null_pct
+Dif_ryding  <- pull_percent_proportional("Multiple regression", "neg") - Prop_true_null_pct
 Dif_ratio   <- Ratio_proportional_pos - Prop_true_null_pct
 
 Sli.iso_bigger_pos <- pull_percent_proportional("SLI isometry",     "pos", tbl = Bigger_methods_eval)
 Sli.est_bigger_pos <- pull_percent_proportional("SLI estimated",    "pos", tbl = Bigger_methods_eval)
 Ratio_bigger_pos   <- pull_percent_proportional("Appendage / mass", "pos", tbl = Bigger_methods_eval)
-Ryding_bigger_pos  <- pull_percent_proportional("Mass as covariate","pos", tbl = Bigger_methods_eval)
+Ryding_bigger_pos  <- pull_percent_proportional("Multiple regression","pos", tbl = Bigger_methods_eval)
 Bigger_longer_pct  <- round(Bigger_longer * 100, 0)
 
 # CI-based null-detection accuracy: % of species where the 95% CI correctly *includes* zero

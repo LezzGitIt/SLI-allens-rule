@@ -39,7 +39,7 @@ study_colors <- c("Nightjar" = "#E41A1C", "Weeks (2020)" = "#377EB8", "Atlantic 
 approach_labs <- c(
   "Ratio"     = "Wing / Mass",
   "Ratio2"    = "Wing² / Mass",
-  "Ryding"    = "Mass as covariate",
+  "Ryding"    = "Multiple regression",
   "Resid_ols" = "OLS residuals",
   "Sli_est"   = "SLI estimated",
   "Sli_iso"   = "SLI isometry"
