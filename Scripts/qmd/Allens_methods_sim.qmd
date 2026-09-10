@@ -5,7 +5,26 @@ execute:
   echo: false
   message: false
   warning: false
-format: docx
+format: #docx
+  elsevier-pdf:
+    toc: false
+    header-includes:
+      - |
+        \usepackage{fancyhdr}
+        \pagestyle{fancy}
+        \fancyhead[L]{}
+        \fancyhead[R]{SLI to examine Allen's rule}
+        \usepackage{makecell}
+        \usepackage{lineno}
+        \linenumbers
+        \usepackage[margin=1in]{geometry}
+        \setlength{\LTleft}{\fill}
+        \setlength{\LTright}{\fill}
+        \usepackage{tabularray}
+    journal:
+      name: Methods in Ecology and Evolution
+      formatting: preprint #doubleblind suppresses authors!, return to preprint
+      cite-style: authoryear
 bibliography: ../../Suppfiles/Morphology.bib
 link-citations: true
 csl: ../../_extensions/quarto-journals/elsevier/bib/elsevier-harvard.csl
@@ -113,13 +132,13 @@ list2env(readRDS("Derived/Rds/simulation_results.rds"), envir = .GlobalEnv)
 
 Wildlife around the world are responding to contemporary climate change with shifts in morphology. Studies have documented declines in body size consistent with Bergmann's rule across diverse taxa, and growing evidence suggests that body shape is also changing in a pattern consistent with Allen's rule [@rydingShapeshiftingChangingAnimal2021; @rydingLongShorttermResponses2024]. Because Allen's rule concerns appendage length relative to overall body size, testing it requires methods that can distinguish variation in appendage size from variation in overall body size [@symondsItsAllRelative2025]. Yet the statistical methods used to quantify relative appendage length have received far less attention than the biological hypothesis itself.
 
-There have been three primary approaches used in empirical studies to test Allen's rule (Supplementary Figure 1). The simplest uses absolute appendage length as the response variable, regressed against temperature or spatial or temporal proxies (e.g., latitude or year), hereafter referred to as the 'gradient of interest'. Throughout this paper I focus on temperature, although the methods apply equally to any of these gradients. Using absolute appendage length has been compared with methods that explicitly account for body size elsewhere [e.g., @symondsItsAllRelative2025], so I do not consider it further. A second approach, the most common in this review, includes body size as a covariate in a multiple regression, interpreting the slope of temperature (hereafeter, $\hat{\beta}_T$) as temperature's conditional effect on appendage length after accounting for body size. A third approach takes the ratio of appendage length divided by body size as the response variable.
+There have been three primary approaches used in empirical studies to test Allen's rule (Supplementary Figure 1). The simplest uses absolute appendage length as the response variable, regressed against temperature or spatial or temporal proxies (e.g., latitude or year). Throughout this paper I focus on temperature for simplicity, although the methods apply equally to any of these gradients. Using absolute appendage length has been compared with methods that explicitly account for body size elsewhere [e.g., @symondsItsAllRelative2025], so I do not consider it further. A second approach, the most common in this review, includes body size as a covariate in a multiple regression, interpreting the slope of temperature (hereafeter, $\hat{\beta}_T$) as temperature's conditional effect on appendage length after accounting for body size. A third approach takes the ratio of appendage length divided by body size as the response variable.
 
-Despite their widespread use, both the multiple regression and ratio approaches have important statistical limitations [@glazierComplicationsBodysizeCorrection2022]. Ratio-based metrics are frequently correlated with body size itself, limiting their utility as measures of relative shape [@jakobEstimatingFitnessComparison1996; @greenMassLengthResiduals2001]. Multiple regression, on the other hand, makes a key assumption – it assigns all unexplained variation around the fitted allometric line to the $Y$ variable (appendage length). Consequently, every deviation from the fitted line is interpreted as evidence of an unexpectedly long or short appendage, rather than allowing deviations to be shared between both size variables (@nte-sma-intuition). This assumption is often difficult to justify in studies of allometric scaling [@greenMassLengthResiduals2001], and alternative approaches have been recommended [@wartonSmatr3Package2012].
+Despite their widespread use, both the multiple regression and ratio approaches have important statistical limitations [@glazierComplicationsBodysizeCorrection2022]. Ratio-based metrics are frequently correlated with body size itself, limiting their utility as measures of relative shape [@jakobEstimatingFitnessComparison1996; @greenMassLengthResiduals2001]. Multiple regression, on the other hand, makes a key assumption – it assigns all unexplained variation around the fitted allometric line to the $Y$ variable (appendage length in this case). Consequently, every deviation from the fitted line is interpreted as evidence of an unexpectedly long or short appendage, rather than allowing deviations to be shared between both size variables (@nte-sma-intuition). This assumption is often difficult to justify in studies of allometric scaling [@greenMassLengthResiduals2001], and alternative approaches have been recommended [@wartonSmatr3Package2012].
 
-Standardized major axis (SMA) regression provides an alternative line-fitting approach by treating variation in body size and appendage length symmetrically rather than assigning all unexplained variation to the response variable [@wartonBivariateLinefittingMethods2006; @nte-sma-intuition]. Consequently, SMA estimates steeper allometric slopes whenever the correlation between $X$ and $Y$ is $< 1$. SMA has long been recommended for studies of allometric scaling [@wartonBivariateLinefittingMethods2006; @smithUseMisuseReduced2009; @greenMassLengthResiduals2001] and has been used in studies examining Allen's rule [e.g., @adamczakBiggerBodiesRequire2020], yet its performance has never been systematically compared with the classical methods used to quantify relative appendage length. Understanding the statistical behavior of these approaches, and the conditions under which they diverge, is therefore critical for understanding when and to what extent the methodological choice may influence conclusions about climate-associated morphological change.
+Standardized major axis (SMA) regression provides an alternative line-fitting approach by treating variation in body size and appendage length symmetrically rather than assigning all unexplained variation to the response variable [@wartonBivariateLinefittingMethods2006] (@nte-sma-intuition). Consequently, SMA estimates steeper allometric slopes whenever the correlation between $X$ and $Y$ is $< 1$. SMA has long been recommended for studies of allometric scaling [@wartonBivariateLinefittingMethods2006; @smithUseMisuseReduced2009; @greenMassLengthResiduals2001] and has been used in studies examining Allen's rule [e.g., @adamczakBiggerBodiesRequire2020], yet its performance has never been systematically compared with multiple regression and ratio approaches in quantifying relative appendage length. Understanding the statistical behavior of these approaches, and the conditions under which they diverge, is therefore critical for understanding when and to what extent the methodological choice may influence conclusions about climate-associated morphological change.
 
-Here I introduce the Standardized Length Index (SLI), an analogue of the Standardized Mass Index [@peigNewPerspectivesEstimating2009] but adapted to measure appendage length relative to body size. The SLI uses the SMA slope to standardize each individual's appendage length to a common reference body size, producing a size-corrected shape index in the original units of the appendage. I present two parameterisations, corresponding to two distinct questions about relative appendage change: SLI-isometry fixes the scaling exponent at 0.33 (the isometric expectation for a linear versus volumetric measurement like mass) and asks whether appendage size departs from that proportional, geometric expectation. SLI-estimated instead estimates the exponent empirically from the data and asks whether appendage size departs from the species' own observed allometric relationship. Using simulated data from `r N_spp` hypothetical species spanning a realistic range of allometric relationships and temperature sensitivities, I characterize how these six approaches diverge from one another under different combinations of allometric scaling and temperature-associated changes in body size and appendage length. I also examine whether the rank-order patterns that emerge during simulation are reproduced across three independent empirical datasets. Finally, I provide recommendations for future studies examining Allen’s rule.
+Here I introduce the Standardized Length Index (SLI), an analogue of the Standardized Mass Index [@peigNewPerspectivesEstimating2009] but adapted to measure appendage length relative to body size. The SLI uses the SMA slope to standardize each individual's appendage length to a common reference body size, producing a size-corrected shape index in the original units of the appendage. I present two parameterisations, corresponding to two distinct questions about relative appendage change: SLI-isometry fixes the scaling exponent at 0.33 (the isometric expectation for a linear versus volumetric measurement like mass) and asks whether appendage size departs from that proportional, geometric expectation. SLI-estimated instead estimates the exponent empirically from the data and asks whether appendage size departs from the species' own observed allometric relationship. Using simulated data from `r N_spp` hypothetical species spanning a realistic range of allometric relationships and temperature sensitivities, I characterize how these six approaches diverge from one another under different combinations of allometric scaling and temperature-associated changes in body size and appendage length. I also examine whether the rank-order patterns that emerge during simulation are reproduced across three independent empirical datasets.
 
 ::: {#nte-sma-intuition .callout-note icon="false"}
 ## Building intuition for SMA regression
@@ -152,7 +171,7 @@ Unlike OLS, the SMA line of best fit is unchanged when the $X$ and $Y$ axes are 
 
 # Literature review
 
-I reviewed empirical studies published between 2021 and 2025 that quantified appendage length in the context of Allen's rule in endotherms. Studies were identified using the list of studies published in @skinnerBergmannAllenUnified2026 and subset to include only those that examined Allen's rule, leaving `r nrow(Lit_review)` studies. Of these, `r nrow(Unclear_exclude)` were further excluded due to unclear methodologies, leaving `r nrow(Lr)` studies. `r n_multi_approach` of these studies used multiple approaches to examine Allen's rule, resulting in `r tot_approach_uses` analytical approaches that were classified into five categories: ratio-based methods, two-step residual regression, multiple regression with body size as a covariate, use of absolute appendage length only, or other. 'Other' included shape axes from principal component analyses, path analyses, and geometric morphometric approaches, among other creative solutions [e.g., @youngfleshAbioticConditionsShape2022]. Multiple regression was the most common approach (`r pct_mv_reg`%), followed by absolute appendage length (`r pct_raw`%), other approaches (`r pct_other`%), ratio-based methods (`r pct_ratio`%), and residual regression (`r pct_resid`%; Supplementary Figure 1). Of the studies examining appendage length *relative* to body size, `r n_mass_control` / `r n_relative_studies` (`r pct_mass_control`%) used mass as the variable representing body size. The majority of studies (`r per_aves`) examined Allen's rule in birds. The remainder used mammal focal taxa.
+I reviewed `r nrow(Lit_review)` empirical studies published between 2021 and 2025 that quantified appendage length in the context of Allen's rule in endotherms [i.e., those published in @skinnerBergmannAllenUnified2026]. Of these, `r nrow(Unclear_exclude)` were further excluded due to unclear methodologies, leaving `r nrow(Lr)` studies. `r n_multi_approach` of these studies used multiple approaches to examine Allen's rule, resulting in `r tot_approach_uses` analytical approaches that were classified into five categories: ratio-based methods, two-step residual regression, multiple regression with body size as a covariate, use of absolute appendage length, or other. The 'other' category included shape axes from principal component analyses, path analyses, and geometric morphometric approaches, among other creative solutions [e.g., @youngfleshAbioticConditionsShape2022]. Multiple regression was the most common approach (`r pct_mv_reg`%), followed by absolute appendage length (`r pct_raw`%), other approaches (`r pct_other`%), ratio-based methods (`r pct_ratio`%), and residual regression (`r pct_resid`%; Supplementary Figure 1). Of the studies examining appendage length *relative* to body size, `r n_mass_control` / `r n_relative_studies` (`r pct_mass_control`%) used mass as the variable representing body size. The majority of studies (`r per_aves`) examined Allen's rule in birds. The remainder used mammal focal taxa.
 
 # Materials and Methods
 
@@ -167,19 +186,19 @@ $$\begin{bmatrix}
 \end{bmatrix}
 \sim \mathrm{MVN}(\boldsymbol{\mu}, \boldsymbol{\Sigma})$$
 
-with $\boldsymbol{\mu} = [\log(180),\ \log(80),\ 1.0]^\top$ representing a species with a mean appendage length of 180 mm and mean mass of 80 g, experiencing an average 1°C temperature increase. I simulated morphological and environmental data from a joint multivariate normal distribution rather than from a directional model (e.g., $Appendage \sim Mass + Temperature + \epsilon$). This approach does not designate any variable as a response or predictor in the data-generating process, allowing characterization of each statistical approach against the same underlying joint distribution without presupposing a particular regression structure. The covariance matrix $\boldsymbol{\Sigma}$ was constructed from three Pearson correlations ($\rho_{12}$: appendage–mass; $\rho_{13}$: appendage–temperature; $\rho_{23}$: mass–temperature) and the allometric scaling slope. Hypothetical species were constructed by crossing the following parameter values: appendage–mass correlation $\rho_{12} \in {`r paste(r_12, collapse = ", ")`}$, temperature–morphology correlations $\rho_{13}, \rho_{23} \in {`r paste(r_13, collapse = ", ")`}$, crossed factorially to produce species with different relative temperature associations of mass and appendage, and allometric scaling slope $b \in {`r paste(b_avg_12, collapse = ", ")`}$, representing hypoallometry, isometry, and hyperallometry respectively. Standard deviations of log-mass and log-appendage were set so that the average of the OLS and SMA slopes equalled the specified allometric slope, allowing me to vary allometric scaling independently of the correlation structure.
+with $\boldsymbol{\mu} = [\log(180),\ \log(80),\ 1.0]^\top$ representing a species with a mean appendage length of 180 mm and mean mass of 80 g, experiencing an average 1°C temperature increase. The covariance matrix $\boldsymbol{\Sigma}$ was constructed from three Pearson correlations ($\rho_{12}$: appendage–mass; $\rho_{13}$: appendage–temperature; $\rho_{23}$: mass–temperature) and the allometric scaling slope. Hypothetical species were constructed by crossing the following parameter values: appendage–mass correlation $\rho_{12} \in {`r paste(r_12, collapse = ", ")`}$, temperature–morphology correlations $\rho_{13}, \rho_{23} \in {`r paste(r_13, collapse = ", ")`}$, crossed factorially to produce species with different relative temperature associations of mass and appendage, and allometric scaling slope $b \in {`r paste(b_avg_12, collapse = ", ")`}$, representing hypoallometry, isometry, and hyperallometry respectively. Standard deviations of log-mass and log-appendage were set so that the average of the OLS and SMA slopes equaled the specified allometric slope, allowing me to vary allometric scaling independently of the appendage–mass correlation.
 
 ## Effect classification
 
-Because species were simulated from a covariance structure rather than from a causal model, there is no single fitted regression coefficient representing a universal "true" effect against which every method's estimate is either correct or incorrect. Instead, I define an isometrically-defined reference quantity, $\beta_T$, that captures departure from proportional (isometric) scaling between appendage length and body size:
+Importantly, simulating data from a joint multivariate normal distribution rather than from a directional model (e.g., $Appendage \sim Mass + Temperature + \epsilon$) there is no single fitted regression coefficient representing a universal "true" effect against which every method's estimate is either correct or incorrect. This allows for the characterization of the statistical behavior of each approach on the same underlying joint distribution without presupposing a particular regression structure. Nonetheless, I use an isometrically-defined reference quantity, $\beta_T$, as a point of comparison for the various methods. $\beta_T$ captures departures from proportional (isometric) scaling between appendage length and body size:
 
 $$\beta_T = \rho_{13} \cdot \beta_{SMA} - 0.33 \cdot \rho_{23}, \qquad \beta_{SMA} = \frac{2b}{\rho_{12}+1}$$ {#eq-b-true}
 
-where $b$ is the simulated allometric scaling slope, and $\beta_{SMA}$ is a species' population SMA slope implied by its simulated parameters. Importantly, this is only one theoretically motivated definition of relative appendage change, and alternative definitions are possible (discussed further in Section 'Statistical approach classification'). Defining $\beta_T$ in terms of both allometric scaling and the strength of temperature-morphology relationships makes it clear that there are two ways a species could depart from $\beta_T = 0$, the isometric reference: (1) temperature having a differential association with mass vs. appendage ($\rho_{13} \neq \rho_{23}$), or (2) the species exhibiting non-isometric scaling ($\beta_{SMA} \neq 0.33$). Rewriting $\rho_{13} = \rho_{23} + \Delta\rho$, where $\Delta\rho$ is the difference between $\rho_{13}$ and $\rho_{23}$, decomposes @eq-b-true into these same two distinct components, expressed additively within the isometric-relative reference quantity itself:
+where $b$ is the simulated allometric scaling slope, and $\beta_{SMA}$ is the species' population SMA slope implied by its simulated parameters. Importantly, this is only one theoretically motivated definition of relative appendage change, and alternative definitions are possible (see Section 'Statistical approach classification'). Defining $\beta_T$ in terms of both allometric scaling and the strength of the temperature-morphology relationship makes it clear that there are two ways a species could depart from $\beta_T = 0$, the isometric reference: (1) temperature having a differential association with mass vs. appendage ($\rho_{13} \neq \rho_{23}$), or (2) the species exhibiting non-isometric scaling ($\beta_{SMA} \neq 0.33$). Rewriting $\rho_{13} = \rho_{23} + \Delta\rho$, where $\Delta\rho$ is the difference between $\rho_{13}$ and $\rho_{23}$, decomposes @eq-b-true into these same two distinct components, expressed additively as:
 
 $$\beta_T \;\propto\; \underbrace{\rho_{23}\left(\beta_{SMA} - 0.33\right)}_{\text{allometry-vs-isometry component}} \;+\; \underbrace{\beta_{SMA} \cdot \Delta\rho}_{\substack{\text{differential temperature-} \\ \text{association component}}}$$
 
-As simulated temperature increased, species with $\beta_T > 0$ were classified as getting relatively longer and $\beta_T < 0$ species were classified as getting relatively fatter. Fatter and Longer are both realizations of Bergmann's rule, as warming always decreased overall body size in these two categories.
+As simulated temperature increased, species with $\beta_T > 0$ were classified as getting relatively longer and $\beta_T < 0$ species were classified as getting relatively stouter. Stouter and Longer are both realizations of Bergmann's rule, as warming always decreased overall body size in these two categories.
 
 I additionally simulated a set of species with $\beta_T = 0$ exactly, classified as proportionally decreasing in size ("Proportionally smaller"). I solved for $\rho_{13}$ algebraically based on a species $\rho_{23}$ and $\beta_{SMA}$, following directly from @eq-b-true:
 
@@ -187,7 +206,7 @@ $$\rho_{13} = \frac{0.33\ \cdot \rho_{23}}{\beta_{SMA}}$$
 
 guaranteeing $\beta_T = 0$ exactly, regardless of allometric scaling category.
 
-Finally, I simulated species that increased in size with warmer temperatures, in line with several recent studies that have documented inverse Bergmannian clines [@stapelfeldtLongtermFieldStudy2023; @castillo-figueroaDoesBergmannsRule2022; @jumanRecentRapidEcogeographical2022]. The 'Proportionally larger' scenario was the mirror image of the 'Proportionally smaller' category, solving $\rho_{13}$ the same way from positive $\rho_{23} \in \{0.15, 0.3, 0.5, 0.7\}$, $b \in \{0.22, 0.33, 0.44\}$, and $\rho_{12} \in \{0.3, 0.45, 0.6\}$ (as above), representing species that grow larger with warming while maintaining the isometric-relative reference quantity at zero.
+Finally, I simulated species that increased in size with warmer temperatures, in line with several recent studies that have documented inverse Bergmannian clines [@stapelfeldtLongtermFieldStudy2023; @castillo-figueroaDoesBergmannsRule2022; @jumanRecentRapidEcogeographical2022]. The 'Proportionally larger' scenario was the mirror image of the 'Proportionally smaller' category, solving $\rho_{13}$ the same way from positive $\rho_{23} \in \{0.15, 0.3, 0.5, 0.7\}$, $b \in \{0.22, 0.33, 0.44\}$, and $\rho_{12} \in \{0.3, 0.45, 0.6\}$, representing species that grow larger with warming while maintaining the isometric-relative reference quantity at zero.
 
 ## Statistical approaches
 
@@ -207,11 +226,11 @@ where $A_i$ is the appendage length of individual $i$, $M_i$ is the mass of indi
 
 Although the present study focuses on appendage length relative to body mass, the SLI framework can also be applied when both the body-size measure and the appendage measure are linear dimensions (e.g., body length and wing length). In this case, the isometric reference exponent is $b_{SLI} = 1$, because both measurements scale linearly with length rather than volumetrically. This formulation may be particularly useful when body condition is expected to vary systematically with temperature or another environmental gradient.
 
-Because SLI-isometry standardizes against the fixed isometric exponent while SLI-estimated standardizes against each species' own SMA slope, the two parameterizations are structurally capable of detecting different components of the isometric-relative reference quantity defined above (@fig-sli-concept, panel b). SLI-isometry's exponent ($b_{SLI} = 0.33$) generally differs from a species' true SMA slope, so it remains sensitive to both the allometry-vs-isometry component and the differential temperature-association component. SLI-estimated's exponent is by definition the species' own SMA slope, so the allometry-vs-isometry component vanishes, leaving only the differential temperature-association component. This decomposition is algebraic rather than causal - the two components describe distinct contributions to the isometric-relative quantity but do not imply distinct causal pathways.
+Because SLI-isometry standardizes against the fixed isometric exponent while SLI-estimated standardizes against each species' own SMA slope, the two parameterizations are structurally capable of detecting different components of the isometric-relative reference quantity defined above (@fig-sli-concept, panel b). SLI-isometry remains sensitive to both the allometry-vs-isometry component and the differential temperature-association component, whereas SLI-estimated is only sensitive to the differential temperature-association component. This decomposition is algebraic rather than causal - the two components describe distinct contributions to the isometric-relative quantity $\beta_T$ but do not imply distinct causal pathways.
 
 ```{r}
 #| label: fig-sli-concept
-#| fig-cap: "The Standardized Length Index (SLI), adapted from the Scaled Mass Index [@peigNewPerspectivesEstimating2009]. (a) The SLI reprojects each individual's appendage length to the value it would take at the population's mean mass, $M_0$. Two example individuals (filled black circles) are shown sliding along their own standardization curves (dashed black line) to the population’s mean mass to their standardized values (open points). The standardization curves are parallel to the population-level slope (solid grey curve) once linearized. (b) SLI-estimated and SLI-isometry estimate two different quantities. Points are a representative subset of individuals (log-log scale) for a simulated hyperallometric species whose appendage length increases with warming, coloured by simulated temperature increase. The white-filled point marks the model-predicted phenotype for an individual experiencing a 0.5°C temperature increase. The solid blue line ('Estimated allometry') is the empirical SMA relationship ($b_{SMA} = 0.68$), which provides the reference relationship for SLI-estimated; the dashed grey line ('Isometric reference') is the isometric reference ($b_{SMA} = 0.33$), which provides the reference relationship for SLI-isometry. The green arrow shows the allometry-isometry component: the gap between the two reference lines at this individual's predicted body size. The red arrow shows the temperature-association component: the additional displacement associated with temperature, measured from the isometric line to this individual's predicted appendage length."
+#| fig-cap: "The Standardized Length Index (SLI), adapted from the Scaled Mass Index [@peigNewPerspectivesEstimating2009]. (a) The SLI reprojects each individual's appendage length to the value it would take at the population's mean mass, $M_0$. Two example individuals (filled black circles) are shown sliding along their own standardization curves (dashed black line) to their standardized values (open points). If linearized, the standardization curves would be parallel to the population-level slope (solid grey curve). (b) SLI-estimated and SLI-isometry estimate two different quantities. Points are a representative subset of individuals (log-log scale) for a simulated hyperallometric species whose appendage length increases with warming, coloured by simulated temperature increase. The white-filled point marks the expected phenotype for an individual experiencing a 0.5°C temperature increase. The solid blue line ('Estimated allometry') is the empirical SMA relationship ($b_{SMA} = 0.68$), which provides the reference relationship for SLI-estimated; the dashed grey line is the 'isometric reference' ($b_{SMA} = 0.33$), which provides the reference relationship for SLI-isometry. The green arrow shows the allometry-isometry component, i.e., the gap between the two reference lines at this individual's predicted body size. The red arrow shows the temperature-association component, i.e., the additional displacement associated with temperature, measured from the isometric line to this individual's predicted appendage length."
 #| fig-pos: 'H'
 #| fig-width: 13
 #| fig-height: 5.7
@@ -232,14 +251,14 @@ I log-transformed all variables and then standardised to unit variance before fi
 
 ```{r}
 #| label: tbl-methods-estimands
-#| tbl-cap: "The six statistical approaches compared in this study, how each accounts for body size, the assumed relationship between mass and appendage length, and the quantity represented by the resulting measure. 'Directional' denotes the direction assumed by the statistical model, not a causal claim; a causal interpretation of that direction requires additional assumptions (main text)."
+#| tbl-cap: "The six statistical approaches compared in this study, how each accounts for body size, the assumed relationship between mass and appendage length, and the quantity represented by the resulting measure. 'Directional' denotes the direction assumed by the statistical model, but not necessarily a causal claim."
 
 Methods_estimands_tbl <- tibble::tribble(
   ~Method,                    ~`Body-size relationship`,             ~`Mass–appendage relationship`,          ~`Quantity represented`,
   "Ratio ($A/S$)",            "$b = 1$ (fixed)",                      "Proportional relationship",        "Ratio-defined relative size",
   "Squared ratio ($A^2/S$)",  "$b = 0.5$ (fixed)",                    "Geometric relationship",           "Surface-to-volume-inspired relative size",
-  "OLS multiple regression",  "$Appendage \\sim Mass$",       "Directional (statistical model): $Mass \\rightarrow Appendage$", "Temperature effect on appendage, conditional on mass",
-  "OLS residuals",            "$Appendage \\sim Mass$",       "Directional (statistical model): $Mass \\rightarrow Appendage$", "Residual appendage size after OLS adjustment",
+  "OLS multiple regression",  "$Appendage \\sim Mass$",       "Directional: $Mass \\rightarrow Appendage$", "Temperature effect on appendage, conditional on mass",
+  "OLS residuals",            "$Appendage \\sim Mass$",       "Directional: $Mass \\rightarrow Appendage$", "Residual appendage size after OLS adjustment",
   "SLI-isometry",              "$b = 0.33$ (fixed)",                   "Relative to isometry",            "Appendage size relative to isometric scaling",
   "SLI-estimated",             "Species-specific SMA slope",          "Symmetric: $Mass \\leftrightarrow Appendage$", "Appendage size relative to species-specific allometry"
 )
@@ -256,15 +275,24 @@ knitr::kable(Methods_estimands_tbl, format = "latex", align = "c", booktabs = TR
 
 I evaluated the six statistical approaches using two criteria relative to the isometrically defined benchmark quantity $\beta_T$. First, I assessed whether each approach agreed with the sign of $\beta_T$: a positive $\hat{\beta}_T$ when $\beta_T > 0$, a negative $\hat{\beta}_T$ when $\beta_T < 0$, and $\beta_T \approx 0$ when $\beta_T = 0$. I considered $\hat{\beta}_T$ to agree with the benchmark when its 95% confidence interval excluded zero in cases where $\beta_T \neq 0$, or included zero when $\beta_T = 0$. Second, I assessed how closely $\hat{\beta}_T$ tracked $\beta_T$ in magnitude using a bivariate regression of $\hat{\beta}_T$ on $\beta_T$ across species. An approach that reproduced the benchmark exactly would yield no sign misclassifications, $r = 1$, and estimates falling on the 1:1 line.
 
-Importantly, $\beta_T$ is not a universal ground truth against which the six approaches can be ranked. I defined $\beta_T$ using the SMA scaling relationship anchored to an exponent of 0.33, reflecting the theoretical expectation that $A \propto M^{1/3}$ [@shingletonAllometryStudyBiological2010] and the same isometric anchor used by SLI-isometry. A benchmark defined using the OLS scaling relationship, or another scaling exponent, would instead define a different quantity and could consequently favour different approaches (Supplementary Figure 7). The purpose of this comparison is therefore not to identify the universally most accurate method, but to characterize how the six approaches behave relative to a clearly defined isometric quantity.
+Importantly, $\beta_T$ is not a universal ground truth against which the six approaches can be ranked. I defined $\beta_T$ using the SMA scaling relationship anchored to an exponent of 0.33, reflecting the theoretical expectation that $A \propto M^{1/3}$ [@shingletonAllometryStudyBiological2010]. A benchmark defined using the OLS scaling relationship, or another scaling exponent, would instead define a different quantity and could consequently favour different approaches (Supplementary Figure 7). The purpose of this comparison is therefore not to identify the universally most accurate method, but to characterize how the six approaches behave relative to a clearly defined isometric quantity.
 
 Because SLI-isometry uses the same isometric anchor as $\beta_T$, close agreement between the two is expected by construction. Indeed, the SLI-isometry coefficient and $\beta_T$ differ only by a known scaling factor, consisting of a variance-correction term derived from the same three simulation parameters used to define $\beta_T$. Dividing the SLI-isometry coefficient by this factor produces an exact correspondence with $\beta_T$ (Supplementary Figure 8), demonstrating that the two quantities are algebraically equivalent up to rescaling. This correspondence provides an algebraic check on the implementation of the isometric benchmark and SLI-isometry calculation, but does not demonstrate that SLI-isometry is superior to the other approaches. Rather, the informative comparisons concern how the remaining approaches systematically diverge from the isometrically defined benchmark.
 
 ## Empirical case studies
 
-I applied all six methods to three independent empirical datasets to assess whether the rank-order patterns observed in simulation were also observed in real data. First, I used morphological data from three migratory nightjar species, European nightjars (*Caprimulgus europaeus*), eastern whip-poor-wills (*Antrostomus vociferus*), and common nighthawks (*Chordeiles minor*), spanning a spatial temperature gradient [@skinnerEnvironmentalGeographicConditions2025]. Second, I applied the six methods to a dataset comprising 43 North American migrant species (1979–2016), using capture year as the gradient of interest [@weeksSharedMorphologicalConsequences2020]. Third, I applied the methods to a dataset of 49 Atlantic Forest bird species using mean annual temperature as the gradient of interest [@rodriguesATLANTICBIRDTRAITS2019]. Together, these datasets span different taxonomic groups, ecological systems, gradients of interest, and putative selective pressures, providing a broad test of whether the same rank-order patterns are observed across empirical contexts.
+```{r}
+#| label: n-species-per-dataset
+#| include: false
 
-Age and sex can influence body size independently of the gradient of interest (e.g., through sexual size dimorphism or age-related growth). For each species, I therefore tested whether age or sex predicted mass or wing length while controlling for the gradient variable (i.e., temperature or year), retaining a covariate for further consideration only when it significantly predicted body size ($p < 0.10$).
+n_nightjar_spp <- read_csv("Derived/Csv/Nightjar_parms.csv",  show_col_types = FALSE) %>% distinct(species) %>% nrow()
+n_weeks_spp    <- read_csv("Derived/Csv/Weeks_parms.csv",     show_col_types = FALSE) %>% distinct(species) %>% nrow()
+n_atlantic_spp <- read_csv("Derived/Csv/Atlantic_parms.csv",  show_col_types = FALSE) %>% distinct(species) %>% nrow()
+```
+
+I applied all six methods to three independent empirical datasets to assess whether the rank-order patterns observed in simulation were also observed in real data. First, I used morphological data from `r n_nightjar_spp` migratory nightjar species, European nightjars (*Caprimulgus europaeus*), eastern whip-poor-wills (*Antrostomus vociferus*), and common nighthawks (*Chordeiles minor*), spanning a spatial temperature gradient [@skinnerEnvironmentalGeographicConditions2025]. Second, I applied the six methods to a dataset comprising `r n_weeks_spp` North American migrant species (1979–2016), using capture year as a proxy for temperature change [@weeksSharedMorphologicalConsequences2020]. Third, I applied the methods to a dataset of `r n_atlantic_spp` Atlantic Forest bird species spanning a spatial temperature gradient [@rodriguesATLANTICBIRDTRAITS2019]. Together, these datasets span different taxonomic groups, ecological systems, gradients of interest, and putative selective pressures, providing a broad test of whether the same rank-order patterns are observed across empirical contexts.
+
+Age and sex can influence body size independently of temperature (i.e., through sexual size dimorphism or age-related growth). For each species, I therefore tested whether age or sex predicted mass or wing length while controlling for the gradient variable (i.e., temperature or year), retaining a covariate for further consideration only when it significantly predicted body size ($p < 0.10$).
 
 Retained covariates were incorporated differently by method. For the ratio ($A/S$) and squared-ratio ($A^2/S$) I assume that age and sex influence wing and mass roughly proportionally, and thus would not importantly modify the ratios. I do not include age and sex in the SLI-isometry approach because $b_{SLI}$ is fixed at 0.33 by definition. For the OLS-residual approach, age and sex were included in the first-stage regression of wing on mass; for multiple regression, they were included alongside mass and the gradient variable. In both cases, a covariate entered the model only when it had at least two groups that each met a minimum sample size (100 individuals). Individuals with unrecorded age or sex were retained as their own category in both regressions rather than dropped. All six approaches were fit to the same individuals within a species, differing only in how age and sex information was incorporated.
 
@@ -272,18 +300,18 @@ For SLI-estimated, each individual's SMA slope was estimated using the most spec
 
 To evaluate whether the same rank-order patterns were observed in empirical data, I averaged the gradient coefficients ($\hat\beta_T$) within each method family (Ratio: $A / S$ and $A^2 / S$; OLS: multiple regression and OLS-residual; SLI: SLI-isometry and SLI-estimated) for each species and compared their rank order with the simulation results. While this provides only a coarse assessment of rank-order correspondence, my objective was to identify broad patterns across method families to assess qualitative alignment between simulations and empirical data. Because the expected ordering depends on the direction of body size change (Supplementary Figure 6), species were first classified according to whether they exhibited Bergmannian, inverse Bergmannian, stable, or mixed size trends (@tbl-classification). Bergmannian species exhibited declines in wing length, body mass, or both along the gradient, whereas inverse Bergmannian species exhibited increases in one or both traits ($p < 0.05$). Stable species showed no significant change in either trait, while mixed species exhibited opposing trends in wing length and body mass. Only Bergmannian and inverse Bergmannian species were used to evaluate agreement with the simulation results because these represent the situations where relative appendage length is particularly sensitive to the method used to account for body size. Species with stable or mixed size trends are reported in Supplementary Figures 11 and 12.
 
-Past authors have noted that ratio methods can remain strongly correlated with body size when the exponent imposed by the ratio does not match the underlying scaling relationship [@greenMassLengthResiduals2001; @jakobEstimatingFitnessComparison1996]. To test this, and to assess whether SLI's use of an explicit allometric exponent reduces this dependence relative to an implicit ratio, I calculated the Pearson correlation between body mass and each of the ratio metrics, SLI-isometry, and SLI-estimated for every species in the three empirical datasets.
+Past authors have noted that ratio methods can remain strongly correlated with body size when the exponent imposed by the ratio does not match the underlying scaling relationship [@greenMassLengthResiduals2001; @jakobEstimatingFitnessComparison1996]. To test this, and to assess whether SLI's use of an explicit allometric exponent reduces this dependence, I calculated the Pearson correlation between body mass and each of the ratio metrics, SLI-isometry, and SLI-estimated for every species in the three empirical datasets.
 
 ```{r}
 #| label: tbl-classification
-#| tbl-cap: "Classification of species according to significant ($p < 0.05$) changes in wing length and body mass along the gradient of interest (temperature or year)."
+#| tbl-cap: "Classification of species according to significant ($p < 0.05$) changes in wing length and body mass across temperature or year gradients."
 
 Classification_tbl <- tibble::tribble(
   ~Category,               ~`Classification criterion`,
   "Bergmann's",            "Wing length, body mass, or both decrease",
   "Inverse Bergmann's",    "Wing length, body mass, or both increase",
   "Mixed - Wingyier",      "Wing length increases while body mass decreases",
-  "Mixed - Fatter",        "Wing length decreases while body mass increases",
+  "Mixed - Stouter",        "Wing length decreases while body mass increases",
   "Stable",                "No significant change in either trait"
 )
 knitr::kable(Classification_tbl)
@@ -318,11 +346,11 @@ plot_approaches <- function(df, x_txt_size = 9, legend.pos = "top") {
 }
 ```
 
-The six methods produced strikingly different estimates of temperature's effect on relative appendage length, and the pattern was consistent across allometric scaling categories and correlation structures (@fig-compare-approaches).
+The six methods produced strikingly different estimates of temperature's effect on relative appendage length, and the pattern was largely consistent across allometric scaling categories and correlation structures (@fig-compare-approaches).
 
 ```{r}
 #| label: fig-compare-approaches
-#| fig-cap: "Estimated effect of temperature on relative appendage length ($\\hat{\\beta}_T$) for each method across three different realizations of Bergmann's rule (Fatter, Proportionally smaller, and Longer species). Positive values of $\\hat{\\beta}_T$ indicate that species were estimated to become relatively longer with increasing temperature. Negative values indicate they become relatively fatter. Each point is a simulated species. Point shape indicates allometric scaling category and colour indicates the strength of the difference between temperature's effect on appendage length and mass."
+#| fig-cap: "Estimated effect of temperature on relative appendage length ($\\hat{\\beta}_T$) for each method across three different realizations of Bergmann's rule (Stouter, Proportionally smaller, and Longer species). Positive values of $\\hat{\\beta}_T$ indicate that species were estimated to become relatively longer with increasing temperature. Negative values indicate they become relatively stouter. Each point is a simulated species. Point shape indicates allometric scaling category and colour indicates the strength of the difference between temperature's effect on appendage length and mass."
 #| fig-width: 9
 #| fig-height: 4.5
 #| fig-pos: 'H'
@@ -330,17 +358,17 @@ The six methods produced strikingly different estimates of temperature's effect 
 plot_approaches(Parms_tbl4, x_txt_size = 11)
 ```
 
-**Ratio approaches** tended to diverge from the isometric-relative reference quantity in the positive direction, although this was much more prominent when $A/S$ was used as the response variable. When simulated to become relatively fatter, $A^2/S$ disagreed with the reference for only `r Ratio2_fatter_wrong_n` of `r Fatter_n` hypothetical species, whereas $A/S$ disagreed for roughly 1/4 of species (@fig-eval). Among species simulated as Proportionally smaller, where $\beta_T = 0$, no species had 95% confidence intervals containing $0$ for either $A/S$ or $A^2/S$.
+**Ratio approaches** tended to diverge from the isometric-relative reference quantity in the positive direction, although this was much more prominent when $A/S$ was used as the response variable. When simulated to become relatively stouter, $A^2/S$ disagreed with the reference for only `r Ratio2_fatter_wrong_n` of `r Fatter_n` hypothetical species, whereas $A/S$ disagreed for roughly 1/4 of species (@fig-eval). Among species simulated as Proportionally smaller, where $\beta_T = 0$, no species had 95% confidence intervals containing $0$ for either $A/S$ or $A^2/S$.
 
-**Multiple regression and OLS residuals** approaches consistently diverged from the isometric-relative reference quantity in the negative direction (@fig-eval). Both methods returned negative $\hat{\beta}_T$ in the majority of species simulated to become relatively longer, agreed with the reference for Fatter species, and overcorrected in Proportionally smaller species: only `r Ryding_proportional_null_correct`% of these species had a 95% confidence interval that included $0$ for either method, showing statistically significant departures from the null isometric-relative reference quantity in the large majority of null-effect species. The two approaches behaved nearly identically, consistent with their mathematical equivalence when predictor variables are uncorrelated.
+**Multiple regression and OLS residuals** approaches consistently diverged from the isometric-relative reference quantity in the negative direction (@fig-eval). Both methods returned negative $\hat{\beta}_T$ in the majority of species simulated to become relatively longer, agreed with the reference for Stouter species, and overcorrected in Proportionally smaller species: only `r Ryding_proportional_null_correct`% of these species had a 95% confidence interval that included $0$ for either method, showing statistically significant departures from the null isometric-relative reference quantity in the large majority of null-effect species. The two approaches behaved nearly identically, consistent with their mathematical equivalence when predictor variables are uncorrelated.
 
-**SLI-isometry** tracked the isometric-relative reference quantity closely, as expected since both are anchored to the same isometric scaling exponent (@fig-eval). Its 95% confidence interval excluded zero on the correct side (matching the reference's sign) for `r Sli.iso_longer_right`% of species simulated to become relatively longer, and `r Sli.iso_fatter_right`% of species simulated to become relatively fatter. Among species simulated as Proportionally smaller, `r Sli.iso_proportional_null_correct`% had a 95% confidence interval that included zero. **SLI-estimated** agreed with the isometric reference quantity in the Longer and Fatter categories (`r Sli.est_longer_right`% and `r Sli.est_fatter_right`% agreement, respectively; @fig-eval), but diverged sharply among Proportionally smaller species, where only `r Sli.est_proportional_null_correct`% of species had a 95% confidence interval that included zero.
+**SLI-isometry** tracked the isometric-relative reference quantity closely, as expected since both are anchored to the same isometric scaling exponent (@fig-eval). Its 95% confidence interval excluded zero on the correct side (matching the reference's sign) for `r Sli.iso_longer_right`% of species simulated to become relatively longer, and `r Sli.iso_fatter_right`% of species simulated to become relatively stouter. Among species simulated as Proportionally smaller, `r Sli.iso_proportional_null_correct`% had a 95% confidence interval that included zero. **SLI-estimated** agreed with the isometric reference quantity in the Longer and Stouter categories (`r Sli.est_longer_right`% and `r Sli.est_fatter_right`% agreement, respectively; @fig-eval), but diverged sharply among Proportionally smaller species, where only `r Sli.est_proportional_null_correct`% of species had a 95% confidence interval that included zero.
 
 Results for an additional **Proportionally larger** scenario are presented in the Supplementary Information, but in short these hypothetical species showed the inverse pattern as the Proportionally smaller species.
 
 ```{r}
 #| label: fig-eval
-#| fig-cap: "Each method's estimated coefficient against each species' own analytically-derived isometric-relative reference quantity, one point per simulated species. Colour indicates shape-response category and point shape indicates allometric scaling category. Grey lines mark zero on each axis, the classification boundary. Proportionally smaller species sit exactly on the vertical zero line by construction. r (Pearson correlation with the reference quantity) and the percentage of species in agreement, pooled across all three categories shown in each panel, are annotated in each panel. A species counts as in agreement if its 95% confidence interval falls on the correct side of zero (Longer, Fatter), or if that interval includes zero (Proportionally smaller)."
+#| fig-cap: "Each method's estimated coefficient against its own analytically-derived isometric-relative reference quantity, one point per simulated species. Grey lines mark zero on each axis and serve as the classification boundaries - 'Stouter' species should sit in the bottom left quadrant, 'Longer' species in the top right quadrant, and 'Proportionally smaller' species at 0,0 (intersection of the grey lines). Species in agreement with the reference are faded; species not in agreement are drawn at full opacity. The Pearson correlation between $\\hat\\beta_T$ and $\\beta_T$ ($r$) and the percentage of species in agreement are annotated in each panel. A species counts as 'in agreement' if its 95% confidence interval falls on the correct side of zero (Longer, Stouter), or if that interval includes zero (Proportionally smaller)."
 #| fig-width: 9
 #| fig-height: 6.5
 #| fig-pos: 'H'
@@ -349,8 +377,8 @@ Eval_scatter_df <- Parms_tbl4 %>%
   filter(Temp_eff != "Proportionally larger") %>%
   mutate(Model = str_replace_all(Model, x_labs))
 
-# Includes Longer, Fatter, and Proportionally smaller -- "correct" uses Est_correct (01_Run_simulation.R,
-# Evaluation section) throughout: whole-CI-on-the-correct-side for Longer/Fatter, CI-includes-zero
+# Includes Longer, Stouter, and Proportionally smaller -- "correct" uses Est_correct (01_Run_simulation.R,
+# Evaluation section) throughout: whole-CI-on-the-correct-side for Longer/Stouter, CI-includes-zero
 # (reversed) for Proportionally smaller, since its true effect is exactly 0 by construction.
 Eval_scatter_stats <- Eval_scatter_df %>%
   group_by(Model) %>%
@@ -361,7 +389,14 @@ Eval_scatter_stats <- Eval_scatter_df %>%
 ggplot(Eval_scatter_df, aes(x = beta_iso_true, y = b_temp_inc, color = Temp_eff, shape = Scaling)) +
   geom_hline(yintercept = 0, color = "grey80") +
   geom_vline(xintercept = 0, color = "grey80") +
-  geom_point(alpha = .55, size = 1.2) +
+  # Species in agreement with the reference recede (low alpha); species not in
+  # agreement stay at full opacity so the structure of the disagreements -- which
+  # categories, which quadrant -- is what the eye lands on. Small jitter spreads
+  # the Proportionally-smaller pile that otherwise stacks exactly on x = 0.
+  geom_point(data = \(d) dplyr::filter(d, Est_correct),  alpha = 0.28, size = 1.7,
+             position = position_jitter(width = 0.006, height = 0.006, seed = 1)) +
+  geom_point(data = \(d) dplyr::filter(d, !Est_correct), alpha = 0.9,  size = 2.1,
+             position = position_jitter(width = 0.006, height = 0.006, seed = 1)) +
   geom_text(data = Eval_scatter_stats, aes(label = paste0("r=", r, ", ", pct_correct, "% in agreement")),
             x = -Inf, y = Inf, hjust = -0.05, vjust = 1.3, inherit.aes = FALSE, size = 2.6) +
   facet_wrap(vars(Model), scales = "free_y") +
@@ -378,7 +413,7 @@ ggplot(Eval_scatter_df, aes(x = beta_iso_true, y = b_temp_inc, color = Temp_eff,
 #| label: tbl-species-accounting
 #| tbl-cap: "Number of empirical species classified into each size / shape-shifting category (@tbl-classification), by dataset. Species exhibiting Bergmann's and Inverse Bergmann's rules are shown in the main text (@fig-empirical)."
 
-dir_order <- c("Bergmann's", "Inverse Bergmann's", "Mixed - Wingier", "Mixed - Fatter", "Stable")
+dir_order <- c("Bergmann's", "Inverse Bergmann's", "Mixed - Wingier", "Mixed - Stouter", "Stable")
 
 Species_accounting_tbl <- bind_rows(
   read_csv("Derived/Csv/Nightjar_parms.csv",  show_col_types = FALSE),
@@ -410,16 +445,16 @@ Dir_totals_row        <- Species_accounting_tbl %>% filter(Study == "Total")
 pct_bergmanns_all     <- round(100 * Dir_totals_row$`Bergmann's` / n_species_total)
 pct_inv_bergmanns_all <- round(100 * Dir_totals_row$`Inverse Bergmann's` / n_species_total)
 pct_mixed_wingier_all <- round(100 * Dir_totals_row$`Mixed - Wingier` / n_species_total)
-n_mixed_fatter_all    <- Dir_totals_row$`Mixed - Fatter`
+n_mixed_fatter_all    <- Dir_totals_row$`Mixed - Stouter`
 pct_stable_all        <- round(100 * Dir_totals_row$Stable / n_species_total)
 
 knitr::kable(Species_accounting_tbl,
              col.names = c("Study", "Bergmann's", "Inverse Bergmann's",
-                           "Mixed - Wingier", "Mixed - Fatter", "Stable", "Total"),
+                           "Mixed - Wingier", "Mixed - Stouter", "Stable", "Total"),
              align = "c")
 ```
 
-Across the `r n_species_total` species examined here, most species (`r pct_bergmanns_all`%) adhered to Bergmann's rule in at least one body size metric, whereas `r pct_inv_bergmanns_all`% exhibited a pattern more consistent with Inverse Bergmann's rule. `r pct_mixed_wingier_all`% of species increased in wing length while simultaneously getting lighter, while only `r n_mixed_fatter_all` species got heavier and simultaneously decreased wing length. `r pct_stable_all`% of species showed no significant response in either mass or wing (@tbl-classification; @tbl-species-accounting).
+Across the `r n_species_total` species examined here, the majority of species (`r pct_bergmanns_all`%) adhered to Bergmann's rule in at least one body size metric, whereas `r pct_inv_bergmanns_all`% exhibited a pattern consistent with Inverse Bergmann's rule. `r pct_mixed_wingier_all`% of species increased in wing length while simultaneously getting lighter, while only `r n_mixed_fatter_all` species got heavier and simultaneously decreased wing length. `r pct_stable_all`% of species showed no significant response in either mass or wing (@tbl-classification; @tbl-species-accounting).
 
 ```{r}
 #| label: rank-consistency-empirical
@@ -450,22 +485,81 @@ n_rank_bergmanns       <- pull_rank_stat("Bergmann's", n)
 pct_rank_inv_bergmanns <- pull_rank_stat("Inverse Bergmann's", pct)
 n_rank_inv_bergmanns   <- pull_rank_stat("Inverse Bergmann's", n)
 
-fig_cap_empirical <- glue::glue("Estimated effect ($\\hat{{\\beta}}$) of the gradient of interest on relative wing length for each of the six methods, across three empirical avian datasets (Nightjars: red points; North American migrants: blue points; Atlantic Forest birds: green points), grouped by direction of body size change: (a) Bergmann's ($n$ = {n_rank_bergmanns} species) and (b) Inverse Bergmann's ($n$ = {n_rank_inv_bergmanns} species). Only species with a significant ($p < 0.05$) mass or wing response are shown. Each point is one species' estimate ($\\hat{{\\beta}}$) for a given method; boxplots summarize the distribution of these estimates across species within each method. The y-axis label matches Figure 3's to indicate that both figures show the same quantity, temperature's estimated effect on relative appendage length. A positive value indicates birds become relatively longer with increasing temperature (or through time); a negative value indicates they become relatively fatter. The percentage in the top-right corner of each panel is the proportion of species whose rank order across methods matched the simulation-predicted order (Bergmann's: Ratio > SLI > OLS; Inverse Bergmann's: Ratio < SLI < OLS).")
+fig_cap_empirical <- glue::glue("Estimated effect ($\\hat{{\\beta}}$) of temperature or year on relative wing length for each of the six methods, across three empirical avian datasets (Nightjars: red points; North American migrants: blue points; Atlantic Forest birds: green points), grouped by direction of body size change: (a) Bergmann's ($n$ = {n_rank_bergmanns} species) and (b) Inverse Bergmann's ($n$ = {n_rank_inv_bergmanns} species). Only species with a significant ($p < 0.05$) mass or wing response are shown. Each point is one species' estimate ($\\hat{{\\beta}}$) for a given method; boxplots summarize the distribution of these estimates across species within each method. The y-axis label matches Figure 3's to indicate that both figures show the same quantity, temperature's estimated effect on relative appendage length. A positive value indicates birds become relatively longer with increasing temperature (or through time); a negative value indicates they become relatively stouter. The percentage in the top-right corner of each boxplot is the proportion of species whose rank order across methods matched the simulation-predicted order (Bergmann's: Ratio > SLI > OLS; Inverse Bergmann's: Ratio < SLI < OLS). Adjoining each boxplot, a stacked bar shows the same species' 95% confidence intervals classified as significantly longer (entirely above zero), significantly stouter (entirely below zero), or not significant (overlapping zero).")
 ```
 
-The rank-order pattern from simulations was generally reproduced in all three datasets: ratio methods consistently produced the most positive estimates and multiple regression / OLS residuals the most negative, with SLI falling between these extremes. `r pct_rank_overall`% of the `r n_rank_total` species with a directional (Bergmann's or Inverse Bergmann's) classification showed the rank order predicted by the simulations (`r pct_rank_bergmanns`% of `r n_rank_bergmanns` Bergmann's species and `r pct_rank_inv_bergmanns`% of `r n_rank_inv_bergmanns` Inverse Bergmann's species, @fig-empirical). This pattern also held at the level of individual methods with a fixed implicit scaling exponent, rather than only after averaging within method families (Supplementary Information).
+The rank-order pattern from simulations was generally reproduced in all three datasets: ratio methods consistently produced the most positive estimates and multiple regression / OLS residuals the most negative, with SLI falling between these extremes. `r pct_rank_overall`% of the `r n_rank_total` species with a directional (Bergmann's or Inverse Bergmann's) classification showed the rank order predicted by the simulations (`r pct_rank_bergmanns`% of `r n_rank_bergmanns` Bergmann's species and `r pct_rank_inv_bergmanns`% of `r n_rank_inv_bergmanns` Inverse Bergmann's species, @fig-empirical). This pattern also held at the level of individual methods with a fixed implicit scaling exponent, rather than only after averaging within method families (Supplementary Table 2).
 
 ```{r}
 #| label: fig-empirical
 #| fig-cap: !expr fig_cap_empirical
 #| fig-pos: 'H'
-#| fig-height: 6
+#| fig-width: 9.5
+#| fig-height: 6.8
 
 emp_img  <- png::readPNG("Figures/Empirical_combined.png")
 emp_grob <- grid::rasterGrob(emp_img, width = grid::unit(1, "npc"),
                               height = grid::unit(1, "npc"))
 cowplot::ggdraw() + cowplot::draw_grob(emp_grob)
 ```
+
+```{r}
+#| label: significance-classification-empirical
+#| include: false
+
+Sig_all <- bind_rows(
+  read_csv("Derived/Csv/Nightjar_parms.csv",  show_col_types = FALSE),
+  read_csv("Derived/Csv/Weeks_parms.csv",     show_col_types = FALSE),
+  read_csv("Derived/Csv/Atlantic_parms.csv",  show_col_types = FALSE)
+) %>%
+  filter(
+    Direction %in% c("Bergmann's", "Inverse Bergmann's"),
+    Approach  %in% c("Ratio", "Ratio2", "Ryding", "Resid_ols", "Sli_est", "Sli_iso"),
+    std.error  < 0.5
+  ) %>%
+  mutate(Call = case_when(
+    LCI95 > 0 ~ "Sig. longer",
+    UCI95 < 0 ~ "Sig. stouter",
+    TRUE      ~ "Not significant"
+  ))
+
+Sig_summary <- Sig_all %>%
+  count(Direction, Approach, Call) %>%
+  group_by(Direction, Approach) %>%
+  mutate(pct = round(100 * n / sum(n))) %>%
+  ungroup()
+
+pull_sig_pct <- function(dir, approach, call) {
+  Sig_summary %>%
+    filter(Direction == dir, Approach == approach, Call == call) %>%
+    pull(pct)
+}
+
+pct_bergmanns_ratio_longer     <- pull_sig_pct("Bergmann's", "Ratio", "Sig. longer")
+pct_bergmanns_ryding_fatter    <- pull_sig_pct("Bergmann's", "Ryding", "Sig. stouter")
+pct_bergmanns_olsresid_fatter  <- pull_sig_pct("Bergmann's", "Resid_ols", "Sig. stouter")
+pct_bergmanns_sliiso_longer    <- pull_sig_pct("Bergmann's", "Sli_iso", "Sig. longer")
+pct_bergmanns_sliiso_fatter    <- pull_sig_pct("Bergmann's", "Sli_iso", "Sig. stouter")
+
+pct_invbergmanns_ratio_longer    <- pull_sig_pct("Inverse Bergmann's", "Ratio", "Sig. longer")
+pct_invbergmanns_ryding_longer   <- pull_sig_pct("Inverse Bergmann's", "Ryding", "Sig. longer")
+pct_invbergmanns_olsresid_longer <- pull_sig_pct("Inverse Bergmann's", "Resid_ols", "Sig. longer")
+
+# Pooled across the two OLS-based methods (mass-as-covariate + OLS residuals) rather than a mean of the two
+# already-rounded per-method percentages above, so this is the % of all OLS-based-method x species rows in the
+# given Call, not an average of two averages.
+pct_bergmanns_ols_fatter <- Sig_all %>%
+  filter(Direction == "Bergmann's", Approach %in% c("Ryding", "Resid_ols")) %>%
+  summarize(pct = round(100 * mean(Call == "Sig. stouter"))) %>%
+  pull(pct)
+
+pct_invbergmanns_ols_longer <- Sig_all %>%
+  filter(Direction == "Inverse Bergmann's", Approach %in% c("Ryding", "Resid_ols")) %>%
+  summarize(pct = round(100 * mean(Call == "Sig. longer"))) %>%
+  pull(pct)
+```
+
+Beyond differences in rank order, the six methods often disagreed on whether a species adhered to Allen's rule at all, and in which direction (@fig-empirical, bar plots). Among Bergmann's species, `r pct_bergmanns_ratio_longer`% were classified as significantly longer using the wing/mass ratio, whereas mass-as-covariate and OLS residuals classified roughly `r pct_bergmanns_ols_fatter`% of the same species, on average, as significantly stouter -- so for most of the same species pool the two families would support different conclusions. SLI-isometry fell between these extremes, with confidence intervals split almost evenly between significantly longer (`r pct_bergmanns_sliiso_longer`%) and significantly stouter (`r pct_bergmanns_sliiso_fatter`%). Among Inverse Bergmann's species, methods generally agreed that species are getting relatively longer, but detection rates varied substantially - `r pct_invbergmanns_ratio_longer`% of species were classified as significantly longer using the wing/mass ratio, compared to roughly `r pct_invbergmanns_ols_longer`%, on average, for mass-as-covariate and OLS residuals. These results indicate that the choice of body-size-standardization method can determine not only the magnitude and rank order of an estimated effect, but whether a researcher would conclude that Allen's rule holds for a given species at all.
 
 ### Correlation between the wing/mass ratio and body mass
 
@@ -510,7 +604,7 @@ range_rmc2_all      <- paste0(round(min(Ratio2_cor_only$r), 2), " to ",
 pct_rmc2_strong_neg <- round(100 * mean(Ratio2_cor_only$r < -0.7))
 
 # SLI-isometry / SLI-estimated species counts, for the table caption's sample-size
-# caveat -- SLI-estimated is undefined (dropped, not NA-padded) for species that
+# caveat -- SLI-estimated is dropped (not NA-padded) for species that
 # failed the per-group allometric-correlation filter, so it always has n <= SLI-isometry's.
 n_sli_iso_total <- Ratio_mass_cor_all %>% filter(Metric == "Sli_iso") %>% nrow()
 n_sli_est_total <- Ratio_mass_cor_all %>% filter(Metric == "Sli_est") %>% nrow()
@@ -527,10 +621,10 @@ mean_rmc_sli_est  <- round(mean(Sli_est_cor_only$r), 2)
 range_rmc_sli_est <- paste0(round(min(Sli_est_cor_only$r), 2), " to ",
                             round(max(Sli_est_cor_only$r), 2))
 
-tbl_cap_ratio_mass_summary <- glue::glue("Median per-species Pearson correlation with body mass, by empirical dataset, for the wing/mass ratio ($\\log(A/S)$), its squared counterpart ($\\log(A^2/S)$), SLI-isometry, and SLI-estimated. SLI-estimated is reported for fewer species ({n_sli_est_total} of {n_sli_iso_total} across all three datasets) than the other three metrics, because it is undefined for species that failed the per-group allometric-correlation filter (Methods).")
+tbl_cap_ratio_mass_summary <- glue::glue("Median per-species Pearson correlation with body mass, by empirical dataset, for the wing/mass ratio ($\\log(A/S)$), its squared counterpart ($\\log(A^2/S)$), SLI-isometry, and SLI-estimated. SLI-estimated is reported for fewer species ({n_sli_est_total} of {n_sli_iso_total} across all three datasets) than the other three metrics, because it is undefined for species that failed the per-group allometric-correlation filter.")
 ```
 
-Across `r n_rmc_total` species, the ratio metric was consistently and strongly negatively correlated with mass (mean $r$ = `r mean_rmc_all`, range `r range_rmc_all`). `r pct_rmc_strong_neg`% of species had a correlation more negative than $-0.7$. This pattern held regardless of taxon, gradient type (spatial or temporal), or geographic region, confirming that the ratio's dependence on body size is a general mechanical property of the metric rather than a quirk of any one dataset (@tbl-ratio-mass-summary). I calculated the same correlation for the squared-ratio metric - the correlation between $\log(A^2/S)$ and body mass was still strongly negative, but consistently weaker in magnitude than its unsquared counterpart (mean $r$ = `r mean_rmc2_all`, range `r range_rmc2_all`, `r pct_rmc2_strong_neg`% of species below $-0.7$, @tbl-ratio-mass-summary). Both SLI parameterizations were less correlated with mass than either ratio metric (SLI-isometry: mean $r$ = `r mean_rmc_sli_iso`, range `r range_rmc_sli_iso`; SLI-estimated: mean $r$ = `r mean_rmc_sli_est`, range `r range_rmc_sli_est`) (@tbl-ratio-mass-summary; Supplementary Figure 4).
+Across `r n_rmc_total` species, the ratio metric was consistently and strongly negatively correlated with mass (mean $r$ = `r mean_rmc_all`, range `r range_rmc_all`). `r pct_rmc_strong_neg`% of species had a correlation more negative than $-0.7$. This pattern held regardless of taxon, gradient type (spatial or temporal), or geographic region, confirming that the ratio's dependence on body size is a general mechanical property of the metric rather than a quirk of any one dataset (@tbl-ratio-mass-summary). The correlation between $\log(A^2/S)$ and body mass was still strongly negative, but consistently weaker in magnitude than its unsquared counterpart (mean $r$ = `r mean_rmc2_all`, range `r range_rmc2_all`, `r pct_rmc2_strong_neg`% of species below $-0.7$, @tbl-ratio-mass-summary). Both SLI parameterizations were less correlated with mass than either ratio metric (SLI-isometry: mean $r$ = `r mean_rmc_sli_iso`, range `r range_rmc_sli_iso`; SLI-estimated: mean $r$ = `r mean_rmc_sli_est`, range `r range_rmc_sli_est`) (@tbl-ratio-mass-summary; Supplementary Figure 4).
 
 ```{r}
 #| label: tbl-ratio-mass-summary
@@ -546,19 +640,19 @@ Ratio_mass_summary_tbl %>%
 
 # Discussion
 
-My results demonstrate that body-size adjustment is not a neutral preprocessing step in studies of Allen's rule. The six approaches examined here produced systematically different estimates of relative appendage morphology in simulations, and this rank ordering was reproduced across three empirical datasets spanning `r n_species_total` species and substantially different taxa, ecosystems, and geographic contexts. The important implication is not simply that one method performed better than another, but that different approaches can quantify different aspects of morphological change. This raises a more fundamental question for studies of Allen's rule: what biological quantity should be represented as a change in relative appendage morphology? Addressing this question requires distinguishing among the morphological quantities that different statistical approaches estimate, rather than treating body-size adjustment as an interchangeable preprocessing decision.
+These results demonstrate that body-size adjustment is not a neutral preprocessing step in studies of Allen's rule. The six approaches examined here produced systematically different estimates of relative appendage morphology in simulations, and this rank ordering was reproduced across three empirical datasets spanning `r n_species_total` species and substantially different taxa, ecosystems, and geographic contexts. The important implication is not simply that one method performed better than another, but that different approaches can quantify different aspects of morphological change. This raises a more fundamental question for studies of Allen's rule: what biological quantity should be represented as a change in relative appendage morphology? Addressing this question requires distinguishing among the morphological quantities that different statistical approaches estimate, rather than treating body-size adjustment as an interchangeable preprocessing decision.
 
 ## What constitutes an Allen's-rule response?
 
-Allen's rule is commonly evaluated using relative appendage size, but studies do not use a single, consistent definition of the morphological response. My literature review illustrates this directly, with studies using absolute appendage measurements, ratios, regression-based residuals or conditional effects, among other approaches to quantify appendage morphology. These approaches define relative appendage morphology in different ways, because they incorporate body size through different scaling and statistical relationships. Indeed, controlling for body size is not a neutral technical preprocessing step, as traditional methods frequently fail to separate the potentially interactive, context-dependent effects of body size and other ecological factors on phenotypic variation [@glazierComplicationsBodysizeCorrection2022]. Relative appendage size should therefore be understood as an inferential quantity, with the choice of body-size adjustment determining how this biological quantity is operationalized.
+Allen's rule is commonly evaluated using relative appendage size, but studies do not use a single, consistent definition of the morphological response. Indeed, in this literature review studies used absolute appendage measurements, ratios, regression-based residuals, and conditional effects, among other approaches to quantify appendage morphology. These approaches define relative appendage morphology in different ways, because they incorporate body size through different scaling and statistical relationships. Indeed, controlling for body size is not a neutral technical preprocessing step, as traditional methods frequently fail to separate the potentially interactive, context-dependent effects of body size and other ecological factors on phenotypic variation [@glazierComplicationsBodysizeCorrection2022]. Relative appendage size should therefore be understood as an inferential quantity, with the choice of body-size adjustment determining how this biological quantity is operationalized.
 
 ## Ratios and implicit scaling relationships
 
-Ratios are attractive because they are simple, familiar, and directly interpretable. However, their algebraic form implicitly specifies a scaling relationship between appendage length and body size. A ratio therefore does not simply "control for" body size; it defines relative morphology according to a particular scaling assumption. The simple ratios observed in this literature review ($A/S$ and $A^2/S$) were strongly correlated with body size itself in these data -- a mathematical artifact also documented across condition-index studies [@greenMassLengthResiduals2001; @jakobEstimatingFitnessComparison1996]. Rather than isolating shape change, simple ratios often propagate body-size variation directly into the response variable, making it impossible to separate genuine relative shape-shifting from overall body size trends.
+Ratios are attractive because they are simple, familiar, and directly interpretable. However, their algebraic form implicitly specifies a scaling relationship between appendage length and body size. A ratio therefore does not simply "control for" body size; it defines relative morphology according to a particular scaling assumption. Simple ratios ($A/S$ and $A^2/S$) were strongly correlated with body size itself in these data -- a mathematical artifact also documented across condition-index studies [@greenMassLengthResiduals2001; @jakobEstimatingFitnessComparison1996]. Rather than isolating shape change, simple ratios often propagate body-size variation directly into the response variable, making it impossible to separate genuine relative shape-shifting from overall body size trends.
 
-Importantly, the SLI metrics did a comparatively better job of removing the body size signal than ratios, which follows from the scaling relationships they use. The SLI metrics and ratios can both be thought of in the general form $A / S^\beta$. Under log-log transformation, the simple ratio $A/S$ is equivalent to $A / S^1$ (where $\beta = 1$), and the squared-ratio metric $A^2/S$ is linearized as $\sqrt{A^2/S} = A / S^{0.5}$ (where $\beta = 0.5$). The geometric appeal of dividing an area-like quantity ($A^2$) by mass is understandable, but allometric scaling theory and empirical data [@youngfleshAbioticConditionsShape2022] suggest that $1/3$ is likely a more appropriate scaling reference for appendage length than $1/2$. When using a volumetric proxy for body size (such as body mass, $M$), SLI-isometry uses the geometrically expected isometric exponent of $1/3$ and is therefore algebraically equivalent to $A/M^{1/3}$ up to a constant multiplier determined by the reference mass $M_0$. More generally, the appropriate exponent should be justified by the biological question rather than assumed a priori.
+Importantly, the SLI metrics did a comparatively better job of removing the body size signal than ratios, which follows from the scaling relationships they use. The SLI metrics and ratios can both be thought of in the general form $A / S^\beta$, where $\beta$ represents the scaling slope. Under log-log transformation, the simple ratio $A/S$ is equivalent to $A / S^1$ (i.e., $\beta = 1$), and the squared-ratio metric $A^2/S$ is linearized as $\sqrt{A^2/S} = A / S^{0.5}$. The geometric appeal of dividing an area-like quantity ($A^2$) by mass is understandable, but allometric scaling theory and empirical data [@youngfleshAbioticConditionsShape2022] suggest that $1/3$ is likely a more appropriate scaling reference for appendage length than $1/2$. When using a volumetric proxy for body size (such as body mass, $M$), SLI-isometry uses the geometrically expected isometric exponent of $1/3$ and is therefore algebraically equivalent to $A/M^{1/3}$ up to a constant multiplier (determined by the reference mass $M_0$). More generally, the appropriate exponent should be justified by the biological question rather than assumed a priori.
 
-This also highlights that SLI-isometry is not fundamentally distinct from ratio approaches; rather, it represents a mathematically explicit, geometrically justified ratio. I argue that the primary advantages of the SLI framework come from transparency, interpretability, and flexibility. Rather than embedding scaling assumptions implicitly in an algebraic division, the SLI framework makes the scaling assumption ($\beta$), the reference body size ($M_0$), and the resulting units explicit. The same framework can then be used with an empirically estimated scaling exponent, as in SLI-estimated, rather than requiring a separate ratio formulation for each scaling assumption.
+This also highlights that SLI-isometry is not fundamentally distinct from ratio approaches; rather, it represents a mathematically explicit, geometrically justified ratio. I argue that the primary advantages of the SLI framework come from transparency, interpretability, and flexibility. Rather than embedding scaling assumptions implicitly in a ratio, the SLI framework makes the scaling assumption, the reference body size ($M_0$), and the resulting units explicit. The same framework can then be used with an empirically estimated scaling exponent, as in SLI-estimated, rather than requiring a separate ratio formulation for each scaling assumption.
 
 This dimensional bridge exposes a fundamental scaling mismatch in past studies of climate-driven morphological change. Some past work has utilized a simple ratio of an appendage to body mass ($A/M$) to represent relative appendage size [e.g. @jirinecMorphologicalConsequencesClimate2021; @ballingerContributionGeneticEnvironmental2022], implicitly forcing a scaling exponent of $\beta = 1.0$. Because a linear appendage scales with a volumetric mass proxy to the $1/3$ power ($\beta \approx 0.33$) under isometry, forcing $\beta = 1.0$ does not correspond to the geometrically expected scaling relationship for relative appendage length. When overall body mass declines in response to warming (adhering to Bergmann's rule), this scaling mismatch can create a strong negative correlation between the ratio $A/M$ and body size, meaning that $A/M$ will increase even if the relationship between appendage length and body mass remains strictly proportional [@rydingMultipleRegressionNot2025]. Consequently, the ratio can fail to isolate relative morphology because it does not appropriately remove the influence of body size, leading to spurious temperature associations that could be misclassified as adaptive shape-shifting [@glazierComplicationsBodysizeCorrection2022].
 
@@ -656,13 +750,21 @@ Third, descriptive association should be distinguished from causal interpretatio
 
 Relative appendage length is not a uniquely defined quantity. Different approaches encode different assumptions about how body size and appendage morphology should be related, and these assumptions lead to systematically different estimates of climate-associated morphological change. The SLI metrics presented here provide an explicit and interpretable framework for scalar relative appendage size, with two parameterizations that correspond to distinct biological questions. More broadly, identifying an Allen's-rule pattern is distinct from establishing its causal basis. Careful definition of the morphological quantity being analyzed is therefore a necessary first step toward interpreting climate-associated changes in relative morphology. Indeed, adjustment for body size should be treated as part of the inferential design of a study rather than as a routine preprocessing step.
 
-# Data Availability
-
-All analyses can be reproduced using the code and data in the zipped 'for reviewers' file. Nightjar morphological data are available from @skinnerDataEnvironmentalGeographic2025. North American migrants data are available from @weeksSharedMorphologicalConsequences2020. Atlantic Forest bird data are available from @rodriguesATLANTICBIRDTRAITS2019.
-
 # Acknowledgements
 
-I thank Andy Green for helpful comments on the development of the Standardized Length Index and its relationship to the Standardized Mass Index, and David Warton for clarifying the assumptions and properties of SMA regression.
+I thank Andy Green for helpful comments on the development of the Standardized Length Index and its relationship to the Standardized Mass Index, as well as for permission to modify Figure 1 from their 2009 manuscript [@peigNewPerspectivesEstimating2009]. I thank David Warton for clarifying the assumptions and properties of SMA regression, as well as asking thoughtful questions on the appropriateness of multiple regression versus alternative approaches. I thank both Andy and David for general feedback on earlier versions of the manuscript.
+
+# Funding
+
+**\[TODO before submission: state funding sources, or "This research received no specific grant from any funding agency in the public, commercial, or not-for-profit sectors."\]**
+
+# Conflicts of Interest
+
+The author declares no conflicts of interest.
+
+# Data Availability Statement
+
+All analyses can be reproduced using the code and data in the zipped 'for reviewers' file. Nightjar morphological data are available from @skinnerDataEnvironmentalGeographic2025. North American migrants data are available from @weeksSharedMorphologicalConsequences2020. Atlantic Forest bird data are available from @rodriguesATLANTICBIRDTRAITS2019.
 
 {{< pagebreak >}}
 
