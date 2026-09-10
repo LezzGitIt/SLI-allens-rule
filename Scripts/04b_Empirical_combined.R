@@ -54,8 +54,11 @@ approach_labs <- c(
 # factor level at the bar's base, so levels are ordered longer -> not sig. ->
 # stouter to put "Sig. stouter" at the bottom and "Sig. longer" at the top,
 # mirroring the adjoining boxplot's own negative-below/positive-above zero line.
-sig_levels <- c("Sig. longer", "Not significant", "Sig. stouter")
-sig_colors <- c("Sig. stouter" = "#e34948", "Not significant" = "#898781", "Sig. longer" = "#2a78d6")
+# Short labels ("Longer" / "Stouter" rather than "significantly longer") so the
+# three-item legend fits above the narrow 1/3-width bar column; the caption
+# spells out the 95%-CI definitions.
+sig_levels <- c("Longer", "Not significant", "Stouter")
+sig_colors <- c("Stouter" = "#e34948", "Not significant" = "#898781", "Longer" = "#2a78d6")
 
 # Per-direction panel builder ---------------------------------------------
 # Grouped by method (matching fig-compare-approaches / Figure 3's format) rather
@@ -106,8 +109,8 @@ build_direction_plot <- function(df_panel, direction) {
 build_significance_plot <- function(df_panel) {
   df_panel %>%
     mutate(Call = case_when(
-      LCI95 > 0 ~ "Sig. longer",
-      UCI95 < 0 ~ "Sig. stouter",
+      LCI95 > 0 ~ "Longer",
+      UCI95 < 0 ~ "Stouter",
       TRUE      ~ "Not significant"
     ),
     Call = factor(Call, levels = sig_levels)) %>%
@@ -132,22 +135,23 @@ build_significance_plot <- function(df_panel) {
 # Assemble --------------------------------------------------------------
 # 2x2 patchwork: boxplot (magnitude/rank order, 2/3 width) + stacked bar (95%-CI
 # significance call, 1/3 width) per direction. axes = "collect_x" drops the top
-# row's repeated method labels; guides = "collect" pulls the two legends up top.
-# patchwork aligns the panel regions, so the Bergmann's (top) and Inverse
-# Bergmann's (bottom) data panels come out the same size on their own.
+# row's repeated method labels. Guides are NOT collected: the Bergmann's-row
+# boxplot keeps the dataset (colour) legend above the boxplot column and the
+# Bergmann's-row stacked bar keeps the significance-call (fill) legend above the
+# bar column; the Inverse Bergmann's plots suppress both. patchwork still aligns
+# the panel regions, so the two data panels come out the same size.
 df_berg <- parms_all %>% filter(Direction == "Bergmann's")
 df_inv  <- parms_all %>% filter(Direction == "Inverse Bergmann's")
 
-# Only the Bergmann's row carries the legends; the Inverse Bergmann's plots
-# suppress theirs so guides = "collect" gathers exactly one of each.
 combined <-
   (build_direction_plot(df_berg, "Bergmann's") + labs(tag = "a")) +
   build_significance_plot(df_berg) +
   (build_direction_plot(df_inv, "Inverse Bergmann's") + labs(tag = "b") + guides(color = "none")) +
   (build_significance_plot(df_inv) + guides(fill = "none")) +
-  plot_layout(ncol = 2, widths = c(2, 1),
-              guides = "collect", axes = "collect_x") &
+  plot_layout(ncol = 2, widths = c(2, 1), axes = "collect_x") &
   theme(legend.position = "top",
+        legend.text     = element_text(size = 9),
+        legend.key.size = unit(0.4, "cm"),
         plot.tag = element_text(size = 11, face = "bold"))
 
 combined
