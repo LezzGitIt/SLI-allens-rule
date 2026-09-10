@@ -138,7 +138,7 @@ sma_intercept <- mean(Ex_df_hypo_hyper$Append_log) - sma_slope * mean(Ex_df_hypo
 iso_slope     <- 1 / 3
 iso_intercept <- mean(Ex_df_hypo_hyper$Append_log) - iso_slope * mean(Ex_df_hypo_hyper$Mass_log)
 
-# Model-predicted phenotype for an individual experiencing a representative amount of
+# Expected phenotype for an individual experiencing a representative amount of
 # warming (temp_target), used as the shared anchor for both component arrows and the
 # marked point below -- rather than an empirical top-quantile average, this ties the
 # whole decomposition to one specific, clearly-stated predicted individual.
