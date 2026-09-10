@@ -180,7 +180,7 @@ Spp_keep2 <- Spp_keep %>%
       n_sig == 2 & mass_dir == "N" & wing_dir == "N"     ~ "Bergmann's",
       n_sig == 2 & mass_dir == "Y" & wing_dir == "Y"     ~ "Inverse Bergmann's",
       n_sig == 2 & mass_dir == "N" & wing_dir == "Y"     ~ "Mixed - Wingier",
-      n_sig == 2 & mass_dir == "Y" & wing_dir == "N"     ~ "Mixed - Fatter",
+      n_sig == 2 & mass_dir == "Y" & wing_dir == "N"     ~ "Mixed - Stouter",
       TRUE ~ "Check"
     )
   )
@@ -475,7 +475,7 @@ parms_df_p <- parms_df %>%
          species  = str_replace(species_, "_", " ")) %>%
   filter(std.error < .5)
 
-direction_order  <- c("Bergmann's", "Inverse Bergmann's", "Mixed - Wingier", "Mixed - Fatter", "Stable")
+direction_order  <- c("Bergmann's", "Inverse Bergmann's", "Mixed - Wingier", "Mixed - Stouter", "Stable")
 Direction_effect <- intersect(direction_order, unique(parms_df_p$Direction))
 Direction_effect <- setNames(Direction_effect, Direction_effect)
 

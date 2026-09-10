@@ -78,11 +78,11 @@ cowplot::ggdraw() + cowplot::draw_grob(lit_review_grob)
 
 # Validation of simulated species direction
 
-The main text simulates species by crossing correlations between temperature, mass, and appendage length; whether a given hypothetical species actually moved in its intended direction (e.g., "Fatter" species becoming relatively shorter-winged) was validated by examining the correlation between binned temperature and the SMA intercept, and species with the wrong-signed correlation were excluded from further analysis (main text, Data simulation). This validation check reflects each species' own realized (SMA-estimated) scaling relationship, not the fixed isometric anchor used to define the main text's ground truth (main text, Effect classification). For Proportionally smaller and Proportionally larger species, whose isometric-relative effect is exactly null by design, this means the SMA-intercept correlation is *not* expected to be centered on zero: guaranteeing an exactly null isometric-relative effect for these species necessarily requires $\rho_{13} \neq \rho_{23}$ (main text, Effect classification), and it is exactly that differential correlation the SMA-intercept check picks up — the same pathway responsible for SLI-estimated's divergence from SLI-isometry among these species (main text, Simulation performance; Proportionally larger scenario below).
+The main text simulates species by crossing correlations between temperature, mass, and appendage length; whether a given hypothetical species actually moved in its intended direction (e.g., "Stouter" species becoming relatively shorter-winged) was validated by examining the correlation between binned temperature and the SMA intercept, and species with the wrong-signed correlation were excluded from further analysis (main text, Data simulation). This validation check reflects each species' own realized (SMA-estimated) scaling relationship, not the fixed isometric anchor used to define the main text's ground truth (main text, Effect classification). For Proportionally smaller and Proportionally larger species, whose isometric-relative effect is exactly null by design, this means the SMA-intercept correlation is *not* expected to be centered on zero: guaranteeing an exactly null isometric-relative effect for these species necessarily requires $\rho_{13} \neq \rho_{23}$ (main text, Effect classification), and it is exactly that differential correlation the SMA-intercept check picks up — the same pathway responsible for SLI-estimated's divergence from SLI-isometry among these species (main text, Simulation performance; Proportionally larger scenario below).
 
 ```{r}
 #| label: fig-cor-allometry-values
-#| fig-cap: "Correlation between binned temperature and the SMA intercept (a proxy for each species' own realized scaling relationship, not the isometric ground truth used elsewhere in this paper) for every simulated species, used to validate that Fatter and Longer species moved in their intended direction. Fatter species should show a negative correlation and Longer species a positive correlation. Proportionally smaller and Proportionally larger species are not expected to straddle zero here, despite having an exactly null isometric-relative effect by design (see main text); species falling on the wrong side of zero for their category (e.g., points above the dashed line for Fatter species) were excluded from further analysis, an exclusion rule that was not applied to the Proportionally smaller/larger categories. Point shape distinguishes models fit with a fixed slope ('No interaction') from models allowing the slope to vary with temperature ('Interaction'); point size indicates allometric scaling category and colour indicates the strength of the difference between temperature's effect on appendage length and mass."
+#| fig-cap: "Correlation between binned temperature and the SMA intercept (a proxy for each species' own realized scaling relationship, not the isometric ground truth used elsewhere in this paper) for every simulated species, used to validate that Stouter and Longer species moved in their intended direction. Stouter species should show a negative correlation and Longer species a positive correlation. Proportionally smaller and Proportionally larger species are not expected to straddle zero here, despite having an exactly null isometric-relative effect by design (see main text); species falling on the wrong side of zero for their category (e.g., points above the dashed line for Stouter species) were excluded from further analysis, an exclusion rule that was not applied to the Proportionally smaller/larger categories. Point shape distinguishes models fit with a fixed slope ('No interaction') from models allowing the slope to vary with temperature ('Interaction'); point size indicates allometric scaling category and colour indicates the strength of the difference between temperature's effect on appendage length and mass."
 #| fig-width: 8
 #| fig-height: 6
 #| fig-pos: 'H'
@@ -230,7 +230,7 @@ The simulated data reproduce the empirical pattern and clarify its mechanism. **
 
 # Proportionally larger scenario: simulated analogue of Inverse Bergmann's responses
 
-The main text simulation compares six methods for estimating relative appendage length across three realizations of Bergmann's rule (Fatter, Proportionally smaller, Longer), in which body mass never increases with warming. Here I additionally simulated a **Proportionally larger** scenario — the mirror image of Proportionally smaller, in which temperature increases wing length and body mass with equal, not differential, pull ($b \in \{0.22, 0.33, 0.44\}$, $\rho_{12} \in \{0.3, 0.45, 0.6\}$, $\rho_{13}$ solved from $\rho_{23} \in \{0.15, 0.3, 0.5, 0.7\}$ so the true isometric-relative effect is exactly null; main text, Effect classification; 36 simulated species). Because the true effect is exactly zero for every species in this design, an unbiased method should classify exactly half of Proportionally larger species as becoming relatively longer, matching the true value of `r Bigger_longer_pct`%. This scenario is the simulated analogue of empirically observed **Inverse Bergmann's** responses (main text classification table), in which mass, wing length, or both increase with warming.
+The main text simulation compares six methods for estimating relative appendage length across three realizations of Bergmann's rule (Stouter, Proportionally smaller, Longer), in which body mass never increases with warming. Here I additionally simulated a **Proportionally larger** scenario — the mirror image of Proportionally smaller, in which temperature increases wing length and body mass with equal, not differential, pull ($b \in \{0.22, 0.33, 0.44\}$, $\rho_{12} \in \{0.3, 0.45, 0.6\}$, $\rho_{13}$ solved from $\rho_{23} \in \{0.15, 0.3, 0.5, 0.7\}$ so the true isometric-relative effect is exactly null; main text, Effect classification; 36 simulated species). Because the true effect is exactly zero for every species in this design, an unbiased method should classify exactly half of Proportionally larger species as becoming relatively longer, matching the true value of `r Bigger_longer_pct`%. This scenario is the simulated analogue of empirically observed **Inverse Bergmann's** responses (main text classification table), in which mass, wing length, or both increase with warming.
 
 ```{r}
 #| label: fig-bigger-compare
@@ -249,15 +249,15 @@ Parms_tbl4_bigger %>%
   theme(axis.text.x = element_text(size = 10, vjust = .58, angle = 55))
 ```
 
-The pattern mirrors, and inverts, the classical biases described in the main text. Because mass now increases rather than decreases with temperature, the ratio approach's denominator grows instead of shrinking: only `r Ratio_bigger_pos`% of Proportionally larger species (versus the true proportion of `r Bigger_longer_pct`%) were classified as becoming relatively longer — the opposite-direction analogue of the ratio's upward bias in shrinking (Bergmann's) species. Multiple regression and OLS residuals show the mirror-image error: `r Ryding_bigger_pos`% of Proportionally larger species were classified as becoming relatively longer despite the complete absence of a true shape signal, reflecting the same attenuation mechanism described in the main text, reinforcing rather than opposing the (null) signal because mass is increasing rather than decreasing. SLI-isometry showed a smaller, but still real, bias toward classifying Proportionally larger species as relatively fatter (`r Sli.iso_bigger_pos`%, versus the true `r Bigger_longer_pct`%), while SLI-estimated (`r Sli.est_bigger_pos`%) deviated further from the true proportion — the same pattern, and for the same structural reason, as in the Proportionally smaller scenario (main text, Simulation performance): forcing the isometric-relative true effect to exactly zero necessarily opens a real differential-correlation pathway that SLI-estimated, but not SLI-isometry, is structurally sensitive to. Accounting for uncertainty makes the gap between the two SLI variants decisive: a 95% confidence interval correctly included zero for `r Sli.iso_bigger_null_correct`% of Proportionally larger species under SLI-isometry, against `r Sli.est_bigger_null_correct`% under SLI-estimated and `r Ratio_bigger_null_correct`–`r Ryding_bigger_null_correct`% for the four non-SLI methods — matching the main text's Proportionally smaller result almost exactly. This is based on a comparatively modest sample of 36 simulated species.
+The pattern mirrors, and inverts, the classical biases described in the main text. Because mass now increases rather than decreases with temperature, the ratio approach's denominator grows instead of shrinking: only `r Ratio_bigger_pos`% of Proportionally larger species (versus the true proportion of `r Bigger_longer_pct`%) were classified as becoming relatively longer — the opposite-direction analogue of the ratio's upward bias in shrinking (Bergmann's) species. Multiple regression and OLS residuals show the mirror-image error: `r Ryding_bigger_pos`% of Proportionally larger species were classified as becoming relatively longer despite the complete absence of a true shape signal, reflecting the same attenuation mechanism described in the main text, reinforcing rather than opposing the (null) signal because mass is increasing rather than decreasing. SLI-isometry showed a smaller, but still real, bias toward classifying Proportionally larger species as relatively stouter (`r Sli.iso_bigger_pos`%, versus the true `r Bigger_longer_pct`%), while SLI-estimated (`r Sli.est_bigger_pos`%) deviated further from the true proportion — the same pattern, and for the same structural reason, as in the Proportionally smaller scenario (main text, Simulation performance): forcing the isometric-relative true effect to exactly zero necessarily opens a real differential-correlation pathway that SLI-estimated, but not SLI-isometry, is structurally sensitive to. Accounting for uncertainty makes the gap between the two SLI variants decisive: a 95% confidence interval correctly included zero for `r Sli.iso_bigger_null_correct`% of Proportionally larger species under SLI-isometry, against `r Sli.est_bigger_null_correct`% under SLI-estimated and `r Ratio_bigger_null_correct`–`r Ryding_bigger_null_correct`% for the four non-SLI methods — matching the main text's Proportionally smaller result almost exactly. This is based on a comparatively modest sample of 36 simulated species.
 
 # Robustness check: anchoring the ground truth to OLS instead of SMA
 
-The main text anchors "isometric" (0.33) to the SMA scale (main text, Approach classification), matching SLI's own error-in-both-variables logic. As a check on how much that choice matters, I recomputed an alternative ground truth anchored to the OLS scale instead: $\beta_{OLS} = \rho_{12} \cdot \beta_{SMA}$ and $\beta_{T,OLS} = \rho_{13} \cdot \beta_{OLS} - 0.33 \cdot \rho_{23}$, then re-scored all six methods' sign-agreement against it among Longer and Fatter species (Proportionally smaller/larger are excluded here, as in the main text's calibration scatter (main text, Simulation performance), since their isometric-relative effect is exactly null by design and so has no signed value to agree or disagree with under either anchor).
+The main text anchors "isometric" (0.33) to the SMA scale (main text, Approach classification), matching SLI's own error-in-both-variables logic. As a check on how much that choice matters, I recomputed an alternative ground truth anchored to the OLS scale instead: $\beta_{OLS} = \rho_{12} \cdot \beta_{SMA}$ and $\beta_{T,OLS} = \rho_{13} \cdot \beta_{OLS} - 0.33 \cdot \rho_{23}$, then re-scored all six methods' sign-agreement against it among Longer and Stouter species (Proportionally smaller/larger are excluded here, as in the main text's calibration scatter (main text, Simulation performance), since their isometric-relative effect is exactly null by design and so has no signed value to agree or disagree with under either anchor).
 
 ```{r}
 #| label: tbl-ols-anchor
-#| tbl-cap: "Sign-agreement of each method's estimated coefficient against the adopted (SMA-anchored) ground truth versus an alternative OLS-anchored ground truth, among Longer and Fatter species."
+#| tbl-cap: "Sign-agreement of each method's estimated coefficient against the adopted (SMA-anchored) ground truth versus an alternative OLS-anchored ground truth, among Longer and Stouter species."
 #| tbl-pos: 'H'
 
 knitr::kable(Ols_anchor_summary_tbl, format = "latex", booktabs = TRUE, linesep = "") %>%
@@ -268,7 +268,7 @@ SLI-isometry's agreement drops sharply (`r Sliiso_pct_sma`% to `r Sliiso_pct_ols
 
 ```{r}
 #| label: fig-calibration-ols
-#| fig-cap: "The main text's per-species calibration scatter (main text, Simulation performance) recreated with the ground truth anchored to OLS instead of SMA (x-axis: the OLS-anchored true effect), among Longer and Fatter species. Same species and estimated coefficients as the main text figure; only the definition of the true value has moved."
+#| fig-cap: "The main text's per-species calibration scatter (main text, Simulation performance) recreated with the ground truth anchored to OLS instead of SMA (x-axis: the OLS-anchored true effect), among Longer and Stouter species. Same species and estimated coefficients as the main text figure; only the definition of the true value has moved."
 #| fig-width: 9
 #| fig-height: 6.5
 #| fig-pos: 'H'
@@ -299,7 +299,7 @@ which varies species to species (it depends on each species' own $\beta_{SMA}$ a
 
 ```{r}
 #| label: fig-sli-iso-rescale
-#| fig-cap: "SLI-isometry's fitted coefficient against the ground truth, raw (left) and variance-corrected (right; main text, Effect classification and this section). Longer, Fatter, and Proportionally smaller species, matching the main text's calibration scatter; the dashed line is 1:1, not a fitted trend."
+#| fig-cap: "SLI-isometry's fitted coefficient against the ground truth, raw (left) and variance-corrected (right; main text, Effect classification and this section). Longer, Stouter, and Proportionally smaller species, matching the main text's calibration scatter; the dashed line is 1:1, not a fitted trend."
 #| fig-width: 8
 #| fig-height: 4.5
 #| fig-pos: 'H'
@@ -562,7 +562,7 @@ n_inv_bergs_supp <- n_distinct(parms_inv_bergmanns$species)
 # rightmost entries, regardless of how many species columns the panels themselves need.
 fig_width_species <- max(8, n_bergs_supp * 0.13)
 
-fig_cap_empirical_species <- glue::glue("Per-species detail underlying Figure 5 (main text): estimated effect ($\\hat{{\\beta}}$) of the gradient of interest on relative wing length across three empirical avian datasets (Nightjars: red labels; North American migrants: blue labels; Atlantic Forest birds: green labels), grouped by direction of body size change: (a) Bergmann's ($n$ = {n_bergs_supp} species) and (b) Inverse Bergmann's ($n$ = {n_inv_bergs_supp} species). Only species with a significant ($p < 0.05$) mass or wing response are shown. Points are mean parameter estimates ($\\hat{{\\beta}}$) and error bars are 95% confidence intervals. The y-axis label matches Figure 3's (main text) to indicate that both figures show the same quantity, temperature's estimated effect on relative appendage length. A positive slope indicates birds become relatively longer with increasing temperature (or through time). A negative slope indicates they become relatively fatter. Asterisks mark species for which the rank order is consistent with simulation results (Bergmann's: Ratio > SLI > OLS; Inverse Bergmann's: Ratio < SLI < OLS).")
+fig_cap_empirical_species <- glue::glue("Per-species detail underlying Figure 5 (main text): estimated effect ($\\hat{{\\beta}}$) of the gradient of interest on relative wing length across three empirical avian datasets (Nightjars: red labels; North American migrants: blue labels; Atlantic Forest birds: green labels), grouped by direction of body size change: (a) Bergmann's ($n$ = {n_bergs_supp} species) and (b) Inverse Bergmann's ($n$ = {n_inv_bergs_supp} species). Only species with a significant ($p < 0.05$) mass or wing response are shown. Points are mean parameter estimates ($\\hat{{\\beta}}$) and error bars are 95% confidence intervals. The y-axis label matches Figure 3's (main text) to indicate that both figures show the same quantity, temperature's estimated effect on relative appendage length. A positive slope indicates birds become relatively longer with increasing temperature (or through time). A negative slope indicates they become relatively stouter. Asterisks mark species for which the rank order is consistent with simulation results (Bergmann's: Ratio > SLI > OLS; Inverse Bergmann's: Ratio < SLI < OLS).")
 ```
 
 ```{r}
@@ -589,9 +589,9 @@ plot_grid(
 )
 ```
 
-# Mixed - Wingier and Mixed - Fatter empirical species
+# Mixed - Wingier and Mixed - Stouter empirical species
 
-In addition to the Bergmann's and Inverse Bergmann's species reported in the main text (Empirical case studies section), some species in the empirical datasets showed **Mixed - Wingier** responses: wing length increasing while body mass decreased, so that Allen's and Bergmann's rules reinforce one another. This is the empirical analogue of the simulated species whose mass and wing responses combine most strongly to produce an unambiguously longer relative appendage. A single Atlantic Forest species showed the opposite **Mixed - Fatter** response (wing length decreasing while body mass increased; main text species-accounting table).
+In addition to the Bergmann's and Inverse Bergmann's species reported in the main text (Empirical case studies section), some species in the empirical datasets showed **Mixed - Wingier** responses: wing length increasing while body mass decreased, so that Allen's and Bergmann's rules reinforce one another. This is the empirical analogue of the simulated species whose mass and wing responses combine most strongly to produce an unambiguously longer relative appendage. A single Atlantic Forest species showed the opposite **Mixed - Stouter** response (wing length decreasing while body mass increased; main text species-accounting table).
 
 ```{r}
 #| label: load-mixed-data
@@ -624,7 +624,7 @@ build_mixed_plot <- function(df_panel, show_legend = FALSE) {
     scale_color_hue(labels = approach_labs) +
     scale_shape_manual(values = shape_scale, drop = FALSE) +
     ## Extra top/bottom headroom (vs. ggplot's 5% default) so a narrow-range panel
-    ## (e.g. the single-species Mixed-Fatter panel) doesn't read as clipped -- the
+    ## (e.g. the single-species Mixed-Stouter panel) doesn't read as clipped -- the
     ## dashed zero line sitting flush against the plot border looks like missing
     ## data rather than the panel's natural range.
     scale_y_continuous(expand = expansion(mult = 0.15)) +
@@ -640,12 +640,12 @@ build_mixed_plot <- function(df_panel, show_legend = FALSE) {
 }
 
 parms_wingier <- load_direction("Mixed - Wingier")
-parms_fatter  <- load_direction("Mixed - Fatter")
+parms_fatter  <- load_direction("Mixed - Stouter")
 
 n_mixed_wingier <- n_distinct(parms_wingier$species)
 n_mixed_fatter  <- n_distinct(parms_fatter$species)
 
-fig_cap_mixed <- glue::glue("Estimated effect of the gradient of interest on relative wing length across three empirical datasets (Nightjars — red labels; North American migratory birds — blue labels; Atlantic Forest birds — green labels): (a) Mixed - Wingier species (wing length increasing while body mass decreased; $n$ = {n_mixed_wingier}) and (b) Mixed - Fatter species (wing length decreasing while body mass increased; $n$ = {n_mixed_fatter}). Only species with a significant ($p < 0.05$) mass or wing response are shown. Points are mean parameter estimates; error bars are 95% confidence intervals.")
+fig_cap_mixed <- glue::glue("Estimated effect of the gradient of interest on relative wing length across three empirical datasets (Nightjars — red labels; North American migratory birds — blue labels; Atlantic Forest birds — green labels): (a) Mixed - Wingier species (wing length increasing while body mass decreased; $n$ = {n_mixed_wingier}) and (b) Mixed - Stouter species (wing length decreasing while body mass increased; $n$ = {n_mixed_fatter}). Only species with a significant ($p < 0.05$) mass or wing response are shown. Points are mean parameter estimates; error bars are 95% confidence intervals.")
 ```
 
 ```{r}
@@ -668,7 +668,7 @@ mixed_panels <- plot_grid(p_wingier, p_fatter, labels = c("a", "b"), label_size 
 plot_grid(shared_legend_mixed, mixed_panels, ncol = 1, rel_heights = c(0.08, 1))
 ```
 
-Across `r n_mixed_wingier` Mixed - Wingier species (panel a), the rank-order pattern among methods is visibly more variable than for Bergmann's or Inverse Bergmann's species (main text Empirical case studies section), consistent with the absence of a clear rank-order signal in the analogous simulated scenarios (main text, Simulation performance). The single Mixed - Fatter species (panel b) is shown for completeness; with only one species, no rank-order pattern can be assessed.
+Across `r n_mixed_wingier` Mixed - Wingier species (panel a), the rank-order pattern among methods is visibly more variable than for Bergmann's or Inverse Bergmann's species (main text Empirical case studies section), consistent with the absence of a clear rank-order signal in the analogous simulated scenarios (main text, Simulation performance). The single Mixed - Stouter species (panel b) is shown for completeness; with only one species, no rank-order pattern can be assessed.
 
 # Stable empirical species
 

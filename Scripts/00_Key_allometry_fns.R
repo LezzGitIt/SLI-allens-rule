@@ -380,7 +380,7 @@ classify_direction <- function(mods_tbl, p_threshold = 0.05,
         n_sig == 2 &  mass_dir & !wing_dir     ~ "Bergmann's",
         n_sig == 2 & !mass_dir &  wing_dir     ~ "Inverse Bergmann's",
         n_sig == 2 &  mass_dir &  wing_dir     ~ "Mixed - Wingier",
-        n_sig == 2 & !mass_dir & !wing_dir     ~ "Mixed - Fatter",
+        n_sig == 2 & !mass_dir & !wing_dir     ~ "Mixed - Stouter",
         TRUE ~ "Check"
       )
     ) %>%

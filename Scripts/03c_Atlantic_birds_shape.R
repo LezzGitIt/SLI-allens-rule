@@ -205,7 +205,7 @@ Spp_keep2 <- Spp_keep %>%
       n_sig == 2 & mass_dir == "Y" & wing_dir == "Y"     ~ "Bergmann's",
       n_sig == 2 & mass_dir == "N" & wing_dir == "N"     ~ "Inverse Bergmann's",
       n_sig == 2 & mass_dir == "Y" & wing_dir == "N"     ~ "Mixed - Wingier",
-      n_sig == 2 & mass_dir == "N" & wing_dir == "Y"     ~ "Mixed - Fatter",
+      n_sig == 2 & mass_dir == "N" & wing_dir == "Y"     ~ "Mixed - Stouter",
       TRUE ~ "Check"
     )
   )
@@ -508,7 +508,7 @@ parms_df_p <- parms_df %>%
 
 shape_scale <- c("Both" = 15, "Mass" = 16, "Neither" = 17, "Wing" = 18, "Tarsus" = 19)
 
-direction_order  <- c("Bergmann's", "Inverse Bergmann's", "Mixed - Wingier", "Mixed - Fatter", "Stable")
+direction_order  <- c("Bergmann's", "Inverse Bergmann's", "Mixed - Wingier", "Mixed - Stouter", "Stable")
 Direction_effect <- intersect(direction_order, unique(Spp_metadata2$Direction))
 Direction_effect <- setNames(Direction_effect, Direction_effect)
 
@@ -548,7 +548,7 @@ plot_shape <- function(df, title = NULL, legend = TRUE, drop_y = FALSE) {
 
 Shape_plots <- imap(Direction_effect, \(direction, name) {
   parms_filt <- parms_df_p %>% filter(Direction == direction)
-  drop_y     <- direction %in% c("Inverse Bergmann's", "Mixed - Wingier", "Mixed - Fatter")
+  drop_y     <- direction %in% c("Inverse Bergmann's", "Mixed - Wingier", "Mixed - Stouter")
   plot_shape(df = parms_filt, title = name, drop_y = drop_y) 
 })
 

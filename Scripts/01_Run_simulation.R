@@ -27,8 +27,8 @@ r_23     <- r_13
 b_avg_12 <- c(0.22, 0.33, 0.44)
 
 # Parameter matrix ------------------------------------------------------------
-# Main grid: Longer / Fatter / Proportionally smaller -- three realizations of Bergmann's rule (temperature never increases mass or appendage length).
-Shape <- c("Longer", "Proportionally smaller", "Fatter")
+# Main grid: Longer / Stouter / Proportionally smaller -- three realizations of Bergmann's rule (temperature never increases mass or appendage length).
+Shape <- c("Longer", "Proportionally smaller", "Stouter")
 Shape <- setNames(Shape, Shape)
 
 Parms_mat <- expand_grid(
@@ -40,9 +40,9 @@ Parms_mat <- expand_grid(
   mutate(
     # Population SMA slope of Append~Mass implied by b_avg_12 (average of OLS + SMA slope) and r_12.
     true_b_sma = 2 * b_avg_12 / (r_12 + 1),
-    # Flag the "Proportionally smaller" design cells before r_13 is solved below, so the Longer/Fatter sign logic further down stays driven by the same untouched off-diagonal rows as before -- not by re-testing beta_iso_true == 0, which also happens to hold for one coincidental off-diagonal cell (b_avg_12=0.44, r_12=0.6, r_13=-0.3, r_23=-0.5; 0.3*0.55 == 0.33*0.5).
+    # Flag the "Proportionally smaller" design cells before r_13 is solved below, so the Longer/Stouter sign logic further down stays driven by the same untouched off-diagonal rows as before -- not by re-testing beta_iso_true == 0, which also happens to hold for one coincidental off-diagonal cell (b_avg_12=0.44, r_12=0.6, r_13=-0.3, r_23=-0.5; 0.3*0.55 == 0.33*0.5).
     is_proportional = r_13 == r_23,
-    # Solve r_13 (instead of leaving it equal to r_23) so beta_iso_true = 0 exactly for every Proportionally smaller cell regardless of allometric scaling category -- r_13 = r_23 only zeroed it for Hypoallometric species; see Project_notes.md / Ground_truth_explainer.qmd "Round 7" for the derivation. Off-diagonal (Longer/Fatter) rows keep their original r_13.
+    # Solve r_13 (instead of leaving it equal to r_23) so beta_iso_true = 0 exactly for every Proportionally smaller cell regardless of allometric scaling category -- r_13 = r_23 only zeroed it for Hypoallometric species; see Project_notes.md / Ground_truth_explainer.qmd "Round 7" for the derivation. Off-diagonal (Longer/Stouter) rows keep their original r_13.
     r_13 = if_else(is_proportional, 0.33 * r_23 / true_b_sma, r_13),
     # Closed-form sign of SLI-isometry's population coefficient on temperature -- this simulation's ground truth for "true" shape change (see Project_notes.md for derivation).
     beta_iso_true = r_13 * true_b_sma - 0.33 * r_23,
@@ -82,7 +82,7 @@ Parms_big <- expand_grid(
 Parms_mat2 <- bind_rows(Parms_mat, Parms_big) %>%
   mutate(
     Temp_eff = factor(Temp_eff,
-                      levels = c("Fatter", "Proportionally smaller", "Proportionally larger", "Longer")),
+                      levels = c("Stouter", "Proportionally smaller", "Proportionally larger", "Longer")),
     Scaling = factor(Scaling,
                      levels = c("Hypoallometry", "Isometry", "Hyperallometry"))
   ) %>%
@@ -131,8 +131,8 @@ Parms_temp_bs <- sma_intercepts2 %>%
 Sim_fail <- sma_intercepts2 %>%
   left_join(sma_intercepts2) %>%
   filter(
-    Temp_eff == "Fatter"  & cor_allometry_int > -.2 |
-    Temp_eff == "Fatter"  & cor_allometry     > -.2 |
+    Temp_eff == "Stouter"  & cor_allometry_int > -.2 |
+    Temp_eff == "Stouter"  & cor_allometry     > -.2 |
     Temp_eff == "Longer"  & cor_allometry_int <  .2 |
     Temp_eff == "Longer"  & cor_allometry     <  .2
   )
@@ -222,7 +222,7 @@ x_labs <- c(
 )
 
 # Est_correct requires the whole 95% CI, not just the point estimate, to fall on the correct
-# side of zero -- a species simulated as Fatter with a negative point estimate but a CI spanning
+# side of zero -- a species simulated as Stouter with a negative point estimate but a CI spanning
 # zero does not count as correctly classified. This necessarily implies the point-estimate sign
 # is also correct (the point estimate always lies within its own CI). For Proportionally
 # smaller/larger species, the true effect is exactly 0 by construction (Effect classification),
@@ -241,7 +241,7 @@ Parms_tbl4 <- Parms_tbl3 %>%
   mutate(b_dir = if_else(b_temp_inc < 0, "Neg", "Pos")) %>%
   mutate(Est_correct = case_when(
     Temp_eff == "Longer" ~ ci_lo > 0,
-    Temp_eff == "Fatter" ~ ci_hi < 0,
+    Temp_eff == "Stouter" ~ ci_hi < 0,
     Temp_eff %in% c("Proportionally smaller", "Proportionally larger") ~ ci_lo <= 0 & ci_hi >= 0,
     .default = FALSE
   ), .by = Model)
@@ -265,9 +265,9 @@ Eval_tbl <- Parms_tbl4 %>%
   mutate(Prop_correct = round(Prop_correct, 2)) %>%
   arrange(Model)
 
-# OLS-anchored robustness check (supplementary): recompute the ground truth with 0.33 compared against an OLS-scale reference slope instead of the adopted SMA-scale one, and re-score all six methods' sign-agreement against it. See Project_notes.md / Ground_truth_explainer.qmd "Round 3" for the derivation and the SMA-vs-OLS rationale it is checking (main text, Approach classification). Restricted to Longer/Fatter, matching Eval_tbl's convention: beta_iso_true is exactly 0 for both Proportional categories under the SMA anchor by design (Effect classification), so a signed sign-agreement comparison isn't meaningful for them under that anchor.
+# OLS-anchored robustness check (supplementary): recompute the ground truth with 0.33 compared against an OLS-scale reference slope instead of the adopted SMA-scale one, and re-score all six methods' sign-agreement against it. See Project_notes.md / Ground_truth_explainer.qmd "Round 3" for the derivation and the SMA-vs-OLS rationale it is checking (main text, Approach classification). Restricted to Longer/Stouter, matching Eval_tbl's convention: beta_iso_true is exactly 0 for both Proportional categories under the SMA anchor by design (Effect classification), so a signed sign-agreement comparison isn't meaningful for them under that anchor.
 Ols_anchor_df <- Parms_tbl4 %>%
-  filter(Temp_eff %in% c("Longer", "Fatter")) %>%
+  filter(Temp_eff %in% c("Longer", "Stouter")) %>%
   mutate(Model = str_replace_all(Model, x_labs),
          b_true_ols        = r_12 * true_b_sma,
          beta_iso_true_ols = r_13 * b_true_ols - 0.33 * r_23)
@@ -312,7 +312,7 @@ Olsresid_pct_ols <- pull_ols_pct("OLS residuals",     `% correct (OLS)`)
 # never accounted for. V = Var(Append - 0.33*Mass)/sd_M^2 = true_b_sma^2 + 0.33^2 - 2*0.33*r_12*true_b_sma;
 # dividing beta_iso_true by sqrt(V) restores the missing term and should put SLI-isometry almost
 # exactly on the 1:1 line (r ~ 0.9999) against a raw r ~ 0.97 -- see Project_notes.md /
-# Ground_truth_explainer.qmd for the derivation. Scoped to Longer/Fatter/Proportionally smaller,
+# Ground_truth_explainer.qmd for the derivation. Scoped to Longer/Stouter/Proportionally smaller,
 # matching fig-eval; Proportionally smaller collapses to 0 under both the raw and rescaled versions.
 Sli_iso_rescale_df <- Parms_tbl4 %>%
   filter(Temp_eff != "Proportionally larger", Model == "Sli_iso") %>%
@@ -370,21 +370,21 @@ pull_percent_proportional <- function(Model, Direction, tbl = Proportional_metho
     pull(per_corr)
 }
 
-Sli.iso_fatter_right      <- pull_percent("Sli_iso", "Fatter")
+Sli.iso_fatter_right      <- pull_percent("Sli_iso", "Stouter")
 Sli.iso_longer_right      <- pull_percent("Sli_iso", "Longer")
 Ryding_longer_right       <- pull_percent("Ryding",  "Longer")
-Ryding_fatter_right       <- pull_percent("Ryding",  "Fatter")
+Ryding_fatter_right       <- pull_percent("Ryding",  "Stouter")
 Ratio_longer_right        <- pull_percent("Ratio",   "Longer")
-Ratio_fatter_right        <- pull_percent("Ratio",   "Fatter")
+Ratio_fatter_right        <- pull_percent("Ratio",   "Stouter")
 Sli.est_longer_right      <- pull_percent("Sli_est", "Longer")
-Sli.est_fatter_right      <- pull_percent("Sli_est", "Fatter")
+Sli.est_fatter_right      <- pull_percent("Sli_est", "Stouter")
 
-Ratio2_fatter_right       <- pull_percent("Ratio2", "Fatter")
+Ratio2_fatter_right       <- pull_percent("Ratio2", "Stouter")
 # "Wrong" here matches Est_correct's CI-based criterion (Evaluation section above), not just
 # a wrong-signed point estimate -- a right-signed point estimate whose CI includes zero also counts as wrong.
 Ratio2_fatter_wrong_n <- Parms_tbl4 %>%
-  filter(Temp_eff == "Fatter", Model == "Ratio2", !Est_correct) %>% nrow()
-Fatter_n <- Parms_tbl4 %>% filter(Temp_eff == "Fatter", Model == "Ratio2") %>% nrow()
+  filter(Temp_eff == "Stouter", Model == "Ratio2", !Est_correct) %>% nrow()
+Fatter_n <- Parms_tbl4 %>% filter(Temp_eff == "Stouter", Model == "Ratio2") %>% nrow()
 
 Sli.iso_proportional_pos  <- pull_percent_proportional("SLI isometry", "pos")
 Sli.est_proportional_pos  <- pull_percent_proportional("SLI estimated", "pos")
