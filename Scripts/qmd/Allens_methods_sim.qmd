@@ -251,16 +251,16 @@ I log-transformed all variables and then standardised to unit variance before fi
 
 ```{r}
 #| label: tbl-methods-estimands
-#| tbl-cap: "The six statistical approaches compared in this study, how each accounts for body size, the assumed relationship between mass and appendage length, and the quantity represented by the resulting measure. 'Directional' denotes the direction assumed by the statistical model, but not necessarily a causal claim."
+#| tbl-cap: "The six statistical approaches compared in this study, the scaling relationship each assumes or estimates between body mass and appendage length, whether that relationship is fixed a priori or estimated from the data, and the resulting measure of relative appendage size. 'Directional' denotes an assumed direction of the mass–appendage relationship (OLS), and 'symmetric' denotes no assumed direction (SMA); neither implies a causal claim."
 
 Methods_estimands_tbl <- tibble::tribble(
-  ~Method,                    ~`Body-size relationship`,             ~`Mass–appendage relationship`,          ~`Quantity represented`,
-  "Ratio ($A/S$)",            "$b = 1$ (fixed)",                      "Proportional relationship",        "Ratio-defined relative size",
-  "Squared ratio ($A^2/S$)",  "$b = 0.5$ (fixed)",                    "Geometric relationship",           "Surface-to-volume-inspired relative size",
-  "OLS multiple regression",  "$Appendage \\sim Mass$",       "Directional: $Mass \\rightarrow Appendage$", "Temperature effect on appendage, conditional on mass",
-  "OLS residuals",            "$Appendage \\sim Mass$",       "Directional: $Mass \\rightarrow Appendage$", "Residual appendage size after OLS adjustment",
-  "SLI-isometry",              "$b = 0.33$ (fixed)",                   "Relative to isometry",            "Appendage size relative to isometric scaling",
-  "SLI-estimated",             "Species-specific SMA slope",          "Symmetric: $Mass \\leftrightarrow Appendage$", "Appendage size relative to species-specific allometry"
+  ~Method,                    ~`Scaling relationship`,                          ~`Specification`,            ~`Relative appendage length`,
+  "Ratio ($A/S$)",            "$b = 1$",                                        "Fixed",                     "Appendage size relative to linear scaling",
+  "Squared ratio ($A^2/S$)",  "$b = 0.5$",                                      "Fixed",                     "Appendage size relative to surface-area scaling",
+  "OLS multiple regression",  "$\\hat{\\beta}_{\\mathrm{Mass}}^{\\,\\mathrm{OLS}}$, conditional on temperature", "Estimated (directional)",   "Defined in the context of the model (not standalone)",
+  "OLS residuals",            "$\\hat{\\beta}_{\\mathrm{Mass}}^{\\,\\mathrm{OLS}}$", "Estimated (directional)",   "Residual appendage size after OLS adjustment",
+  "SLI-isometry",             "$b = 0.33$",                                     "Fixed",                     "Appendage size relative to isometric scaling",
+  "SLI-estimated",            "$\\hat{\\beta}_{\\mathrm{Mass}}^{\\,\\mathrm{SMA}}$", "Estimated (symmetric)",     "Appendage size relative to species-specific allometry"
 )
 
 knitr::kable(Methods_estimands_tbl, format = "latex", align = "c", booktabs = TRUE, escape = FALSE, linesep = "") %>%
