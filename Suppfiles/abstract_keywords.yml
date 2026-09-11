@@ -3,11 +3,18 @@ abstract: |
 
  Aims: I characterize what quantity each of six common statistical approaches, including a newly introduced Standardized Length Index (SLI), estimates when applied to simulated temperature-associated shape change, and how each approach's implicit or explicit assumptions shape that estimate.
 
- Methods: I simulated morphological data for 252 hypothetical species drawn from a multivariate normal distribution, varying appendage-mass correlation, allometric scaling slope, and the direction of temperature's effect on shape. Each dataset was analysed with two ratio approaches, two multiple regression approaches, and two versions of the SLI, one using an isometric scaling exponent ($b_{SLI} = 0.33$) and one using the empirically estimated slope. I also confronted the six methods with empirical data from 119 species and three independent datasets collected across spatial and temporal temperature gradients.
+ Methods: I simulated morphological data for 252 hypothetical species drawn from a multivariate normal distribution, varying appendage-mass correlation, allometric scaling slope, and the direction of temperature's effect on shape. Each dataset was analysed with two ratio approaches, two multiple regression approaches, and two versions of the SLI, one using an isometric scaling exponent ($b_{SLI} = 0.33$) and one using the empirically estimated slope. I also applied the six methods to three empirical datasets containing 119 species sampled across spatial and temporal temperature gradients.
 
  Results: Methods define relative appendage length against different reference relationships and consequently estimate different quantities. Ratio methods and OLS-based approaches (multiple regression, residual regression) diverged systematically and in opposite directions from an isometrically-defined reference quantity: ratio methods diverged positively, whereas OLS-based approaches diverged negatively. SLI-isometry tracked the isometric reference quantity closely, as expected given their shared theoretical basis, whereas SLI-estimated diverged from it whenever a species' own allometric scaling departed from isometry. Thus, the two SLI parameterizations define distinct quantities rather than representing competing estimators of a single quantity. The same rank-order pattern of systematic divergence among methods was reproduced across three independent empirical datasets.
 
  Main conclusions: Statistical approaches used in addressing Allen’s rule estimate different quantities of relative appendage length, and ultimately, can impact conclusions regarding adherence to Allen's rule. No single approach provides a universally ‘correct’ measure of relative appendage change. Instead, the appropriate approach depends on the biological question being asked and the assumptions made about how body size, appendage length, and temperature are related. The SLI offers two alternatives to ratio and OLS-based approaches, with parameterizations anchored either to isometry or to a species' own empirical scaling, each corresponding to a distinct question about relative appendage change. Both SLI parameterizations are implemented in a single function call in R.`\par`{=latex}
-keywords: 
-  - Allen's rule, Bergmann's rule, ecogeography, multiple regression, ratios, relative appendage length, review, standardized length index, standardized major axis regression, thermoregulation
-  
+keywords:
+  - Allen's rule
+  - Bergmann's rule
+  - ecogeography
+  - multiple regression
+  - ratios
+  - relative appendage length
+  - standardized length index
+  - standardized major axis regression
+
