@@ -12,6 +12,8 @@
 
 library(tidyverse)
 library(janitor)
+library(cowplot)
+ggplot2::theme_set(theme_cowplot())
 
 # Lit review formatting ---------------------------------------------------
 
