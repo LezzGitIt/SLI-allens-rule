@@ -30,9 +30,14 @@ Suppfiles/style-guide/
 # Untracked manuscripts (present locally, not version-controlled)
 Scripts/qmd/Recs_allens.qmd
 Scripts/qmd/SMA_body_shape_methods_reduced.qmd
+Scripts/qmd/Simulation_math_summary.qmd
+
+# Reviewer/collaborator feedback (personal working copies, not for circulation)
+Feedback/
 
 # Local working notes (session log for AI-assisted development, not the science itself)
 Project_notes.md
+Project_notes_archive.md
 
 # Personal working doc, not for publication or circulation
 Scripts/qmd/Ground_truth_explainer.qmd
