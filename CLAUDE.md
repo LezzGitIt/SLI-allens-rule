@@ -36,8 +36,8 @@ Must be sourced before running most other scripts. Key functions:
 ### Main manuscript (`Scripts/qmd/Allens_methods_sim.qmd`)
 Simulation study comparing six approaches for estimating relative appendage length along a temperature gradient. Approaches: Ratio, Ratio2, Mass-as-covariate (Ryding), OLS residuals, SLI-isometry, SLI-estimated.
 
-### Conceptual figure (`Scripts/04a_SLI_concept_figure.R`)
-Builds Figure 3 (main text, Methods): panel (a) the general SLI mechanism on an independent illustrative dataset, panel (b) the two-pathways decomposition on a simulated example species from `simulation_results.rds`. Saves `Figures/SLI_concept.png` (embedded in the manuscript via `png::readPNG()`, matching `04b_Empirical_combined.R`'s pattern) and `Derived/Rds/Ex_df_hypo_hyper.rds` (the panel-(b) example species, reused by `fig-ols-sma` later in the Discussion).
+### Conceptual figures (`Scripts/04a_Concept_figures.R`)
+Builds two conceptual figures. Figure 3 (main text, Methods): panel (a) the general SLI mechanism on an independent illustrative dataset, panel (b) the two-pathways decomposition on a simulated example species from `simulation_results.rds`. Saves `Figures/SLI_concept.png` (embedded in the manuscript via `png::readPNG()`, matching `04b_Empirical_combined.R`'s pattern) and `Derived/Rds/Ex_df_hypo_hyper.rds` (the panel-(b) example species, reused by `fig-ols-sma` later in the Discussion). Also builds the Box 1 figure (Introduction, "Building intuition for SMA regression"): OLS vs. SMA regression under a flip of the X/Y axes, using real Whip-poor-will mass/wing-chord measurements from `Data/Capri_BA_compare03.29.26.csv`. Saves `Figures/sma_flip_axes.png` (embedded via a markdown image, not a live chunk).
 
 ### Simulation script (`Extra_scripts/Allometric_scaling_simulation.R`)
 Exploratory script for SMA vs OLS slope behaviour under different error structures. Kept in `Extra_scripts/` alongside the superseded `SMA_body_shape_methods.qmd` (see README.md) since neither is part of the numbered reproducibility pipeline.

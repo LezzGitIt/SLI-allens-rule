@@ -33,6 +33,26 @@ format_temp <- function(df){
 }
 ?cut_number # Consider cut_number to make groups with equal number of individuals
 
+# Spell out a small integer (0-99) as a capitalized English word, for inline reporting
+# where a live `r`-computed value happens to start a sentence (numerals shouldn't open
+# a sentence in running prose, but the value itself should stay reproducible rather
+# than being hardcoded as a literal word).
+number_to_word <- function(n) {
+  stopifnot(n >= 0, n <= 99, n == round(n))
+  ones <- c("zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
+            "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen",
+            "seventeen", "eighteen", "nineteen")
+  tens <- c("twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety")
+  word <- if (n < 20) {
+    ones[n + 1]
+  } else {
+    remainder <- n %% 10
+    ten_word <- tens[(n %/% 10) - 1]
+    if (remainder == 0) ten_word else paste0(ten_word, "-", ones[remainder + 1])
+  }
+  paste0(toupper(substring(word, 1, 1)), substring(word, 2))
+}
+
 ## Generate data (on the log-scale) using var-cov matrix
 # Specify measurement error and transient 'error'
 ### Now a thin wrapper over sliR::sim_allometric(). Arguments and output columns are unchanged, so every call site still works. Temperature is drawn as a normal gradient, matching the multivariate-normal draw this function used to do; sliR's own default gradient is uniform.

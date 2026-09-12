@@ -21,8 +21,9 @@ Scripts/
   03a_Nightjar_shape.R          # Empirical case study: Caprimulgidae
   03b_Weeks_2020_ral.R          # Empirical case study: Weeks et al. (2020)
   03c_Atlantic_birds_shape.R    # Empirical case study: Atlantic Forest birds
-  04a_SLI_concept_figure.R      # Builds Figure 3 (SLI mechanism + two-pathways decomposition);
-                                 # saves Figures/SLI_concept.png and Derived/Rds/Ex_df_hypo_hyper.rds
+  04a_Concept_figures.R         # Builds Figure 3 (SLI mechanism + two-pathways decomposition) and the
+                                 # Box 1 SMA-vs-OLS flip-axes figure; saves Figures/SLI_concept.png,
+                                 # Figures/sma_flip_axes.png, and Derived/Rds/Ex_df_hypo_hyper.rds
   04b_Empirical_combined.R      # Combined empirical figure
 
 Extra_scripts/                  # Exploratory/superseded material, not part of the numbered pipeline
@@ -50,7 +51,7 @@ source("Scripts/02_Lit_review.R")
 source("Scripts/03a_Nightjar_shape.R")
 source("Scripts/03b_Weeks_2020_ral.R")
 source("Scripts/03c_Atlantic_birds_shape.R")
-source("Scripts/04a_SLI_concept_figure.R")
+source("Scripts/04a_Concept_figures.R")
 source("Scripts/04b_Empirical_combined.R")
 ```
 

@@ -1,3 +1,5 @@
+## Two conceptual figures for the manuscript:
+##
 ## Figure 3 (Methods): The Standardized Length Index (SLI), adapted from the Scaled Mass
 ## Index (Peig & Green 2009).
 ## (a) General SLI mechanism, illustrated with an independent hypothetical dataset (not
@@ -7,10 +9,15 @@
 ## Saves the combined figure to Figures/SLI_concept.png (embedded in Allens_methods_sim.qmd)
 ## and the panel-(b) example species to Derived/Rds/Ex_df_hypo_hyper.rds, so fig-ols-sma
 ## (Discussion) can reuse the same species without regenerating it.
+##
+## Box 1 (Introduction, "Building intuition for SMA regression"): OLS vs. SMA regression
+## under a flip of the X/Y axes, using real Whip-poor-will mass/wing-chord measurements.
+## Saves Figures/sma_flip_axes.png (embedded via markdown image in Allens_methods_sim.qmd).
 
 library(tidyverse)
 library(cowplot)
 library(smatr)
+library(grid)
 ggplot2::theme_set(theme_cowplot())
 
 source("Scripts/00_Key_allometry_fns.R")
@@ -231,4 +238,96 @@ Sli_concept_combined
 ggsave("Figures/SLI_concept.png", Sli_concept_combined,
        width = 13, height = 5.7, units = "in", dpi = 300, bg = "white")
 
-message("Saved Figures/SLI_concept.png and Derived/Rds/Ex_df_hypo_hyper.rds")
+# Box 1 figure (Introduction): OLS vs. SMA regression under a flip of the X/Y axes ------
+# Real data (not simulated): Whip-poor-will mass/wing-chord measurements from the same
+# Nightjar-family dataset used in 03a_Nightjar_shape.R. Two panels share one data table;
+# panel (a) is the natural orientation, panel (b) swaps which variable is on which axis.
+# OLS is genuinely refit with the roles swapped in panel (b) -- this is the whole point,
+# OLS changes when the axes are exchanged, SMA does not (it is the same line, algebraically
+# re-expressed). The same individual is highlighted (in green) in both panels.
+Flip_raw <- read_csv("Data/Capri_BA_compare03.29.26.csv", show_col_types = FALSE)
+Flip_df <- Flip_raw %>%
+  filter(Species == "Whip-poor-will", !is.na(Mass.comb), !is.na(Wing.comb)) %>%
+  transmute(Mass = Mass.comb, Append = Wing.comb)
+
+Flip_ols_a <- lm(Append ~ Mass, data = Flip_df)
+Flip_a_ols_a <- coef(Flip_ols_a)[1]; Flip_b_ols_a <- coef(Flip_ols_a)[2]
+Flip_r <- cor(Flip_df$Mass, Flip_df$Append)
+Flip_b_sma_a <- sign(Flip_r) * sd(Flip_df$Append) / sd(Flip_df$Mass)
+Flip_a_sma_a <- mean(Flip_df$Append) - Flip_b_sma_a * mean(Flip_df$Mass)
+
+# Highlighted individual: ~average mass (~52g, close to the sample mean) but an unusually
+# low wing length -- mirrors the box's original illustrative point (roughly central on the
+# X-axis, but far below the cloud in Y), rather than an individual extreme in both variables.
+Flip_pt <- Flip_df %>% filter(abs(Mass - 52) < 2) %>% slice_min(Append, n = 1)
+
+Flip_xrng_a <- range(Flip_df$Mass); Flip_yrng_a <- range(Flip_df$Append)
+Flip_line_a <- tibble(Mass = seq(Flip_xrng_a[1] - 3, Flip_xrng_a[2] + 3, length.out = 2)) %>%
+  mutate(OLS = Flip_a_ols_a + Flip_b_ols_a * Mass, SMA = Flip_a_sma_a + Flip_b_sma_a * Mass)
+
+Flip_panel_a <- ggplot(Flip_df, aes(Mass, Append)) +
+  geom_point(color = "grey60", alpha = 0.6, size = 2) +
+  geom_line(data = Flip_line_a, aes(y = OLS, color = "OLS"), linewidth = 1) +
+  geom_line(data = Flip_line_a, aes(y = SMA, color = "SMA"), linewidth = 1) +
+  geom_point(data = Flip_pt, color = "forestgreen", size = 4) +
+  scale_color_manual(name = NULL, values = c(OLS = "firebrick", SMA = "steelblue")) +
+  labs(x = "Mass (g)", y = "Appendage (mm)") +
+  theme_cowplot(font_size = 16) +
+  theme(legend.position = "none")
+
+# Panel (b): OLS refit with the roles swapped; SMA algebraically re-expressed (not refit).
+Flip_ols_b <- lm(Mass ~ Append, data = Flip_df)
+Flip_a_ols_b <- coef(Flip_ols_b)[1]; Flip_b_ols_b <- coef(Flip_ols_b)[2]
+Flip_b_sma_b <- 1 / Flip_b_sma_a
+Flip_a_sma_b <- -Flip_a_sma_a / Flip_b_sma_a
+
+Flip_yrng_b <- range(Flip_df$Append)
+Flip_line_b <- tibble(Append = seq(Flip_yrng_b[1] - 3, Flip_yrng_b[2] + 3, length.out = 2)) %>%
+  mutate(OLS = Flip_a_ols_b + Flip_b_ols_b * Append, SMA = Flip_a_sma_b + Flip_b_sma_b * Append)
+
+Flip_panel_b <- ggplot(Flip_df, aes(Append, Mass)) +
+  geom_point(color = "grey60", alpha = 0.6, size = 2) +
+  geom_line(data = Flip_line_b, aes(y = OLS, color = "OLS"), linewidth = 1) +
+  geom_line(data = Flip_line_b, aes(y = SMA, color = "SMA"), linewidth = 1) +
+  geom_point(data = Flip_pt, aes(x = Append, y = Mass), color = "forestgreen", size = 4) +
+  scale_color_manual(name = NULL, values = c(OLS = "firebrick", SMA = "steelblue")) +
+  labs(x = "Appendage (mm)", y = "Mass (g)") +
+  theme_cowplot(font_size = 16) +
+  theme(legend.position = "none")
+
+# Small legend, drawn manually (cowplot::get_legend() returns an empty grob under the
+# currently-installed ggplot2/cowplot combination) and positioned near panel (a)'s own
+# label rather than centered/floating at the very top. Sized to match the panels' own
+# (enlarged) font size below, not the small default.
+Flip_legend <- ggdraw() +
+  draw_line(x = c(0.08, 0.15), y = c(0.35, 0.35), color = "firebrick", linewidth = 1.3) +
+  draw_label("OLS", x = 0.165, y = 0.35, hjust = 0, size = 16) +
+  draw_line(x = c(0.28, 0.35), y = c(0.35, 0.35), color = "steelblue", linewidth = 1.3) +
+  draw_label("SMA", x = 0.365, y = 0.35, hjust = 0, size = 16)
+
+# Flip-axes symbol between the two panels: a rounded (curved) double-headed arrow, with
+# "flip axes" sitting right against it.
+# Positioned higher than panel center -- roughly level with where the fitted lines sit
+# at Mass = 70g in panel (a), rather than at the vertical midpoint of the panel.
+Flip_arrow_grob <- curveGrob(
+  x1 = 0.2, y1 = 0.68, x2 = 0.8, y2 = 0.68,
+  curvature = -0.5, ncp = 8, square = FALSE,
+  arrow = arrow(ends = "both", length = unit(0.1, "inches"), angle = 25),
+  gp = gpar(lwd = 2)
+)
+Flip_arrow_panel <- ggdraw() +
+  draw_label("flip axes", x = 0.5, y = 0.72, size = 11) +
+  draw_grob(Flip_arrow_grob)
+
+# Narrow middle column (just enough room for the arrow) so the two data panels get most
+# of the width -- previously a lot of width sat empty between them, leaving each panel (and
+# its axis text) smaller than it needed to be.
+Flip_top_row <- plot_grid(Flip_panel_a, Flip_arrow_panel, Flip_panel_b, nrow = 1,
+                           rel_widths = c(1, 0.15, 1), labels = c("a", "", "b"), label_size = 12)
+Flip_combined <- plot_grid(Flip_legend, Flip_top_row, ncol = 1, rel_heights = c(0.06, 1))
+Flip_combined
+
+ggsave("Figures/sma_flip_axes.png", Flip_combined,
+       width = 10, height = 6.2, units = "in", dpi = 300, bg = "white")
+
+message("Saved Figures/SLI_concept.png, Figures/sma_flip_axes.png, and Derived/Rds/Ex_df_hypo_hyper.rds")

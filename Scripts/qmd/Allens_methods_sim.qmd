@@ -145,6 +145,8 @@ Here I introduce the Standardized Length Index (SLI), an analogue of the Standar
 
 SMA and OLS regression differ in two closely related ways. First, SMA regression estimates a steeper allometric slope whenever the correlation between variables is \< 1. Second, because it treats variation in both variables symmetrically, relative appendage length and relative body size become reciprocal descriptions of the same deviation from the allometric relationship. The equations below show why these properties arise.
 
+`\vspace{1.5em}`{=latex}
+
 *SMA estimates a steeper allometric slope*
 
 There is a direct mathematical link between the slopes of OLS and SMA regression.\
@@ -162,16 +164,18 @@ $$\beta_{ols} = r * \beta_{sma}$$
 
 This makes it evident that as $r$ increases, $\beta_{\text{OLS}} \rightarrow \beta_{\text{SMA}}$, and that the difference in estimated slopes will be highest when $X$ and $Y$ are only weakly correlated.
 
+`\vspace{1.5em}`{=latex}
+
 *SMA gives a symmetric geometric interpretation*
 
-Unlike OLS, the SMA line of best fit is unchanged when the $X$ and $Y$ axes are flipped (@fig-sma_flip_axes), leading to a useful geometric property: swapping the axes simply reflects the points across the fitted line. Consequently, the individual highlighted in green can be described either as having relatively short appendages for its body size (panel A) or as having a relatively large body for its appendage length (panel B). These are reciprocal descriptions of the same deviation from the allometric relationship (i.e., residuals retain the same magnitude but reverse sign). In contrast, because the OLS line changes when the axes are exchanged, this reciprocity does not hold.
+Unlike OLS, the SMA line of best fit is unchanged when the $X$ and $Y$ axes are flipped (@fig-sma_flip_axes), leading to a useful geometric property: swapping the axes simply reflects the points across the fitted line. Consequently, the individual highlighted in green can be described either as having relatively short appendages for its body size (panel a) or as having a relatively large body for its appendage length (panel b). These are reciprocal descriptions of the same deviation from the allometric relationship (i.e., residuals retain the same magnitude but reverse sign). In contrast, because the OLS line changes when the axes are exchanged, this reciprocity does not hold.
 
-![In SMA regression the X and Y axes can be flipped and the line of best fit will not change. Here I flip the axes and plot the OLS (red) & SMA (blue) regression lines of best fit, as well as the same individual from my hypothetical species (highlighted in green). SMA residuals are equally correlated with both $X$ and $Y$ ($|r_{sma}| = 0.59$, whereas OLS residuals remain uncorrelated with the predictor but strongly correlated with the response ($r_{ols} = 0.96$).](../../Figures/sma_flip_axes.png){#fig-sma_flip_axes width="100%"}
+![In SMA regression the X and Y axes can be flipped and the line of best fit will not change. Points are real mass and wing-chord measurements from Whip-poor-wills. Here I flip the axes and plot the OLS (red) and SMA (blue) regression lines of best fit, as well as the same individual (highlighted in green) in both panels. SMA residuals are equally correlated with both $X$ and $Y$ ($|r_{sma}| = 0.53$), whereas OLS residuals remain uncorrelated with the predictor but strongly correlated with the response ($r_{ols} = 0.89$).](../../Figures/sma_flip_axes.png){#fig-sma_flip_axes width="100%"}
 :::
 
 # Literature review
 
-I reviewed `r nrow(Lit_review)` empirical studies published between 2021 and 2025 that quantified appendage length in the context of Allen's rule in endotherms [i.e., those published in @skinnerBergmannAllenUnified2026]. Of these, `r nrow(Unclear_exclude)` were further excluded due to unclear methodologies, leaving `r nrow(Lr)` studies. `r n_multi_approach` of these studies used multiple approaches to examine Allen's rule, resulting in `r tot_approach_uses` analytical approaches that were classified into five categories: ratio-based methods, two-step residual regression, multiple regression with body size as a covariate, use of absolute appendage length, or other. The 'other' category included shape axes from principal component analyses, path analyses, and geometric morphometric approaches, among other creative solutions [e.g., @youngfleshAbioticConditionsShape2022]. Multiple regression was the most common approach (`r pct_mv_reg`%), followed by absolute appendage length (`r pct_raw`%), ratio-based methods (`r pct_ratio`%), other approaches (`r pct_other`%), and residual regression (`r pct_resid`%; Supplementary Figure 1). Of the studies examining appendage length *relative* to body size, `r n_mass_control` / `r n_relative_studies` (`r pct_mass_control`%) used mass as the variable representing body size. The majority of studies (`r per_aves`) examined Allen's rule in birds. The remainder used mammal focal taxa.
+I reviewed `r nrow(Lit_review)` empirical studies published between 2021 and 2025 that quantified appendage length in the context of Allen's rule in endotherms [i.e., those published in @skinnerBergmannAllenUnified2026]. Of these, `r nrow(Unclear_exclude)` were further excluded due to unclear methodologies, leaving `r nrow(Lr)` studies. `r number_to_word(n_multi_approach)` of these studies used multiple approaches to examine Allen's rule, resulting in `r tot_approach_uses` analytical approaches that were classified into five categories: ratio-based methods, two-step residual regression, multiple regression with body size as a covariate, use of absolute appendage length, or other. The 'other' category included shape axes from principal component analyses, path analyses, and geometric morphometric approaches, among other creative solutions [e.g., @youngfleshAbioticConditionsShape2022]. Multiple regression was the most common approach (`r pct_mv_reg`%), followed by absolute appendage length (`r pct_raw`%), ratio-based methods (`r pct_ratio`%), other approaches (`r pct_other`%), and residual regression (`r pct_resid`%; Supplementary Figure 1). Of the studies examining appendage length *relative* to body size, `r n_mass_control` / `r n_relative_studies` (`r pct_mass_control`%) used mass as the variable representing body size. The majority of studies (`r per_aves`) examined Allen's rule in birds. The remainder used mammal focal taxa.
 
 # Materials and Methods
 
@@ -235,10 +239,10 @@ Because SLI-isometry standardizes against the fixed isometric exponent while SLI
 #| fig-width: 13
 #| fig-height: 5.7
 
-# fig-width matches the ggsave() dimensions in Scripts/04a_SLI_concept_figure.R exactly, so
+# fig-width matches the ggsave() dimensions in Scripts/04a_Concept_figures.R exactly, so
 # the R graphics device's aspect ratio matches the source PNG's and draw_grob() below doesn't
 # stretch it -- LaTeX still scales the final image down to fit the text column width.
-# Both panels are built in Scripts/04a_SLI_concept_figure.R (re-run it any time either panel's
+# Both panels are built in Scripts/04a_Concept_figures.R (re-run it any time either panel's
 # code changes) and saved to Figures/SLI_concept.png; that script also exports the panel-(b)
 # example species to Derived/Rds/Ex_df_hypo_hyper.rds for fig-ols-sma (Discussion) to reuse.
 sli_concept_img  <- png::readPNG("Figures/SLI_concept.png")
@@ -686,7 +690,7 @@ This also highlights that SLI-isometry is not fundamentally distinct from ratio 
 #| fig-height: 4.5
 
 # Reuses Ex_df_hypo_hyper, the same example species already generated for @fig-sli-concept
-# panel (b) by Scripts/04a_SLI_concept_figure.R, which exports it here for reuse.
+# panel (b) by Scripts/04a_Concept_figures.R, which exports it here for reuse.
 Ex_df_hypo_hyper <- readRDS("Derived/Rds/Ex_df_hypo_hyper.rds")
 xy_lims <- Ex_df_hypo_hyper %>%
   summarize(max.append = max(Append_log), min.append = min(Append_log),
