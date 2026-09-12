@@ -794,6 +794,159 @@ knitr::kable(Rank_check_tbl,
 
 `r pct_rank_strict_overall`% of the `r n_rank_strict_total` directionally classified species satisfied the full strict order (`r pct_rank_strict_bergmanns`% of `r n_rank_strict_bergmanns` Bergmann's species and `r pct_rank_strict_inv_bergmanns`% of `r n_rank_strict_inv_bergmanns` Inverse Bergmann's species), somewhat lower than the `r pct_rank_overall_main`% obtained with family averaging (main text, Empirical case studies; @tbl-rank-strict). This is expected: averaging within a method family smooths over noise that a strict four-term inequality cannot, so the strict check is a harder bar to clear even when the underlying pattern is genuine. That the large majority of species still satisfy the full ordering under this less forgiving test supports reading the rank-order pattern as reflecting the methods' differing fixed reference relationships, rather than as an artifact of family-level averaging.
 
+# Robustness check: ratio-of-logs construction
+
+The main text's ratio metrics are the log of the ratio: $\log(A/S)$ and $\log(A^2/S)$, computed by dividing appendage length by mass (or its square) and then log-transforming the result. An alternative construction found in the shape-shifting literature — including the supplementary code for @rydingMultipleRegressionNot2025, one of the studies this manuscript directly engages with — instead logs appendage length and body mass separately and divides the two logged values: $\log(A)/\log(S)$. The two are not algebraically related in any simple way ($\log(A/S) = \log(A) - \log(S)$, a difference, not a ratio of logs), and unlike $\log(A/S)$, $\log(A)/\log(S)$ is not invariant to the units appendage length happens to be measured in — converting mm to cm shifts $\log(A)$ by an additive constant, which cancels exactly in $\log(A/S)$ but not in $\log(A)/\log(S)$, where it is divided by $\log(S)$ and so distorts the metric by an amount that depends on body size. Here I recompute Ratio and Ratio² using this ratio-of-logs construction and re-score them against the main text's isometric-relative ground truth, using the same simulated individuals as the main text (main text, Data simulation) — no new random draws — so any difference below is attributable to the choice of construction alone, not to sampling variability.
+
+```{r}
+#| label: altratio-3d-stats
+#| include: false
+
+## gen_ex_data() draws new individuals on every render; seed it so the figure is reproducible.
+set.seed(20260912)
+altratio_3d_parms <- Parms_mat3 %>%
+  filter(Scaling == "Isometry", Temp_eff == "Proportionally smaller", r_12 == 0.3, r_23 == -0.7) %>%
+  slice_max(abs(r_13 - r_23), n = 1, with_ties = FALSE)
+
+altratio_3d_df <- gen_ex_data(altratio_3d_parms) %>%
+  transmute(Append_mm = Append, Mass_g = Mass)
+
+mass_seq_3d   <- seq(min(altratio_3d_df$Mass_g), max(altratio_3d_df$Mass_g), length.out = 40)
+append_seq_3d <- seq(min(altratio_3d_df$Append_mm), max(altratio_3d_df$Append_mm), length.out = 40)  # mm
+
+build_Z_3d <- function(fn, append_vals) outer(mass_seq_3d, append_vals, function(m, a) fn(a, m))
+center_3d  <- function(Z) Z - mean(Z)
+
+# Fits a plane z ~ mass + appendage to a (mass, appendage) grid of metric values -- a compact
+# summary of the surface's steepness along each axis, comparable between the mm and cm versions.
+fit_plane_3d <- function(Z, append_vals) {
+  gd <- expand.grid(mass = mass_seq_3d, append = append_vals)
+  gd$z <- as.vector(Z)
+  co <- coef(lm(z ~ mass + append, data = gd))
+  c(mass = co[["mass"]], append = co[["append"]])
+}
+
+# Draws a wireframe of a second surface on top of an existing persp() scene, using the
+# projection matrix persp() returns -- both surfaces plotted over the SAME physical (mass,
+# appendage-in-mm) grid, since it's one shared 3D space: only the z-value (what the formula
+# outputs when fed mm-numbers vs. cm-numbers for the same individual) should differ, not the
+# horizontal position.
+overlay_wireframe_3d <- function(pmat, x, y, Z, col) {
+  for (i in seq_along(x)) lines(trans3d(x[i], y, Z[i, ], pmat), col = col, lwd = 1)
+  for (j in seq_along(y)) lines(trans3d(x, y[j], Z[, j], pmat), col = col, lwd = 1)
+}
+
+logr_fn <- function(a, m) log(a / m)
+rol_fn  <- function(a, m) log(a) / log(m)
+
+altratio_3d_specs <- list(
+  list(fn = logr_fn, name = "log(A/S)",      cols = c("steelblue", "grey20")),
+  list(fn = rol_fn,  name = "log(A)/log(S)", cols = c("darkorange", "grey20"))
+)
+
+fig_cap_altratio_3d <- glue::glue("Both ratio constructions evaluated as deterministic surfaces over the full (Mass, Appendage) plane, for the same Proportionally smaller example species used in @tbl-altratio-eval (Isometry scaling, true SMA slope = {round(altratio_3d_parms$true_b_sma, 2)}). Solid surface: appendage length in mm. Overlaid wireframe: the same species with appendage length converted to cm. Both surfaces are mean-centered; a fitted plane's slope along each axis is annotated above each panel. Under log(A/S) (left) the mm and cm surfaces are visually indistinguishable, and their fitted mass-slopes are identical to four decimal places. Under log(A)/log(S) (right) the two surfaces visibly diverge, and the fitted mass-slope changes when appendage length is re-expressed in different units, even though nothing about the underlying species changed.")
+```
+
+```{r}
+#| label: fig-altratio-3d
+#| fig-cap: !expr fig_cap_altratio_3d
+#| fig-width: 10
+#| fig-height: 5.5
+#| fig-pos: 'H'
+
+par(mfrow = c(1, 2), mar = c(2, 2, 5, 1))
+
+for (spec in altratio_3d_specs) {
+  Z_mm <- center_3d(build_Z_3d(spec$fn, append_seq_3d))
+  Z_cm <- center_3d(build_Z_3d(spec$fn, append_seq_3d / 10))
+  zlim <- range(Z_mm, Z_cm)
+  fit_mm <- fit_plane_3d(Z_mm, append_seq_3d)
+  fit_cm <- fit_plane_3d(Z_cm, append_seq_3d)
+
+  pmat <- persp(mass_seq_3d, append_seq_3d, Z_mm, zlim = zlim, theta = -35, phi = 22, expand = 0.7,
+                col = spec$cols[1], border = NA, shade = 0.35, ticktype = "detailed",
+                cex.axis = 0.55, cex.lab = 0.75, xlab = "Mass (g)", ylab = "Appendage (mm)",
+                zlab = "", main = "")
+  overlay_wireframe_3d(pmat, mass_seq_3d, append_seq_3d, Z_cm, col = spec$cols[2])
+
+  title(main = spec$name, cex.main = 1.1, line = 3.2)
+  mtext(sprintf("mm plane slope: mass=%.4f, append=%.4f", fit_mm["mass"], fit_mm["append"]),
+        side = 3, line = 2, cex = 0.6, col = spec$cols[1])
+  mtext(sprintf("cm plane slope: mass=%.4f, append=%.4f", fit_cm["mass"], fit_cm["append"]),
+        side = 3, line = 1, cex = 0.6, col = spec$cols[2])
+}
+```
+
+```{r}
+#| label: altratio-stats
+#| include: false
+
+Altratio_eval_tbl <- bind_rows(
+  Eval_tbl %>% filter(Model %in% c("Ratio", "Ratio2")) %>% mutate(Construction = "Log of ratio (main text)"),
+  Eval_tbl_altratio %>% filter(Model %in% c("Ratio_alt", "Ratio2_alt")) %>%
+    mutate(Model = str_remove(Model, "_alt"), Construction = "Ratio of logs")
+) %>%
+  mutate(Model = str_replace_all(Model, x_labs),
+         Prop_correct = round(Prop_correct * 100, 0)) %>%
+  dplyr::select(Model, Construction, Temp_eff, Prop_correct) %>%
+  pivot_wider(names_from = Temp_eff, values_from = Prop_correct) %>%
+  arrange(Model, desc(Construction)) %>%
+  # Both Proportional categories are 0% under every construction (main text vs. this
+  # section's prose already covers this) -- dropped from the table so Longer/Stouter,
+  # where the constructions actually diverge, have room to display at readable width.
+  dplyr::select(Model, Construction, Longer, Stouter)
+
+pull_altratio_pct <- function(model, temp_eff, tbl = Eval_tbl_altratio) {
+  tbl %>% filter(Model == model, Temp_eff == temp_eff) %>%
+    mutate(pct = round(Prop_correct * 100, 0)) %>% pull(pct)
+}
+
+Ratio_alt_stouter_pct    <- pull_altratio_pct("Ratio_alt",  "Stouter")
+Ratio2_alt_stouter_pct   <- pull_altratio_pct("Ratio2_alt", "Stouter")
+
+# Ratio and Ratio2 are constructed to differ only by squaring A before logging -- under the
+# ratio-of-logs form that becomes a constant multiplier (log(A^2)/log(S) = 2 * log(A)/log(S)),
+# and every numeric column is z-scored before fitting (01_Run_simulation.R), which removes
+# multiplicative constants entirely (scale(2*X) == scale(X) exactly). So Ratio_alt and
+# Ratio2_alt should fit identical models -- confirmed directly, not assumed.
+altratio_max_diff <- Parms_tbl4_altratio %>%
+  filter(Model %in% c("Ratio_alt", "Ratio2_alt")) %>%
+  dplyr::select(Scaling, r_12, r_13, r_23, Temp_eff, Model, b_temp_inc) %>%
+  pivot_wider(names_from = Model, values_from = b_temp_inc) %>%
+  summarize(max_diff = max(abs(Ratio2_alt - Ratio_alt))) %>%
+  pull(max_diff)
+
+Altratio_mass_cor <- bind_rows(
+  Mass_cor_tbl %>% filter(Model %in% c("Ratio", "Ratio2")) %>% mutate(Construction = "Log of ratio (main text)"),
+  Mass_cor_tbl_altratio %>% filter(Model %in% c("Ratio_alt", "Ratio2_alt")) %>%
+    mutate(Model = str_remove(Model, "_alt"), Construction = "Ratio of logs")
+) %>%
+  summarize(Mean_r = round(mean(r_mass), 2), .by = c(Model, Construction))
+
+pull_altratio_cor <- function(model, construction) {
+  Altratio_mass_cor %>% filter(Model == model, Construction == construction) %>% pull(Mean_r)
+}
+
+mean_r_ratio_alt   <- pull_altratio_cor("Ratio",  "Ratio of logs")
+mean_r_ratio2_alt  <- pull_altratio_cor("Ratio2", "Ratio of logs")
+```
+
+```{r}
+#| label: tbl-altratio-eval
+#| tbl-cap: "Percentage of simulated species correctly classified (main text, Simulation performance criterion), comparing the main text's log-of-ratio construction against the ratio-of-logs alternative, for Longer and Stouter species. Both Proportionally smaller and Proportionally larger species were correctly classified (0% -- their true effect is exactly null by design) under every construction and are omitted here."
+#| tbl-pos: 'H'
+
+knitr::kable(Altratio_eval_tbl, format = "latex", booktabs = TRUE, linesep = "") %>%
+  kableExtra::column_spec(1, width = "3.2cm") %>%
+  kableExtra::column_spec(2, width = "3.4cm")
+```
+
+The two constructions agree everywhere the isometric-relative reference quantity is unambiguous by design — Longer (100% both) and both Proportional categories (0% both, matching the main text's Proportionally smaller and Proportionally larger results) — but diverge for Stouter species, where Ratio² is by far the most affected: its accuracy falls from 96% under the main text's construction to `r Ratio2_alt_stouter_pct`% under the ratio-of-logs alternative, while Ratio's accuracy moves more modestly (64% to `r Ratio_alt_stouter_pct`%; @tbl-altratio-eval).
+
+That both alternate-construction accuracies land at exactly the same value is not a coincidence, and exposes a deeper problem with the ratio-of-logs construction than a change in accuracy alone: $\log(A^2)/\log(S) = 2 \cdot \log(A)/\log(S)$ is a constant multiple of $\log(A)/\log(S)$, and because every metric is standardized before fitting (main text, Data simulation), that constant cancels completely — Ratio and Ratio² fit *identical* models under the ratio-of-logs construction (maximum difference in the fitted temperature coefficient across all `r nrow(Parms_tbl3)` simulated species: `r formatC(altratio_max_diff, format = "e", digits = 2)`, floating-point noise). The distinction between an implicit exponent of 1 ($A/S$) and 0.5 ($A^2/S$) — central to how the main text distinguishes these two ratio metrics (main text, Approach classification) — cannot exist under this construction; the two metrics collapse into one.
+
+The ratio-of-logs construction also shows a stronger, not weaker, mechanical dependence on body mass (mean correlation with mass: Ratio `r mean_r_ratio` to `r mean_r_ratio_alt`; Ratio² `r mean_r_ratio2` to `r mean_r_ratio2_alt`) — in Ratio²'s case, erasing essentially all of the improvement that squaring the appendage term achieves under the main text's construction. Taken together, the ratio-of-logs construction is not simply a relabeling of the same idea: it performs worse for Stouter species, collapses two metrics the main text treats as distinct into one, and leaves relative appendage length more, not less, entangled with body mass — reinforcing $\log(A/S)$ and $\log(A^2/S)$ as the better-justified constructions when a ratio metric is logged at all.
+
 # EXTRAS - delete
 
 These classical approaches share a critical assumption: that body size is measured without error. This is the operating assumption of ordinary least squares regression and is retained in most implementations of multiple regression, maximum likelihood, and Bayesian models unless the model is explicitly formulated otherwise. In practice, this assumption is nearly always violated. Mass — the most commonly used body size proxy — reflects structural body size but also transient biological variation such as gut fill, hydration state, and reproductive condition. Instrument and observer error introduce additional noise. When predictor variables are measured with error, OLS slope estimates are attenuated toward zero — a bias that grows as the correlation between the predictor and response weakens [@wartonBivariateLinefittingMethods2006; @greenMassLengthResiduals2001]. By ignoring this attenuation, classical regression approaches underestimate the allometric relationship between mass and appendage length, which propagates as bias into downstream estimates of temperature's effect on shape.

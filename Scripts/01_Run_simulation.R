@@ -146,7 +146,15 @@ generate_metrics <- function(Sim_df) {
   Sim_df <- Sim_df %>%
     mutate(resid_ols = residuals(Ols_mod),
            Append_mass  = if (log_ratio) Append_log - Mass_log    else Append_log / Mass_log,
-           Append2_mass = if (log_ratio) 2*Append_log - Mass_log  else Append_log^2 / Mass_log) %>%
+           # FALSE branch fixed: this must be log(A^2)/log(S) = 2*log(A)/log(S), the ratio-of-logs
+           # analog of squaring A before dividing -- Append_log^2/Mass_log (squaring the already-
+           # logged value) was a different, inconsistent quantity with no such interpretation.
+           Append2_mass = if (log_ratio) 2*Append_log - Mass_log  else 2*Append_log / Mass_log,
+           # Ratio-of-logs robustness check (supplement only -- see Parms_tbl4_altratio below):
+           # log(A)/log(S) and log(A^2)/log(S), computed unconditionally alongside the primary
+           # log_ratio-gated columns above so both constructions are always available from one run.
+           Append_mass_alt  = Append_log / Mass_log,
+           Append2_mass_alt = 2 * Append_log / Mass_log) %>%
     sliR::calc_sli(b_sli = 0.33,    rename_col = "sli_isometry") %>%
     sliR::calc_sli(b_sli = est_b_sma, rename_col = "sli_estimated")
   Sim_df_s <- Sim_df %>% mutate(across(where(is.numeric), scale))
@@ -161,6 +169,9 @@ extract_coefs <- function(Sim_df_s, coefs) {
   ratio2_app    <- lm(Append2_mass ~ Temp_inc, data = Sim_df_s, na.action = na.exclude)
   sli_iso_app   <- lm(sli_isometry  ~ Temp_inc, data = Sim_df_s, na.action = na.exclude)
   sli_est_app   <- lm(sli_estimated ~ Temp_inc, data = Sim_df_s, na.action = na.exclude)
+  # Ratio-of-logs robustness check (supplement only): see Append_mass_alt/Append2_mass_alt above.
+  ratio_alt_app  <- lm(Append_mass_alt  ~ Temp_inc, data = Sim_df_s, na.action = na.exclude)
+  ratio2_alt_app <- lm(Append2_mass_alt ~ Temp_inc, data = Sim_df_s, na.action = na.exclude)
 
   # 95% CI on the Temp_inc coefficient for each method -- used downstream to define
   # a stricter correctness criterion (point estimate right-signed AND CI excludes
@@ -188,6 +199,17 @@ extract_coefs <- function(Sim_df_s, coefs) {
     ci_hi_ratio_app     = ci_temp_inc(ratio_app)[2],
     ci_lo_ratio2_app    = ci_temp_inc(ratio2_app)[1],
     ci_hi_ratio2_app    = ci_temp_inc(ratio2_app)[2],
+    # Ratio-of-logs robustness check (supplement only): coef/CI columns follow the same
+    # "_app" naming convention on purpose, so Parms_tbl4's pivot_longer() below sweeps
+    # them in as extra Model levels automatically -- split back out immediately after
+    # (Parms_tbl4_altratio) so the exported Parms_tbl4 that feeds main-text figures is
+    # unaffected.
+    coef_ratio_alt_app  = coef(ratio_alt_app)["Temp_inc"],
+    coef_ratio2_alt_app = coef(ratio2_alt_app)["Temp_inc"],
+    ci_lo_ratio_alt_app  = ci_temp_inc(ratio_alt_app)[1],
+    ci_hi_ratio_alt_app  = ci_temp_inc(ratio_alt_app)[2],
+    ci_lo_ratio2_alt_app = ci_temp_inc(ratio2_alt_app)[1],
+    ci_hi_ratio2_alt_app = ci_temp_inc(ratio2_alt_app)[2],
     est_b_sma          = coefs$est_b_sma,
     est_b_ols          = coefs$est_b_ols,
     # Per-species Pearson correlation between each method's individual-level
@@ -200,7 +222,10 @@ extract_coefs <- function(Sim_df_s, coefs) {
     cor_ratio2         = as.numeric(cor(Sim_df_s$Mass_log, Sim_df_s$Append2_mass)),
     cor_ols_resid      = as.numeric(cor(Sim_df_s$Mass_log, Sim_df_s$resid_ols)),
     cor_sli_iso        = as.numeric(cor(Sim_df_s$Mass_log, Sim_df_s$sli_isometry)),
-    cor_sli_est        = as.numeric(cor(Sim_df_s$Mass_log, Sim_df_s$sli_estimated))
+    cor_sli_est        = as.numeric(cor(Sim_df_s$Mass_log, Sim_df_s$sli_estimated)),
+    # Ratio-of-logs robustness check (supplement only)
+    cor_ratio_alt      = as.numeric(cor(Sim_df_s$Mass_log, Sim_df_s$Append_mass_alt)),
+    cor_ratio2_alt     = as.numeric(cor(Sim_df_s$Mass_log, Sim_df_s$Append2_mass_alt))
   )
 }
 
@@ -218,7 +243,10 @@ x_labs <- c(
   "Ols_resid" = "OLS residuals",
   "Ryding"    = "Multiple regression",
   "Ratio2"    = "Appendage² / mass",
-  "Ratio"     = "Appendage / mass"
+  "Ratio"     = "Appendage / mass",
+  # Ratio-of-logs robustness check (supplement only)
+  "Ratio_alt"  = "Appendage / mass (log-of-logs)",
+  "Ratio2_alt" = "Appendage² / mass (log-of-logs)"
 )
 
 # Est_correct requires the whole 95% CI, not just the point estimate, to fall on the correct
@@ -230,7 +258,13 @@ x_labs <- c(
 # failing to detect a nonexistent effect), not if it excludes it. Computed here (not per-qmd) so
 # every downstream consumer of Parms_tbl4 -- Eval_tbl, both fig-eval-style calibration scatters,
 # Results-paragraph percentages -- shares one definition of "correct."
-Parms_tbl4 <- Parms_tbl3 %>%
+Parms_tbl4_full <- Parms_tbl3 %>%
+  # Drop the alt-ratio mass-correlation columns before pivoting -- they aren't matched by
+  # the coef/ci_lo/ci_hi "_app" pattern below, so left in they'd otherwise ride along as
+  # extra id_cols on every row of Parms_tbl4, including the original six methods'. Keeping
+  # Parms_tbl4's schema exactly as before is what lets the byte-identical check above pass
+  # cleanly, not just "functionally equivalent with harmless extra columns."
+  dplyr::select(-cor_ratio_alt, -cor_ratio2_alt) %>%
   pivot_longer(
     cols = matches("^(coef|ci_lo|ci_hi)_.+_app$"),
     names_to = c(".value", "Model"),
@@ -246,8 +280,24 @@ Parms_tbl4 <- Parms_tbl3 %>%
     .default = FALSE
   ), .by = Model)
 
+# Ratio-of-logs robustness check (supplement only): Ratio_alt/Ratio2_alt (log(A)/log(S) and
+# log(A^2)/log(S)) got swept into Parms_tbl4_full above by the same generic pivot_longer() as
+# the primary six methods, since their coef/CI columns follow the same "_app" naming convention
+# (see extract_coefs() above). Split them back out immediately, BEFORE any downstream object is
+# built, so every main-text consumer of "Parms_tbl4" -- fig-compare-approaches and fig-eval in
+# Allens_methods_sim.qmd (both read Parms_tbl4 with no Model filter), and
+# supplementary_info.qmd's Parms_tbl4_bigger -- sees exactly the original six methods, unchanged.
+main_models <- c("Sli_iso", "Sli_est", "Ols_resid", "Ryding", "Ratio", "Ratio2")
+Parms_tbl4_altratio <- Parms_tbl4_full %>% filter(Model %in% c(main_models, "Ratio_alt", "Ratio2_alt"))
+Parms_tbl4          <- Parms_tbl4_full %>% filter(Model %in% main_models)
+
 # Per-species correlation between each method's metric and body mass ---------
 Mass_cor_tbl <- Parms_tbl3 %>%
+  # Drop the ratio-of-logs robustness-check columns first -- same reason as
+  # Parms_tbl4_full above: pivot_longer()'s unlisted columns become id_cols by default,
+  # and Mass_cor_tbl_altratio (below) already covers this comparison from Parms_tbl3
+  # directly, so nothing is lost by excluding them here.
+  dplyr::select(-matches("_alt")) %>%
   pivot_longer(
     cols = c(cor_ratio, cor_ratio2, cor_ols_resid, cor_sli_iso, cor_sli_est),
     names_to  = "Model",
@@ -264,6 +314,26 @@ Eval_tbl <- Parms_tbl4 %>%
             .by = c(Model, Temp_eff)) %>%
   mutate(Prop_correct = round(Prop_correct, 2)) %>%
   arrange(Model)
+
+# Ratio-of-logs robustness check (supplement only): does the log(A)/log(S) /
+# log(A^2)/log(S) construction change the overall accuracy trends versus the primary
+# log(A/S) / log(A^2/S) ratios, or their mass-dependence? Mirrors Eval_tbl/Mass_cor_tbl
+# above exactly, built from the Parms_tbl4_altratio split-off (Ratio_alt/Ratio2_alt
+# plus the four non-ratio methods for reference) rather than the main Parms_tbl4.
+Eval_tbl_altratio <- Parms_tbl4_altratio %>%
+  summarize(Prop_correct = sum(Est_correct, na.rm = TRUE) / n(),
+            .by = c(Model, Temp_eff)) %>%
+  mutate(Prop_correct = round(Prop_correct, 2)) %>%
+  arrange(Model)
+
+Mass_cor_tbl_altratio <- Parms_tbl3 %>%
+  pivot_longer(
+    cols = c(cor_ratio, cor_ratio2, cor_ratio_alt, cor_ratio2_alt, cor_ols_resid, cor_sli_iso, cor_sli_est),
+    names_to  = "Model",
+    values_to = "r_mass"
+  ) %>%
+  mutate(Model = str_remove_all(Model, "cor_"),
+         Model = str_to_sentence(Model))
 
 # OLS-anchored robustness check (supplementary): recompute the ground truth with 0.33 compared against an OLS-scale reference slope instead of the adopted SMA-scale one, and re-score all six methods' sign-agreement against it. See Project_notes.md / Ground_truth_explainer.qmd "Round 3" for the derivation and the SMA-vs-OLS rationale it is checking (main text, Approach classification). Restricted to Longer/Stouter, matching Eval_tbl's convention: beta_iso_true is exactly 0 for both Proportional categories under the SMA anchor by design (Effect classification), so a signed sign-agreement comparison isn't meaningful for them under that anchor.
 Ols_anchor_df <- Parms_tbl4 %>%
@@ -435,6 +505,11 @@ saveRDS(
     Parms_tbl4    = Parms_tbl4,
     Mass_cor_tbl  = Mass_cor_tbl,
     x_labs        = x_labs,
+
+    # Ratio-of-logs robustness check (supplement only)
+    Parms_tbl4_altratio   = Parms_tbl4_altratio,
+    Eval_tbl_altratio      = Eval_tbl_altratio,
+    Mass_cor_tbl_altratio  = Mass_cor_tbl_altratio,
 
     # Evaluation tables
     Eval_tbl                   = Eval_tbl,
