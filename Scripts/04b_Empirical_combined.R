@@ -1,7 +1,7 @@
 ## Combined empirical shapeshifting figure
 ## Layout: Bergmann's (top row) / Inverse Bergmann's (bottom row)
 ## Mixed-Wingier is excluded from this main figure and reported in the
-## Supplementary Information instead (see Scripts/supplementary_info.qmd).
+## Supporting Information instead (see Scripts/supporting_info.qmd).
 ## Reads CSVs produced by Nightjar_shape.R, Weeks_2020_ral.R, Atlantic_birds_shape.R
 
 library(tidyverse)

@@ -9,7 +9,7 @@
 # Still local, deliberately not in sliR: format_temp, run_sma_mod, format_sma_parms, gen_ex_data, calc_lambda, classify_direction, build_sli_mass_cor_tbl, test_group_effect, calc_sli_hierarchical.
 
 # Load required libraries
-# MASS is no longer used by this file, but is left attached because supplementary_info.qmd sources this script without loading MASS itself; dropping it here would change that document's search path.
+# MASS is no longer used by this file, but is left attached because supporting_info.qmd sources this script without loading MASS itself; dropping it here would change that document's search path.
 library(MASS)
 library(tidyverse)
 library(sliR)
@@ -410,7 +410,7 @@ classify_direction <- function(mods_tbl, p_threshold = 0.05,
 
 # Shared boxplot skeleton for a Parms_tbl4-shaped df (Model, Temp_eff, b_temp_inc, Strength,
 # Scaling columns): one panel per Temp_eff category, methods on the x-axis. Used by the main
-# text's fig-compare-approaches and by supplementary_info.qmd's ratio-of-logs robustness check
+# text's fig-compare-approaches and by supporting_info.qmd's ratio-of-logs robustness check
 # (same plot, fed the alt-ratio-substituted data) -- moved here once a second call site existed,
 # per this project's "extract a shared helper the first time logic is duplicated" convention.
 plot_approaches <- function(df, x_txt_size = 9, legend.pos = "top") {

@@ -14,7 +14,7 @@ I compare six commonly used methods — including log-ratio indices, OLS residua
 Scripts/
   qmd/
     Allens_methods_sim.qmd      # Main manuscript (Quarto)
-    supplementary_info.qmd      # Supplementary Information (Quarto)
+    supporting_info.qmd      # Supporting Information (Quarto)
   00_Key_allometry_fns.R        # Shared functions (sourced by all scripts)
   01_Run_simulation.R           # Runs the simulation, saves Derived/Rds/simulation_results.rds
   02_Lit_review.R               # Processes the literature-review spreadsheet
@@ -59,7 +59,7 @@ Then render the manuscript and supplement from the project root:
 
 ``` bash
 quarto render Scripts/qmd/Allens_methods_sim.qmd
-quarto render Scripts/qmd/supplementary_info.qmd
+quarto render Scripts/qmd/supporting_info.qmd
 ```
 
 ## Data availability

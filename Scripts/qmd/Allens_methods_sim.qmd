@@ -123,7 +123,7 @@ source("Scripts/00_Key_allometry_fns.R")
 #| include: false
 
 # Simulation is run separately by Scripts/01_Run_simulation.R (re-run it any time the parameter grid, sample size, or evaluation logic changes) and saved to Derived/Rds/simulation_results.rds
-# Both this manuscript and supplementary_info.qmd just read the result. This brings N_spp, Parms_mat3, Parms_tbl4, Eval_tbl, and every inline-cited percentage into scope by name.
+# Both this manuscript and supporting_info.qmd just read the result. This brings N_spp, Parms_mat3, Parms_tbl4, Eval_tbl, and every inline-cited percentage into scope by name.
 
 list2env(readRDS("Derived/Rds/simulation_results.rds"), envir = .GlobalEnv)
 ```

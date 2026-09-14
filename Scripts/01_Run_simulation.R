@@ -1,5 +1,5 @@
 ## Run the SLI methods-paper simulation and export all results needed by
-## Allens_methods_sim.qmd and supplementary_info.qmd to Derived/Rds/simulation_results.rds.
+## Allens_methods_sim.qmd and supporting_info.qmd to Derived/Rds/simulation_results.rds.
 ##
 ## Run this script (source() or Rscript) any time the parameter grid, sample
 ## size, or evaluation logic changes. The downstream .qmd files read the .rds
@@ -204,7 +204,7 @@ extract_coefs <- function(Sim_df_s, coefs) {
     est_b_sma          = coefs$est_b_sma,
     est_b_ols          = coefs$est_b_ols,
     # Per-species Pearson correlation between each method's individual-level
-    # metric and body mass (@fig-mass-cor-sim in supplementary_info.qmd),
+    # metric and body mass (@fig-mass-cor-sim in supporting_info.qmd),
     # confirming in simulated data the mechanical ratio/mass dependence shown
     # empirically in the main text (@tbl-ratio-mass-summary). Multiple regression
     # is excluded: it has no individual-level shape metric to correlate, only
@@ -277,7 +277,7 @@ Parms_tbl4_full <- Parms_tbl3 %>%
 # (see extract_coefs() above). Split them back out immediately, BEFORE any downstream object is
 # built, so every main-text consumer of "Parms_tbl4" -- fig-compare-approaches and fig-eval in
 # Allens_methods_sim.qmd (both read Parms_tbl4 with no Model filter), and
-# supplementary_info.qmd's Parms_tbl4_bigger -- sees exactly the original six methods, unchanged.
+# supporting_info.qmd's Parms_tbl4_bigger -- sees exactly the original six methods, unchanged.
 main_models <- c("Sli_iso", "Sli_est", "Ols_resid", "Ryding", "Ratio", "Ratio2")
 Parms_tbl4_altratio <- Parms_tbl4_full %>% filter(Model %in% c(main_models, "Ratio_alt", "Ratio2_alt"))
 Parms_tbl4          <- Parms_tbl4_full %>% filter(Model %in% main_models)
@@ -364,7 +364,7 @@ Ols_anchor_fig_df <- Parms_tbl4 %>%
          beta_iso_true_ols = r_13 * b_true_ols - 0.33 * r_23,
          Est_correct_ols   = ci_correct(beta_iso_true_ols, ci_lo, ci_hi))
 
-# Precomputed r/pct_correct pair for the fig-eval-style calibration scatter in supplementary_info.qmd -- computed here, not in the qmd, matching this section's "no new stats inside the qmd" convention.
+# Precomputed r/pct_correct pair for the fig-eval-style calibration scatter in supporting_info.qmd -- computed here, not in the qmd, matching this section's "no new stats inside the qmd" convention.
 Ols_anchor_stats <- Ols_anchor_fig_df %>%
   group_by(Model) %>%
   summarize(r = round(cor(beta_iso_true_ols, b_temp_inc), 2),
