@@ -118,15 +118,6 @@ extract_sma_intercepts <- function(df) {
 sma_intercepts  <- map(df_morph_l, extract_sma_intercepts) %>% list_rbind()
 sma_intercepts2 <- bind_cols(Parms_mat3, sma_intercepts)
 
-# Correlation between binned temperature and the SMA intercept, under both a
-# fixed-slope and slope-varies-with-temperature model (@fig-cor-allometry-values
-# in supplementary_info.qmd).
-Parms_temp_bs <- sma_intercepts2 %>%
-  filter(Scaling != "Inverse") %>%
-  pivot_longer(cols = c(cor_allometry, cor_allometry_int),
-               names_to = "SMA_mod", values_to = "Correlation") %>%
-  mutate(SMA_mod = if_else(SMA_mod == "cor_allometry", "No interaction", "Interaction"))
-
 # Species with the wrong-signed correlation are excluded from further analysis.
 Sim_fail <- sma_intercepts2 %>%
   left_join(sma_intercepts2) %>%
@@ -516,7 +507,6 @@ saveRDS(
 
     # Parameter grid + validation tables
     Parms_mat3    = Parms_mat3,
-    Parms_temp_bs = Parms_temp_bs,
     Sim_fail      = Sim_fail,
     Parms_tbl3    = Parms_tbl3,
     Parms_tbl4    = Parms_tbl4,

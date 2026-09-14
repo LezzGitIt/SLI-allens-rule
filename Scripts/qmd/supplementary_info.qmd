@@ -40,7 +40,7 @@ source("Scripts/00_Key_allometry_fns.R")
 
 # Simulation is run by Scripts/01_Run_simulation.R and saved to
 # Derived/Rds/simulation_results.rds; the main manuscript reads the same file.
-# This brings Parms_mat3, Parms_tbl4, Parms_temp_bs, sma_or_ma, x_labs, and
+# This brings Parms_mat3, Parms_tbl4, sma_or_ma, x_labs, and
 # every Proportionally-larger-scenario percentage into scope by name.
 list2env(readRDS("Derived/Rds/simulation_results.rds"), envir = environment())
 
