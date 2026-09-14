@@ -356,11 +356,28 @@ Ols_anchor_summary_tbl <- Ols_anchor_df %>%
     .groups = "drop"
   )
 
+# Figure-only companion to Ols_anchor_df: widens the OLS-anchored comparison to also include
+# Proportionally smaller species, matching main text's fig-eval/Eval_scatter_df convention
+# (excludes only Proportionally larger, the out-of-main-grid scenario). This can't just reuse
+# Ols_anchor_df/Ols_anchor_summary_tbl above, which stay Longer/Stouter-only so Table 1's
+# figures in the surrounding prose are unaffected by widening the figure's scope. Unlike the SMA
+# anchor, which pins Proportionally smaller species to an exactly-null true effect by construction
+# (main text, Effect classification) and so needs Est_correct's reversed "CI includes zero" rule,
+# beta_iso_true_ols is not pinned to zero for these species -- the SMA-vs-OLS anchor choice is
+# exactly what breaks that exact nullity -- so the same sign-based ci_correct() used for
+# Longer/Stouter applies here without a special case.
+Ols_anchor_fig_df <- Parms_tbl4 %>%
+  filter(Temp_eff != "Proportionally larger") %>%
+  mutate(Model = str_replace_all(Model, x_labs),
+         b_true_ols        = r_12 * true_b_sma,
+         beta_iso_true_ols = r_13 * b_true_ols - 0.33 * r_23,
+         Est_correct_ols   = ci_correct(beta_iso_true_ols, ci_lo, ci_hi))
+
 # Precomputed r/pct_correct pair for the fig-eval-style calibration scatter in supplementary_info.qmd -- computed here, not in the qmd, matching this section's "no new stats inside the qmd" convention.
-Ols_anchor_stats <- Ols_anchor_df %>%
+Ols_anchor_stats <- Ols_anchor_fig_df %>%
   group_by(Model) %>%
   summarize(r = round(cor(beta_iso_true_ols, b_temp_inc), 2),
-            pct_correct = round(mean(ci_correct(beta_iso_true_ols, ci_lo, ci_hi)) * 100, 1),
+            pct_correct = round(mean(Est_correct_ols) * 100, 1),
             .groups = "drop")
 
 pull_ols_pct <- function(model, col, tbl = Ols_anchor_summary_tbl) {
@@ -522,6 +539,7 @@ saveRDS(
 
     # OLS-anchored robustness check (supplementary)
     Ols_anchor_df          = Ols_anchor_df,
+    Ols_anchor_fig_df      = Ols_anchor_fig_df,
     Ols_anchor_summary_tbl = Ols_anchor_summary_tbl,
     Ols_anchor_stats       = Ols_anchor_stats,
     Sliiso_pct_sma = Sliiso_pct_sma, Sliiso_pct_ols = Sliiso_pct_ols,

@@ -407,3 +407,28 @@ classify_direction <- function(mods_tbl, p_threshold = 0.05,
     dplyr::select(-sole_decr) %>%
     rename(!!sym(species_col) := species_)
 }
+
+# Shared boxplot skeleton for a Parms_tbl4-shaped df (Model, Temp_eff, b_temp_inc, Strength,
+# Scaling columns): one panel per Temp_eff category, methods on the x-axis. Used by the main
+# text's fig-compare-approaches and by supplementary_info.qmd's ratio-of-logs robustness check
+# (same plot, fed the alt-ratio-substituted data) -- moved here once a second call site existed,
+# per this project's "extract a shared helper the first time logic is duplicated" convention.
+plot_approaches <- function(df, x_txt_size = 9, legend.pos = "top") {
+  df <- df %>%
+    filter(Temp_eff != "Proportionally larger") %>%
+    mutate(Model = str_replace_all(Model, x_labs))
+
+  ggplot(df, aes(x = Model, y = b_temp_inc)) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
+    geom_boxplot(outlier.shape = NA) +
+    geom_jitter(width = 0.15, height = 0, alpha = .5, size = 1.9,
+                aes(color = Strength, shape = Scaling)) +
+    facet_wrap(vars(Temp_eff)) +
+    labs(x = NULL, y = expression(hat(beta)[T] ~ "on relative appendage length"),
+         color = "Strength", shape = "Scaling") +
+    guides(shape = guide_legend(nrow = 1)) +
+    theme(
+      axis.text.x = element_text(size = x_txt_size, vjust = .58, angle = 55),
+      legend.position = legend.pos, legend.box = "vertical"
+    )
+}
