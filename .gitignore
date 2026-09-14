@@ -35,6 +35,9 @@ Scripts/qmd/Simulation_math_summary.qmd
 # Reviewer/collaborator feedback (personal working copies, not for circulation)
 Feedback/
 
+# Journal submission materials (cover letter, etc.) - personal working copies, not tracked
+Journal_submission/
+
 # Local working notes (session log for AI-assisted development, not the science itself)
 Project_notes.md
 Project_notes_archive.md

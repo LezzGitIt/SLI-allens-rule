@@ -305,25 +305,26 @@ Flip_legend <- ggdraw() +
   draw_line(x = c(0.28, 0.35), y = c(0.35, 0.35), color = "steelblue", linewidth = 1.3) +
   draw_label("SMA", x = 0.365, y = 0.35, hjust = 0, size = 16)
 
-# Flip-axes symbol between the two panels: a rounded (curved) double-headed arrow, with
-# "flip axes" sitting right against it.
-# Positioned higher than panel center -- roughly level with where the fitted lines sit
-# at Mass = 70g in panel (a), rather than at the vertical midpoint of the panel.
+# Flip-axes symbol between the two panels: a rounded (curved) double-headed arrow, sized
+# and positioned to read as a primary visual element, not a small annotation -- large
+# arrow, text about the size of the panels' own axis labels (font_size = 16 below), both
+# sitting high in the column, well clear of the "Mass"/"Appendage" axis titles at the
+# bottom of panels (a)/(b).
 Flip_arrow_grob <- curveGrob(
-  x1 = 0.2, y1 = 0.68, x2 = 0.8, y2 = 0.68,
+  x1 = 0.2, y1 = 0.82, x2 = 0.8, y2 = 0.82,
   curvature = -0.5, ncp = 8, square = FALSE,
-  arrow = arrow(ends = "both", length = unit(0.1, "inches"), angle = 25),
-  gp = gpar(lwd = 2)
+  arrow = arrow(ends = "both", length = unit(0.16, "inches"), angle = 25),
+  gp = gpar(lwd = 3.5)
 )
 Flip_arrow_panel <- ggdraw() +
-  draw_label("flip axes", x = 0.5, y = 0.72, size = 11) +
+  draw_label("flip axes", x = 0.5, y = 0.89, size = 16) +
   draw_grob(Flip_arrow_grob)
 
 # Narrow middle column (just enough room for the arrow) so the two data panels get most
 # of the width -- previously a lot of width sat empty between them, leaving each panel (and
 # its axis text) smaller than it needed to be.
 Flip_top_row <- plot_grid(Flip_panel_a, Flip_arrow_panel, Flip_panel_b, nrow = 1,
-                           rel_widths = c(1, 0.15, 1), labels = c("a", "", "b"), label_size = 12)
+                           rel_widths = c(1, 0.2, 1), labels = c("a", "", "b"), label_size = 12)
 Flip_combined <- plot_grid(Flip_legend, Flip_top_row, ncol = 1, rel_heights = c(0.06, 1))
 Flip_combined
 
