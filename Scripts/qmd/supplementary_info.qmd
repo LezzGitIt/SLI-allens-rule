@@ -1,5 +1,5 @@
 ---
-title: "Supplementary Information - The Shape of Things to Come: Different Estimators Lead to Different Conclusions in Tests of Allen’s Rule"
+title: "Supporting Information - The Shape of Things to Come: Different Estimators Lead to Different Conclusions in Tests of Allen’s Rule"
 number-sections: true
 execute:
   echo: false
@@ -7,7 +7,7 @@ execute:
   warning: false
 format:
   pdf:
-    toc: false
+    toc: true
     include-in-header:
       - text: |
           \usepackage{authblk}
@@ -20,6 +20,8 @@ editor_options:
 metadata-files:
   - ../../Suppfiles/authors.yml
 ---
+
+{{< pagebreak >}}
 
 ```{r}
 #| label: libraries
