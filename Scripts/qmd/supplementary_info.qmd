@@ -596,6 +596,42 @@ parms_stable %>%
   )
 ```
 
+# Rank order without method-family averaging
+
+To examine congruence between the patterns observed between the simulated and empirical datasets, I examined the rank-order comparison of the average of each species' $\hat\beta_T$ coefficient within the three method families (Ratio, OLS-based, SLI). Here I examine an additional (stricter) rank-order comparison amongst each method individually (not averaged by family). I exclude SLI-estimated because its exponent is estimated empirically, and thus, $\hat\beta_T$ is expected to move depending on the estimated SMA slope. I also exclude OLS-residuals as its $\hat\beta_T$ was always highly correlated with the multiple regression coefficient, but was sometimes slightly higher or lower depending on the collinearity between predictor variables.
+
+```{r}
+#| label: rank-consistency-strict
+#| include: false
+
+Rank_strict_all <- bind_rows(
+  read_csv("Derived/Csv/Nightjar_parms.csv",  show_col_types = FALSE),
+  read_csv("Derived/Csv/Weeks_parms.csv",     show_col_types = FALSE),
+  read_csv("Derived/Csv/Atlantic_parms.csv",  show_col_types = FALSE)
+) %>%
+  distinct(species, Study, Direction, rank_consistent, rank_strict_consistent) %>%
+  filter(Direction %in% c("Bergmann's", "Inverse Bergmann's"))
+
+pull_rank_strict_stat <- function(dir, col) {
+  Rank_strict_all %>%
+    group_by(Direction) %>%
+    summarize(n = n(), pct = round(100 * mean(rank_strict_consistent, na.rm = TRUE)), .groups = "drop") %>%
+    filter(Direction == dir) %>%
+    pull({{ col }})
+}
+
+n_rank_strict_total     <- nrow(Rank_strict_all)
+pct_rank_strict_overall <- round(100 * mean(Rank_strict_all$rank_strict_consistent, na.rm = TRUE))
+pct_rank_overall_main   <- round(100 * mean(Rank_strict_all$rank_consistent, na.rm = TRUE))
+
+pct_rank_strict_bergmanns     <- pull_rank_strict_stat("Bergmann's", pct)
+n_rank_strict_bergmanns       <- pull_rank_strict_stat("Bergmann's", n)
+pct_rank_strict_inv_bergmanns <- pull_rank_strict_stat("Inverse Bergmann's", pct)
+n_rank_strict_inv_bergmanns   <- pull_rank_strict_stat("Inverse Bergmann's", n)
+```
+
+`r pct_rank_strict_overall`% of the `r n_rank_strict_total` directionally classified species satisfied the full strict order (`r pct_rank_strict_bergmanns`% of `r n_rank_strict_bergmanns` Bergmann's species and `r pct_rank_strict_inv_bergmanns`% of `r n_rank_strict_inv_bergmanns` Inverse Bergmann's species), somewhat lower than the `r pct_rank_overall_main`% obtained with family averaging. This is expected as averaging within a method family smooths over noise that this stricter test does not; the overall congruence of this stricter test corroborates that rank-order patterns are generally consistent across simulations and empirical datasets.
+
 # Correlation between relative appendage length metrics and body mass
 
 The ratio methods exhibit upward bias (relative to the isometric reference quantity) under Bergmann's rule due to a mechanical correlation between the ratio metric and body mass. @fig-mass-cor-empirical shows the full per-species distribution underlying the medians presented in Table 4 of the main text.
