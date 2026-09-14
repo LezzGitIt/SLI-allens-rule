@@ -1,5 +1,5 @@
 ---
-title: "Supplementary Information: The Shape of Things to Come — Simulations Show Promise in a New Metric, the Standardized Length Index"
+title: "Supplementary Information - The Shape of Things to Come: Different Estimators Lead to Different Conclusions in Tests of Allen’s Rule"
 number-sections: true
 execute:
   echo: false
@@ -76,28 +76,6 @@ lit_review_grob <- grid::rasterGrob(lit_review_img, width = grid::unit(1, "npc")
 cowplot::ggdraw() + cowplot::draw_grob(lit_review_grob)
 ```
 
-# Validation of simulated species direction
-
-The main text simulates species by crossing correlations between temperature, mass, and appendage length; whether a given hypothetical species actually moved in its intended direction (e.g., "Stouter" species becoming relatively shorter-winged) was validated by examining the correlation between binned temperature and the SMA intercept, and species with the wrong-signed correlation were excluded from further analysis (main text, Data simulation). This validation check reflects each species' own realized (SMA-estimated) scaling relationship, not the fixed isometric anchor used to define the main text's ground truth (main text, Effect classification). For Proportionally smaller and Proportionally larger species, whose isometric-relative effect is exactly null by design, this means the SMA-intercept correlation is *not* expected to be centered on zero: guaranteeing an exactly null isometric-relative effect for these species necessarily requires $\rho_{13} \neq \rho_{23}$ (main text, Effect classification), and it is exactly that differential correlation the SMA-intercept check picks up — the same pathway responsible for SLI-estimated's divergence from SLI-isometry among these species (main text, Simulation performance; Proportionally larger scenario below).
-
-```{r}
-#| label: fig-cor-allometry-values
-#| fig-cap: "Correlation between binned temperature and the SMA intercept (a proxy for each species' own realized scaling relationship, not the isometric ground truth used elsewhere in this paper) for every simulated species, used to validate that Stouter and Longer species moved in their intended direction. Stouter species should show a negative correlation and Longer species a positive correlation. Proportionally smaller and Proportionally larger species are not expected to straddle zero here, despite having an exactly null isometric-relative effect by design (see main text); species falling on the wrong side of zero for their category (e.g., points above the dashed line for Stouter species) were excluded from further analysis, an exclusion rule that was not applied to the Proportionally smaller/larger categories. Point shape distinguishes models fit with a fixed slope ('No interaction') from models allowing the slope to vary with temperature ('Interaction'); point size indicates allometric scaling category and colour indicates the strength of the difference between temperature's effect on appendage length and mass."
-#| fig-width: 8
-#| fig-height: 6
-#| fig-pos: 'H'
-
-Parms_temp_bs %>%
-  ggplot(aes(x = Temp_eff, y = Correlation)) +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  geom_boxplot(outlier.shape = NA) +
-  geom_point(position = position_jitter(width = .3), alpha = .3,
-             aes(color = Strength, shape = SMA_mod, size = Scaling)) +
-  labs(x = NULL, y = "Correlation between\ntemperature and\nSMA intercept",
-       shape = "Model", size = "Scaling", color = "Strength\nAllen's") +
-  theme(axis.text.x = element_text(size = 10, vjust = .58, angle = 30))
-```
-
 # Allometric scaling and correlation strength
 
 ```{r}
@@ -132,105 +110,190 @@ vary_scaling_tbl %>%
         axis.text.x = element_text(size = 9))
 ```
 
-# Correlation between relative appendage length metrics and body mass
+# Robustness check: ratio-of-logs construction
 
-The main text attributes the ratio methods' upward bias under Bergmann's rule to a mechanical correlation between the ratio metric and body mass, and reports each metric's median per-species correlation with mass across the three empirical datasets (main text, Table 4). @fig-mass-cor-empirical shows the full per-species distribution underlying those medians.
+The main text's ratio metrics are the log of the ratio: $\log(A/S)$ and $\log(A^2/S)$, computed by dividing appendage length by mass (or its square) and then log-transforming the result. An alternative construction found in the shape-shifting literature (e.g., @rydingMultipleRegressionNot2025) instead logs appendage length and body mass separately and divides the two logged values: $\log(A)/\log(S)$. The two are not algebraically related in any simple way, and unlike $\log(A/S)$, $\log(A)/\log(S)$ is not invariant to the units appendage length happens to be measured in, i.e., converting mm to cm shifts $\log(A)$ by an additive constant, which cancels exactly in $\log(A/S)$ but not in $\log(A)/\log(S)$. Here I recompute Ratio and Ratio² using this ratio-of-logs construction and score them against the isometric-relative ground truth. I show $\log(A/S)$ as a point of comparison.
 
 ```{r}
-#| label: mass-cor-empirical-stats
+#| label: altratio-3d-stats
 #| include: false
 
-Mass_cor_emp_all <- bind_rows(
-  read_csv("Derived/Csv/Nightjar_mass_cor.csv",  show_col_types = FALSE),
-  read_csv("Derived/Csv/Weeks_mass_cor.csv",     show_col_types = FALSE),
-  read_csv("Derived/Csv/Atlantic_mass_cor.csv",  show_col_types = FALSE)
-) %>%
-  dplyr::select(Study, species, Metric, n, r, p_value) %>%
-  filter(Metric %in% c("Ratio", "Ratio2", "Sli_iso", "Sli_est")) %>%
-  mutate(Metric = factor(Metric, levels = c("Ratio", "Ratio2", "Sli_iso", "Sli_est"),
-                          labels = c("Wing / Mass", "Wing² / Mass", "SLI-isometry", "SLI-estimated")))
+## gen_ex_data() draws new individuals on every render; seed it so the figure is reproducible.
+set.seed(20260912)
+altratio_3d_parms <- Parms_mat3 %>%
+  filter(Scaling == "Isometry", Temp_eff == "Proportionally smaller", r_12 == 0.3, r_23 == -0.7) %>%
+  slice_max(abs(r_13 - r_23), n = 1, with_ties = FALSE)
 
-n_sli_iso_emp_total <- Mass_cor_emp_all %>% filter(Metric == "SLI-isometry")  %>% nrow()
-n_sli_est_emp_total <- Mass_cor_emp_all %>% filter(Metric == "SLI-estimated") %>% nrow()
+altratio_3d_df <- gen_ex_data(altratio_3d_parms) %>%
+  transmute(Append_mm = Append, Mass_g = Mass)
 
-fig_cap_mass_cor_empirical <- glue::glue("Distribution of per-species Pearson correlations between each metric and body mass, by empirical dataset. Boxes show the median (also given as a numeric label, matching main text Table 4) and interquartile range; points are individual species, jittered horizontally. SLI-estimated has fewer points than the other three metrics ({n_sli_est_emp_total} of {n_sli_iso_emp_total} species across all three datasets) because it is undefined for species that failed the per-group allometric-correlation filter (main text, Methods).")
-```
+mass_seq_3d   <- seq(min(altratio_3d_df$Mass_g), max(altratio_3d_df$Mass_g), length.out = 40)
+append_seq_3d <- seq(min(altratio_3d_df$Append_mm), max(altratio_3d_df$Append_mm), length.out = 40)  # mm
 
-```{r}
-#| label: fig-mass-cor-empirical
-#| fig-cap: !expr fig_cap_mass_cor_empirical
-#| fig-width: 8
-#| fig-height: 5
-#| fig-pos: 'H'
+build_Z_3d <- function(fn, append_vals) outer(mass_seq_3d, append_vals, function(m, a) fn(a, m))
+center_3d  <- function(Z) Z - mean(Z)
 
-Mass_cor_emp_all %>%
-  ggplot(aes(x = Metric, y = r)) +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  geom_boxplot(outlier.shape = NA) +
-  geom_jitter(width = 0.15, alpha = 0.5) +
-  stat_summary(fun = median, geom = "label",
-               aes(label = sprintf("%.2f", after_stat(y))),
-               size = 3, label.size = 0, label.padding = unit(0.12, "lines"),
-               fill = "white", alpha = 0.85) +
-  facet_wrap(~Study) +
-  labs(x = NULL, y = "Correlation with body mass") +
-  theme(axis.text.x = element_text(size = 9, vjust = .58, angle = 30))
-```
-
-Here I extend the same check to the simulated data and to all five methods that produce an individual-level shape metric; multiple regression is excluded because it returns only a regression coefficient, not an index that can be correlated with mass.
-
-```{r}
-#| label: mass-cor-sim-stats
-#| include: false
-
-n_sim_species_cor <- nrow(Parms_tbl3)
-
-Mass_cor_summary <- Mass_cor_tbl %>%
-  summarize(Mean_r = mean(r_mass), Min_r = min(r_mass), Max_r = max(r_mass), .by = Model) %>%
-  mutate(across(c(Mean_r, Min_r, Max_r), \(x) round(x, 2)))
-
-pull_mass_cor <- function(model, stat) {
-  Mass_cor_summary %>% filter(Model == model) %>% pull({{ stat }})
+# Fits a plane z ~ mass + appendage to a (mass, appendage) grid of metric values -- a compact
+# summary of the surface's steepness along each axis, comparable between the mm and cm versions.
+fit_plane_3d <- function(Z, append_vals) {
+  gd <- expand.grid(mass = mass_seq_3d, append = append_vals)
+  gd$z <- as.vector(Z)
+  co <- coef(lm(z ~ mass + append, data = gd))
+  c(mass = co[["mass"]], append = co[["append"]])
 }
 
-mean_r_ratio     <- pull_mass_cor("Ratio",     Mean_r)
-range_r_ratio    <- paste(pull_mass_cor("Ratio", Min_r), "to", pull_mass_cor("Ratio", Max_r))
-mean_r_ratio2    <- pull_mass_cor("Ratio2",    Mean_r)
-range_r_ratio2   <- paste(pull_mass_cor("Ratio2", Min_r), "to", pull_mass_cor("Ratio2", Max_r))
-mean_r_sli_iso   <- pull_mass_cor("Sli_iso",   Mean_r)
-range_r_sli_iso  <- paste(pull_mass_cor("Sli_iso", Min_r), "to", pull_mass_cor("Sli_iso", Max_r))
-mean_r_sli_est   <- pull_mass_cor("Sli_est",   Mean_r)
-range_r_sli_est  <- paste(pull_mass_cor("Sli_est", Min_r), "to", pull_mass_cor("Sli_est", Max_r))
-max_abs_r_ols    <- Mass_cor_tbl %>% filter(Model == "Ols_resid") %>% pull(r_mass) %>% abs() %>% max() %>% signif(2)
+# Draws a wireframe of a second surface on top of an existing persp() scene, using the
+# projection matrix persp() returns -- both surfaces plotted over the SAME physical (mass,
+# appendage-in-mm) grid, since it's one shared 3D space: only the z-value (what the formula
+# outputs when fed mm-numbers vs. cm-numbers for the same individual) should differ, not the
+# horizontal position.
+overlay_wireframe_3d <- function(pmat, x, y, Z, col) {
+  for (i in seq_along(x)) lines(trans3d(x[i], y, Z[i, ], pmat), col = col, lwd = 1)
+  for (j in seq_along(y)) lines(trans3d(x, y[j], Z[, j], pmat), col = col, lwd = 1)
+}
 
-fig_cap_mass_cor <- glue::glue("Per-species Pearson correlation between body mass and each method's individual-level relative appendage length metric, across all {n_sim_species_cor} simulated species. Multiple regression is excluded because it produces only a model coefficient, not an individual-level index. Point colour shows the underlying appendage-mass correlation ($\\rho_{{12}}$) used to simulate each species.")
+logr_fn <- function(a, m) log(a / m)
+rol_fn  <- function(a, m) log(a) / log(m)
+
+altratio_3d_specs <- list(
+  list(fn = logr_fn, name = "log(A/S)",      cols = c("steelblue", "grey20")),
+  list(fn = rol_fn,  name = "log(A)/log(S)", cols = c("darkorange", "grey20"))
+)
+
+fig_cap_altratio_3d <- glue::glue("Both ratio constructions evaluated as deterministic surfaces over the full (Mass, Appendage) plane, for one representative Proportionally smaller example species (Isometry scaling, true SMA slope = {round(altratio_3d_parms$true_b_sma, 2)}). Solid surface: appendage length in mm. Overlaid wireframe: the same species with appendage length converted to cm. Both surfaces are mean-centered; a fitted plane's mass-slope is annotated above each panel. The plane's appendage-slope is omitted: both surfaces are evaluated over the same physical appendage-in-mm grid position (only the z-value, i.e. what the formula outputs for mm- vs cm-expressed appendage length, differs), so the fitted appendage-slope is identical between the mm and cm surfaces by construction, in both panels -- it is the mass-slope alone that is diagnostic of unit-sensitivity. Under log(A/S) (left) the mm and cm surfaces are visually indistinguishable, and their fitted mass-slopes are identical to four decimal places. Under log(A)/log(S) (right) the two surfaces visibly diverge, and the fitted mass-slope changes when appendage length is re-expressed in different units, even though nothing about the underlying species changed.")
 ```
 
 ```{r}
-#| label: fig-mass-cor-sim
-#| fig-cap: !expr fig_cap_mass_cor
-#| fig-width: 8
-#| fig-height: 5
+#| label: fig-altratio-3d
+#| fig-cap: !expr fig_cap_altratio_3d
+#| fig-width: 10
+#| fig-height: 5.5
 #| fig-pos: 'H'
 
-Mass_cor_tbl %>%
-  mutate(r_12  = as_factor(r_12),
-         Model = str_replace_all(Model, x_labs),
-         Model = factor(Model, levels = c("Appendage / mass", "Appendage² / mass",
-                                           "OLS residuals", "SLI isometry", "SLI estimated"))) %>%
-  ggplot(aes(x = Model, y = r_mass)) +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  geom_boxplot(outlier.shape = NA) +
-  geom_jitter(width = 0.15, alpha = 0.5, aes(color = r_12, shape = Scaling)) +
-  labs(x = NULL, y = "Correlation with body mass", color = expression(rho[12])) +
-  theme(axis.text.x = element_text(size = 10, vjust = .58, angle = 30))
+par(mfrow = c(1, 2), mar = c(2, 2, 5, 1))
+
+for (spec in altratio_3d_specs) {
+  Z_mm <- center_3d(build_Z_3d(spec$fn, append_seq_3d))
+  Z_cm <- center_3d(build_Z_3d(spec$fn, append_seq_3d / 10))
+  zlim <- range(Z_mm, Z_cm)
+  fit_mm <- fit_plane_3d(Z_mm, append_seq_3d)
+  fit_cm <- fit_plane_3d(Z_cm, append_seq_3d)
+
+  pmat <- persp(mass_seq_3d, append_seq_3d, Z_mm, zlim = zlim, theta = -35, phi = 22, expand = 0.7,
+                col = spec$cols[1], border = NA, shade = 0.35, ticktype = "detailed",
+                cex.axis = 0.65, cex.lab = 0.9, xlab = "Mass (g)", ylab = "Appendage (mm)",
+                zlab = "", main = "")
+  overlay_wireframe_3d(pmat, mass_seq_3d, append_seq_3d, Z_cm, col = spec$cols[2])
+
+  title(main = spec$name, cex.main = 1.3, line = 3.2)
+  mtext(sprintf("mm plane slope: mass=%.4f", fit_mm["mass"]),
+        side = 3, line = 1.5, cex = 0.85, col = spec$cols[1])
+  mtext(sprintf("cm plane slope: mass=%.4f", fit_cm["mass"]),
+        side = 3, line = 0.4, cex = 0.85, col = spec$cols[2])
+}
 ```
 
-The simulated data reproduce the empirical pattern and clarify its mechanism. **OLS residuals** showed correlations with mass of essentially zero in every simulated species (maximum $|r|$ = `r max_abs_r_ols`) — not because residual regression is unbiased, but because least-squares residuals are mathematically orthogonal to the predictor by construction; a correlation of zero here reflects a property of the algebra, not evidence that the method isolates a true shape signal. **Ratio** ($A/S$) showed the strongest correlation with mass (mean $r$ = `r mean_r_ratio`, range `r range_r_ratio`), confirming the mechanical dependence responsible for its bias under Bergmann's rule (main text). **Ratio2** ($A^2/S$) was weaker but still consistently negative (mean $r$ = `r mean_r_ratio2`, range `r range_r_ratio2`), consistent with the partial correction from squaring the appendage term. **SLI-isometry** (mean $r$ = `r mean_r_sli_iso`, range `r range_r_sli_iso`) and **SLI-estimated** (mean $r$ = `r mean_r_sli_est`, range `r range_r_sli_est`) fell between the ratio and OLS-residual extremes: weaker than either ratio metric, but — unlike OLS residuals — not exactly zero. This is expected, since SLI standardizes appendage length using a fixed or estimated allometric exponent rather than an OLS-fitted line, so it is not mathematically guaranteed to be orthogonal to mass unless that exponent happens to equal the OLS slope. SLI's good directional-accuracy performance (main text, Simulation performance) therefore does not depend on being perfectly uncorrelated with mass, but on using an exponent that better approximates the true allometric relationship than either the ratio's implicit exponent or OLS's attenuated slope.
+```{r}
+#| label: altratio-stats
+#| include: false
+
+pull_altratio_pct <- function(model, temp_eff, tbl = Eval_tbl_altratio) {
+  tbl %>% filter(Model == model, Temp_eff == temp_eff) %>%
+    mutate(pct = round(Prop_correct * 100, 0)) %>% pull(pct)
+}
+
+Ratio_alt_stouter_pct    <- pull_altratio_pct("Ratio_alt",  "Stouter")
+
+# Three-way comparison of the ratio constructions alone (plot_approaches(), 00_Key_allometry_fns.R),
+# rather than recreating the full six-method main text figure: multiple regression, OLS residuals,
+# and both SLI parameterizations are byte-identical to the main text (ratio-of-logs only redefines
+# the two ratio metrics), so they'd add bulk without new information -- @fig-compare-approaches
+# already shows them. Custom Model labels (not in x_labs) so log(A)/log(S) and log(A^2)/log(S)
+# display as distinct boxes rather than both collapsing to the generic "Appendage(^2) / mass" label.
+Parms_tbl4_altratio_fig <- bind_rows(
+  Parms_tbl4 %>% filter(Model == "Ratio") %>% mutate(Model = "log(A/S)"),
+  Parms_tbl4_altratio %>% filter(Model == "Ratio_alt")  %>% mutate(Model = "log(A)/log(S)"),
+  Parms_tbl4_altratio %>% filter(Model == "Ratio2_alt") %>% mutate(Model = "log(A²)/log(S)")
+) %>%
+  mutate(Model = factor(Model, levels = c("log(A/S)", "log(A)/log(S)", "log(A²)/log(S)")))
+```
+
+```{r}
+#| label: fig-altratio-compare
+#| fig-cap: "The three ratio constructions compared directly: the main text's log(A/S), against Ratio and Ratio² redefined under the ratio-of-logs construction, log(A)/log(S) and log(A²)/log(S). Multiple regression, OLS residuals, and both SLI parameterizations are omitted here since ratio-of-logs leaves them byte-identical to the main text (main text, Simulation performance)."
+#| fig-width: 6
+#| fig-height: 4.5
+#| fig-pos: 'H'
+
+# plot_approaches()'s internal str_replace_all(Model, x_labs) coerces Model back to character,
+# dropping the factor order set above (ggplot then falls back to alphabetical) -- reimposed here
+# rather than inside the shared function, since main text's own call relies on x_labs' relabeling
+# for its ordering and shouldn't need to special-case a pre-set factor.
+plot_approaches(Parms_tbl4_altratio_fig, x_txt_size = 11) +
+  scale_x_discrete(limits = c("log(A/S)", "log(A)/log(S)", "log(A²)/log(S)"))
+```
+
+The alternative formulation of the ratio, $\log(A)/\log(S)$, showed qualitatively similar estimates of $\hat\beta$ relative to $\log(A/S)$, but producing slightly more positive results in the species simulated to become stouter with warming temperatures. Indeed, the median is slightly closer to zero, and the ratio-of-logs construction classifies `r Ratio_alt_stouter_pct`% of species as relatively stouter, compared to 64% in the log-of-ratios construction. Interestingly, $\log(A^2)/\log(S)$ returns the same results as $\log(A)/\log(S)$, which makes sense because $\log(A^2)/\log(S) = 2 \cdot \log(A)/\log(S)$, meaning the formula is identical up to a constant multiplier. That constant is lost during standardization, meaning the Ratio and Ratio² fit *identical* models under the ratio-of-logs construction. Taken together, the ratio-of-logs construction performs worse for Stouter species, collapses two metrics that remain distinct in the log-of-ratios construction, and is not unit-invariant. This reinforces that $\log(A/S)$ and $\log(A^2/S)$ are the better-justified constructions when a ratio metric is logged at all.
+
+# Anchoring the ground truth to OLS instead of SMA
+
+The main text anchors "isometric" (0.33) to the SMA slope ('Approach classification' in main text), matching SLI-isometry's own logic. To illustrate that the choice of reference quantity is statistically arbitrary, I show an alternative reference quantity anchored to OLS regression as well: $\beta_{OLS} = \rho_{12} \cdot \beta_{SMA}$, so $\beta_{T,OLS} = \rho_{13} \cdot \beta_{OLS} - 0.33 \cdot \rho_{23}$. I re-scored the correlation and sign-agreement between $\beta_{T,OLS}$ and $\hat\beta_{T}$ for all six methods.
+
+```{r}
+#| label: fig-calibration-ols
+#| fig-cap: "The main text's per-species calibration scatter (main text, Simulation performance) recreated with the ground truth anchored to OLS instead of SMA (x-axis: the OLS-anchored true effect), including Longer, Stouter, and Proportionally smaller species. Same species and estimated coefficients as the main text figure; only the definition of the true value has moved. As in the main text figure, species in agreement with the OLS-anchored reference are faded; species not in agreement are drawn at full opacity."
+#| fig-width: 9
+#| fig-height: 6.5
+#| fig-pos: 'H'
+
+ggplot(Ols_anchor_fig_df, aes(x = beta_iso_true_ols, y = b_temp_inc, color = Temp_eff, shape = Scaling)) +
+  geom_hline(yintercept = 0, color = "grey80") +
+  geom_vline(xintercept = 0, color = "grey80") +
+  geom_point(data = \(d) dplyr::filter(d, Est_correct_ols),  alpha = 0.28, size = 1.7,
+             position = position_jitter(width = 0.006, height = 0.006, seed = 1)) +
+  geom_point(data = \(d) dplyr::filter(d, !Est_correct_ols), alpha = 0.9,  size = 2.1,
+             position = position_jitter(width = 0.006, height = 0.006, seed = 1)) +
+  geom_text(data = Ols_anchor_stats, aes(label = paste0("r=", r, ", ", pct_correct, "% correct")),
+            x = -Inf, y = Inf, hjust = -0.05, vjust = 1.3, inherit.aes = FALSE, size = 2.6) +
+  facet_wrap(vars(Model), scales = "free_y") +
+  labs(x = expression(beta[T*","*OLS] ~ "(analytic, OLS-anchored)"),
+       y = expression(hat(beta)[T] ~ "(estimated)"),
+       color = "Category", shape = "Scaling") +
+  guides(color = guide_legend(nrow = 1), shape = guide_legend(nrow = 1)) +
+  theme(legend.position = "top", legend.box = "vertical")
+```
+
+# SLI-isometry's correlation with the reference quantity
+
+The main text notes that anchoring $\beta_T$ to the same SMA slope that SLI-isometry itself uses makes it circular to "test" SLI-isometry against the other approaches (section 'Approach classification' in the main text). Here I show that SLI-isometry's fitted coefficient ($\hat\beta_T$) is exactly correlated with the isometric reference quantity $\beta_T$ up to a scaling coefficient.
+
+$\beta_T$ is defined from $\mathrm{Cov}(\log SLI, \mathrm{Temperature})$ alone (main text, Effect classification), but a *fitted regression coefficient* is that covariance divided by $sd(\log SLI)$ too — a correlation, not a covariance. $sd(\log SLI)^2$ is proportional to
+
+$$V = \beta_{SMA}^2 + 0.33^2 - 2 \cdot 0.33 \cdot \rho_{12} \cdot \beta_{SMA}$$
+
+which varies species to species (it depends on each species' own $\beta_{SMA}$ and $\rho_{12}$), and $\beta_T$ never accounted for it — only the *sign* claim survives that omission, since $\sqrt{V}>0$ always. Dividing $\beta_T$ by $\sqrt{V}$ restores the missing term, raising the raw correlation of $r \approx$ `r sprintf("%.2f", r_sli_iso_raw)` (main text's calibration scatter) to $r \approx$ `r sprintf("%.2f", r_sli_iso_rescaled)`.
+
+```{r}
+#| label: fig-sli-iso-rescale
+#| fig-cap: "SLI-isometry's fitted coefficient against the variance-corrected ground truth (main text, Effect classification and this section). Longer, Stouter, and Proportionally smaller species, matching the main text's calibration scatter; the dashed line is 1:1, not a fitted trend."
+#| fig-width: 4.5
+#| fig-height: 4.5
+#| fig-pos: 'H'
+
+ggplot(Sli_iso_rescale_df, aes(x = beta_T_rescaled, y = b_temp_inc, color = Temp_eff, shape = Scaling)) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "grey50") +
+  geom_point(alpha = .55, size = 1.2) +
+  annotate("text", x = -Inf, y = Inf, label = paste0("r=", round(r_sli_iso_rescaled, 2)),
+           hjust = -0.1, vjust = 1.5, size = 3) +
+  labs(x = "Ground truth (variance-corrected)", y = expression(hat(beta)[T] ~ "(SLI-isometry, estimated)"),
+       color = "Category", shape = "Scaling") +
+  guides(color = guide_legend(nrow = 1), shape = guide_legend(nrow = 1)) +
+  theme(legend.position = "top", legend.box = "vertical")
+```
 
 # Proportionally larger scenario: simulated analogue of Inverse Bergmann's responses
 
-The main text simulation compares six methods for estimating relative appendage length across three realizations of Bergmann's rule (Stouter, Proportionally smaller, Longer), in which body mass never increases with warming. Here I additionally simulated a **Proportionally larger** scenario — the mirror image of Proportionally smaller, in which temperature increases wing length and body mass with equal, not differential, pull ($b \in \{0.22, 0.33, 0.44\}$, $\rho_{12} \in \{0.3, 0.45, 0.6\}$, $\rho_{13}$ solved from $\rho_{23} \in \{0.15, 0.3, 0.5, 0.7\}$ so the true isometric-relative effect is exactly null; main text, Effect classification; 36 simulated species). Because the true effect is exactly zero for every species in this design, an unbiased method should classify exactly half of Proportionally larger species as becoming relatively longer, matching the true value of `r Bigger_longer_pct`%. This scenario is the simulated analogue of empirically observed **Inverse Bergmann's** responses (main text classification table), in which mass, wing length, or both increase with warming.
+The main text simulation compares six methods for estimating relative appendage length across three realizations of Bergmann's rule (Stouter, Proportionally smaller, Longer), in which body size always decreases with warming. Here I additionally simulated a **Proportionally larger** scenario — the mirror image of Proportionally smaller, in which temperature increases wing length and body mass with equal pull ($b \in \{0.22, 0.33, 0.44\}$, $\rho_{12} \in \{0.3, 0.45, 0.6\}$, $\rho_{13}$ solved from a specified $\rho_{23} \in \{0.15, 0.3, 0.5, 0.7\}$ so the true isometric-relative effect is exactly null (see 'Effect classification' section in the main text)). The goal of this exercise was to understand the expectation for species exhibiting inverse Bergmannian patterns in which mass, wing length, or both increase with warming.
 
 ```{r}
 #| label: fig-bigger-compare
@@ -249,214 +312,15 @@ Parms_tbl4_bigger %>%
   theme(axis.text.x = element_text(size = 10, vjust = .58, angle = 55))
 ```
 
-The pattern mirrors, and inverts, the classical biases described in the main text. Because mass now increases rather than decreases with temperature, the ratio approach's denominator grows instead of shrinking: only `r Ratio_bigger_pos`% of Proportionally larger species (versus the true proportion of `r Bigger_longer_pct`%) were classified as becoming relatively longer — the opposite-direction analogue of the ratio's upward bias in shrinking (Bergmann's) species. Multiple regression and OLS residuals show the mirror-image error: `r Ryding_bigger_pos`% of Proportionally larger species were classified as becoming relatively longer despite the complete absence of a true shape signal, reflecting the same attenuation mechanism described in the main text, reinforcing rather than opposing the (null) signal because mass is increasing rather than decreasing. SLI-isometry showed a smaller, but still real, bias toward classifying Proportionally larger species as relatively stouter (`r Sli.iso_bigger_pos`%, versus the true `r Bigger_longer_pct`%), while SLI-estimated (`r Sli.est_bigger_pos`%) deviated further from the true proportion — the same pattern, and for the same structural reason, as in the Proportionally smaller scenario (main text, Simulation performance): forcing the isometric-relative true effect to exactly zero necessarily opens a real differential-correlation pathway that SLI-estimated, but not SLI-isometry, is structurally sensitive to. Accounting for uncertainty makes the gap between the two SLI variants decisive: a 95% confidence interval correctly included zero for `r Sli.iso_bigger_null_correct`% of Proportionally larger species under SLI-isometry, against `r Sli.est_bigger_null_correct`% under SLI-estimated and `r Ratio_bigger_null_correct`–`r Ryding_bigger_null_correct`% for the four non-SLI methods — matching the main text's Proportionally smaller result almost exactly. This is based on a comparatively modest sample of 36 simulated species.
+# Accounting for age and sex in empirical datasets
 
-# Robustness check: anchoring the ground truth to OLS instead of SMA
+Retained covariates were incorporated differently by method. For the ratio ($A/S$) and squared-ratio ($A^2/S$) I assume that age and sex influence wing and mass roughly proportionally, and thus would not importantly modify the ratios. I do not include age and sex in the SLI-isometry approach because $b_{SLI}$ is fixed at 0.33 by definition. For the OLS-residual approach, age and sex were included in the first-stage regression of wing on mass; for multiple regression, they were included alongside mass and the gradient variable. In both cases, a covariate entered the model only when it had at least two groups that each met a minimum sample size (100 individuals). Individuals with unrecorded age or sex were retained as their own category in both regressions rather than dropped. All six approaches were fit to the same individuals within a species, differing only in how age and sex information was incorporated.
 
-The main text anchors "isometric" (0.33) to the SMA scale (main text, Approach classification), matching SLI's own error-in-both-variables logic. As a check on how much that choice matters, I recomputed an alternative ground truth anchored to the OLS scale instead: $\beta_{OLS} = \rho_{12} \cdot \beta_{SMA}$ and $\beta_{T,OLS} = \rho_{13} \cdot \beta_{OLS} - 0.33 \cdot \rho_{23}$, then re-scored all six methods' sign-agreement against it among Longer and Stouter species (Proportionally smaller/larger are excluded here, as in the main text's calibration scatter (main text, Simulation performance), since their isometric-relative effect is exactly null by design and so has no signed value to agree or disagree with under either anchor).
+For SLI-estimated, each individual's SMA slope was estimated using the most specific reliable grouping available. Importantly, SMA regression is unreliable when the correlation between appendage and body mass is weak [@smithUseMisuseReduced2009]. Thus, SLI-estimated was calculated only for species with reliable mass–wing correlation (i.e., $r \geq 0.3$ and $p < 0.05$). Where possible, I estimated per-group SMA slopes, starting with the: (1) age-by-sex combination, when it contained at least 50 individuals and had a reliable mass–wing correlation; (2) age and/or sex class considered separately (each pooling across the other covariate, requiring at least 100 individuals per group as well as a reliable correlation); or (3) otherwise, the species-wide SMA slope. In (2), if age and sex were both able to be estimated they were averaged together (i.e., a hatch-year male would receive $(b_{HY} + b_M)/2$). Individuals with unrecorded age or sex were treated as their own class and passed through this same hierarchical slope-estimation procedure.
 
-```{r}
-#| label: tbl-ols-anchor
-#| tbl-cap: "Sign-agreement of each method's estimated coefficient against the adopted (SMA-anchored) ground truth versus an alternative OLS-anchored ground truth, among Longer and Stouter species."
-#| tbl-pos: 'H'
+# Empirical case studies: per-species
 
-knitr::kable(Ols_anchor_summary_tbl, format = "latex", booktabs = TRUE, linesep = "") %>%
-  kableExtra::column_spec(1, width = "3.4cm")
-```
-
-SLI-isometry's agreement drops sharply (`r Sliiso_pct_sma`% to `r Sliiso_pct_ols`%) under OLS-anchoring, as expected since the ground truth no longer matches its own formula. Ratio, by contrast, improves substantially (`r Ratio_pct_sma`% to `r Ratio_pct_ols`%) — closing much of the gap with the SLI variants, though not matching them or Ratio² under either anchor — while multiple regression and OLS-residuals both fall further behind (`r Ryding_pct_sma`% to `r Ryding_pct_ols`%, and `r Olsresid_pct_sma`% to `r Olsresid_pct_ols`%, respectively) — the opposite of what "they're OLS-based methods, so they should track an OLS-anchored truth" would predict, because both test deviation from each species' own estimated relationship rather than from a fixed external anchor, and so are structurally insensitive to the allometry-vs-anchor pathway regardless of which scale that anchor is stated on. This confirms the SMA-vs-OLS choice for 0.33 is consequential, not a relabeling, while leaving the case for anchoring to SMA (main text, Approach classification) unchanged.
-
-```{r}
-#| label: fig-calibration-ols
-#| fig-cap: "The main text's per-species calibration scatter (main text, Simulation performance) recreated with the ground truth anchored to OLS instead of SMA (x-axis: the OLS-anchored true effect), among Longer and Stouter species. Same species and estimated coefficients as the main text figure; only the definition of the true value has moved."
-#| fig-width: 9
-#| fig-height: 6.5
-#| fig-pos: 'H'
-
-ggplot(Ols_anchor_df, aes(x = beta_iso_true_ols, y = b_temp_inc, color = Temp_eff, shape = Scaling)) +
-  geom_hline(yintercept = 0, color = "grey80") +
-  geom_vline(xintercept = 0, color = "grey80") +
-  geom_point(alpha = .55, size = 1.2) +
-  geom_text(data = Ols_anchor_stats, aes(label = paste0("r=", r, ", ", pct_correct, "% correct")),
-            x = -Inf, y = Inf, hjust = -0.05, vjust = 1.3, inherit.aes = FALSE, size = 2.6) +
-  facet_wrap(vars(Model), scales = "free_y") +
-  labs(x = expression(beta[T*","*OLS] ~ "(analytic, OLS-anchored)"),
-       y = expression(hat(beta)[T] ~ "(estimated)"),
-       color = "Category", shape = "Scaling") +
-  guides(color = guide_legend(nrow = 1), shape = guide_legend(nrow = 1)) +
-  theme(legend.position = "top", legend.box = "vertical")
-```
-
-# Why SLI-isometry's correlation with the ground truth isn't exactly 1
-
-The main text notes that anchoring $\beta_T$ to the same isometric scale SLI-isometry itself uses makes it circular to "test" SLI-isometry against the other approaches (Approach classification). If that's right, SLI-isometry's fitted coefficient should be an almost-exact function of $\beta_T$, not just a strongly correlated one — the raw correlation in the main text's calibration scatter (main text, Simulation performance) is r $\approx$ 0.97, not 1, which at first glance looks like room for genuine daylight between the two. It isn't: the gap is (almost entirely) a missing scaling term, not noise.
-
-$\beta_T$ is defined from $\mathrm{Cov}(\log SLI, \mathrm{Temperature})$ alone (main text, Effect classification), but a *fitted regression coefficient* is that covariance divided by $sd(\log SLI)$ too — a correlation, not a covariance. $sd(\log SLI)^2$ is proportional to
-
-$$V = \beta_{SMA}^2 + 0.33^2 - 2 \cdot 0.33 \cdot \rho_{12} \cdot \beta_{SMA}$$
-
-which varies species to species (it depends on each species' own $\beta_{SMA}$ and $\rho_{12}$), and $\beta_T$ never accounted for it — only the *sign* claim survives that omission, since $\sqrt{V}>0$ always. Dividing $\beta_T$ by $\sqrt{V}$ restores the missing term.
-
-```{r}
-#| label: fig-sli-iso-rescale
-#| fig-cap: "SLI-isometry's fitted coefficient against the ground truth, raw (left) and variance-corrected (right; main text, Effect classification and this section). Longer, Stouter, and Proportionally smaller species, matching the main text's calibration scatter; the dashed line is 1:1, not a fitted trend."
-#| fig-width: 8
-#| fig-height: 4.5
-#| fig-pos: 'H'
-
-Sli_iso_rescale_long <- Sli_iso_rescale_df %>%
-  pivot_longer(cols = c(beta_iso_true, beta_T_rescaled), names_to = "Version", values_to = "x") %>%
-  mutate(Version = if_else(Version == "beta_iso_true", "Raw", "Variance-corrected"),
-         Version = factor(Version, levels = c("Raw", "Variance-corrected")))
-
-Sli_iso_rescale_stats_long <- tibble::tibble(
-  Version = factor(c("Raw", "Variance-corrected"), levels = c("Raw", "Variance-corrected")),
-  r = c(r_sli_iso_raw, r_sli_iso_rescaled)
-)
-
-ggplot(Sli_iso_rescale_long, aes(x = x, y = b_temp_inc, color = Temp_eff, shape = Scaling)) +
-  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "grey50") +
-  geom_point(alpha = .55, size = 1.2) +
-  geom_text(data = Sli_iso_rescale_stats_long, aes(label = paste0("r=", r)),
-            x = -Inf, y = Inf, hjust = -0.1, vjust = 1.5, inherit.aes = FALSE, size = 3) +
-  facet_wrap(vars(Version), scales = "free") +
-  labs(x = "Ground truth", y = expression(hat(beta)[T] ~ "(SLI-isometry, estimated)"),
-       color = "Category", shape = "Scaling") +
-  guides(color = guide_legend(nrow = 1), shape = guide_legend(nrow = 1)) +
-  theme(legend.position = "top", legend.box = "vertical")
-```
-
-The variance correction takes the correlation from `r sprintf("%.2f", r_sli_iso_raw)` to `r sprintf("%.2f", r_sli_iso_rescaled)`, and the points sit almost exactly on the 1:1 line once it's applied. This isn't unique to SLI-isometry — every one of the six methods has a closed-form standardized coefficient that reaches a similarly exact correlation (0.9999–1.0000) against its own correctly-scaled natural anchor (e.g. multiple regression against the textbook standardized partial-regression coefficient $(\rho_{13}-\rho_{12}\rho_{23})/(1-\rho_{23}^2)$), confirming that the ground truth used in the main text is not merely correlated with SLI-isometry's formula but algebraically equivalent to it up to this one scaling factor — which is precisely why SLI-isometry's own strong performance should be read as confirmation that the simulation and ground-truth calculation behave as expected, not as a comparative win over the other five approaches (main text, Approach classification).
-
-# Does the direction of causality between mass and appendage matter?
-
-The main text's simulation deliberately draws mass and appendage from a joint distribution rather than a directional model, so that no method is favoured by construction (main text, Data simulation). The causal DAG instead considers what happens when a genuine directional relationship *does* hold, and argues that the six methods' validity depends on which direction that relationship runs. Here I make that argument concrete with a small, targeted simulation: one example species ($b_{avg} \approx 0.33$ and appendage-mass correlation $\approx 0.35$, matching the main text's realistic ranges, and a mean temperature of 1°C), simulated at a larger sample size ($n=50{,}000$) than the main text's per-species $n=3{,}000$ so that each method's point estimate reflects the population-level pattern rather than sampling noise from one particular random draw, generated under each of two directional structural models — with the same direct temperature-on-appendage effect ($\beta_T = 0.3$, standardized, exact by construction in both DGPs) injected into both, so any difference in what the six methods recover is attributable to the causal direction alone, not to the size of the effect or to incidental differences in how realistic each simulated species looks.
-
-```{r}
-#| label: causal-dgp-sim
-#| include: false
-
-set.seed(20260813)
-n <- 50000                             # larger than the main text's per-species n=3,000; this figure is an illustrative, seed-independent demonstration (not tied to any one real dataset's size), so n is set high enough that point estimates reliably reflect the population-level bias/no-bias story rather than single-draw sampling noise
-mean_mass <- 80; mean_append <- 180; mean_temp <- 1; sd_temp <- 0.18
-sd_mass <- 0.07                        # within-species log-mass SD, matching gen_data()'s sd_log_morph range
-target_b_avg <- 0.33                   # target average of the OLS and SMA slopes, matching the main text's b_avg_12
-target_r12 <- 0.35                     # target mass-appendage correlation, within the realistic 0.2-0.5 range
-target_slope <- 2 * target_b_avg / (target_r12 + 1)  # implied SMA slope -- same relationship as the main text's true_b_sma, so the SMA slope alone is not 0.33; the average with the (smaller) OLS slope is
-sd_append <- target_slope * sd_mass    # SMA slope = sd(Append)/sd(Mass), so this pins the slope exactly
-target_beta_T <- 0.3                  # target standardized true effect, shared by both DGPs
-a_path <- -0.2                         # Temperature -> Mass path, both DGPs -- negative to match Bergmann's rule (warming reduces body size); deliberately large so panel b's collider bias is clearly visible against sampling noise, not just directionally present
-
-Vm <- sd_mass^2; Va <- sd_append^2
-# b solved once, from the target standardized effect and Appendage's target SD. That target SD is
-# the same in both DGPs below, so b -- and the true standardized effect -- come out identical in both,
-# rather than needing separate post-hoc standardization per DGP.
-b_path <- target_beta_T * sd_append / sd_temp
-
-## DGP (a): Mass -> Appendage (@fig-dag, panel a). Noise variances solved so Mass and Appendage hit
-## their target SDs exactly (which is what actually pins the SMA slope and keeps it realistic --
-## letting raw noise variances fall out arbitrarily, as an earlier version of this simulation did,
-## let the marginal SMA slope drift far from any realistic value). c_path solved so the resulting
-## correlation hits target_r12 exactly.
-sigma_u2 <- Vm - a_path^2 * sd_temp^2
-c_path   <- (target_r12 * sqrt(Vm * Va) - a_path * b_path * sd_temp^2) / Vm
-sigma_v2 <- Va - (c_path * a_path + b_path)^2 * sd_temp^2 - c_path^2 * sigma_u2
-
-Temp <- rnorm(n, mean_temp, sd_temp)
-Mass_log_a   <- log(mean_mass)   + a_path * (Temp - mean_temp) + rnorm(n, 0, sqrt(sigma_u2))
-Append_log_a <- log(mean_append) + c_path * (Mass_log_a - log(mean_mass)) + b_path * (Temp - mean_temp) + rnorm(n, 0, sqrt(sigma_v2))
-
-## DGP (b): Appendage -> Mass, i.e. mass as a collider (@fig-dag, panel b). Same logic in reverse:
-## Appendage depends only on Temperature; Mass depends on both Appendage and Temperature.
-sigma_vb2 <- Va - b_path^2 * sd_temp^2
-d_path    <- (target_r12 * sqrt(Vm * Va) - a_path * b_path * sd_temp^2) / Va
-sigma_w2  <- Vm - (a_path + d_path * b_path)^2 * sd_temp^2 - d_path^2 * sigma_vb2
-
-Append_log_b <- log(mean_append) + b_path * (Temp - mean_temp) + rnorm(n, 0, sqrt(sigma_vb2))
-Mass_log_b   <- log(mean_mass)   + a_path * (Temp - mean_temp) + d_path * (Append_log_b - log(mean_append)) + rnorm(n, 0, sqrt(sigma_w2))
-
-fit_six_methods <- function(Append_log, Mass_log, Temp) {
-  df <- tibble(Append = exp(Append_log), Mass = exp(Mass_log), Append_log, Mass_log, Temp)
-  sma_mod   <- smatr::sma(Append_log ~ Mass_log, data = df, method = sma_or_ma)
-  est_b_sma <- coef(sma_mod)["slope"]
-  Ols_mod   <- lm(Append_log ~ Mass_log, data = df)
-  est_b_ols <- coef(Ols_mod)["Mass_log"]
-  df <- df %>%
-    mutate(resid_ols    = residuals(Ols_mod),
-           Append_mass  = Append_log - Mass_log,
-           Append2_mass = 2 * Append_log - Mass_log) %>%
-    sliR::calc_sli(b_sli = 0.33,      rename_col = "sli_isometry") %>%
-    sliR::calc_sli(b_sli = est_b_sma, rename_col = "sli_estimated") %>%
-    mutate(across(where(is.numeric), scale))
-  fits <- list(
-    Ratio               = lm(Append_mass   ~ Temp, data = df),
-    Ratio2              = lm(Append2_mass  ~ Temp, data = df),
-    `Multiple regression` = lm(Append_log    ~ Mass_log + Temp, data = df),
-    `OLS residuals`     = lm(resid_ols     ~ Temp, data = df),
-    `SLI isometry`      = lm(sli_isometry  ~ Temp, data = df),
-    `SLI estimated`     = lm(sli_estimated ~ Temp, data = df)
-  )
-  map(names(fits), \(m) {
-    ci <- confint(fits[[m]])["Temp", ]
-    tibble(Model = m, Estimate = coef(fits[[m]])["Temp"], ci_lo = ci[1], ci_hi = ci[2])
-  }) %>%
-    list_rbind() %>%
-    # b_avg (mean of the SMA and OLS slopes) is the quantity targeted at 0.33, matching the main
-    # text's b_avg_12 -- the SMA slope alone is not 0.33 (true_b_sma = 2*b_avg/(r_12+1) exceeds it,
-    # same relationship as the main grid's Proportional categories).
-    mutate(est_b_sma = as.numeric(est_b_sma), est_b_ols = as.numeric(est_b_ols),
-           est_b_avg = (est_b_sma + est_b_ols) / 2)
-}
-
-Causal_dgp_a <- fit_six_methods(Append_log_a, Mass_log_a, Temp) %>% mutate(DGP = "a. Mass causes appendage")
-Causal_dgp_b <- fit_six_methods(Append_log_b, Mass_log_b, Temp) %>% mutate(DGP = "b. Appendage causes mass (collider)")
-
-# True standardized effect, per DGP -- exactly target_beta_T in both, by construction (b_path was
-# solved from target_beta_T * sd_append / sd_temp, so b_path * sd_temp / sd_append == target_beta_T
-# algebraically). Using the theoretical sd_append here, not each panel's realized sd(Append_log_x),
-# keeps this a fixed reference value rather than a second noisy quantity re-estimated from the same
-# finite sample whose point estimates it's being compared against -- that had previously made the two
-# panels' dashed lines differ slightly (0.296 vs. 0.308) for no reason but sampling noise.
-Causal_true_df <- tibble(
-  DGP = c("a. Mass causes appendage", "b. Appendage causes mass (collider)"),
-  true_val = c(target_beta_T, target_beta_T)
-)
-
-Causal_dgp_tbl <- bind_rows(Causal_dgp_a, Causal_dgp_b) %>%
-  mutate(DGP   = factor(DGP, levels = c("a. Mass causes appendage", "b. Appendage causes mass (collider)")),
-         Model = factor(Model, levels = c("Ratio", "Ratio2", "Multiple regression", "OLS residuals",
-                                           "SLI isometry", "SLI estimated")))
-
-est_b_avg_a <- round(Causal_dgp_a$est_b_avg[1], 2)
-est_b_avg_b <- round(Causal_dgp_b$est_b_avg[1], 2)
-true_beta_causal_a <- Causal_true_df$true_val[Causal_true_df$DGP == "a. Mass causes appendage"]
-true_beta_causal_b <- Causal_true_df$true_val[Causal_true_df$DGP == "b. Appendage causes mass (collider)"]
-mass_cov_a <- Causal_dgp_tbl %>% filter(Model == "Multiple regression", DGP == "a. Mass causes appendage")
-```
-
-```{r}
-#| label: fig-causal-dgp
-#| fig-cap: "Each method's estimated effect of temperature on relative appendage length (mean and 95% CI) for one simulated example species (n = 50,000; b_avg about 0.33, appendage-mass correlation about 0.35, mean temperature 1°C) under each directional causal model. Grey dashed line: zero. Green dashed line: the true standardized effect (0.3 in both panels, identical by construction)."
-#| fig-width: 8
-#| fig-height: 5
-#| fig-pos: 'H'
-
-ggplot(Causal_dgp_tbl, aes(x = Model, y = Estimate)) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
-  geom_hline(data = Causal_true_df, aes(yintercept = true_val), linetype = "dashed", color = "forestgreen") +
-  geom_pointrange(aes(ymin = ci_lo, ymax = ci_hi)) +
-  facet_wrap(vars(DGP)) +
-  labs(x = NULL, y = expression(hat(beta)[T] ~ "on relative appendage length")) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-```
-
-Under **panel a (mass causes appendage)**, multiple regression is exactly the model the data were generated from, and its 95% CI is the only one that includes the true value (`r round(mass_cov_a$Estimate,2)` \[`r round(mass_cov_a$ci_lo,2)`, `r round(mass_cov_a$ci_hi,2)`\], against a true value of `r round(true_beta_causal_a,2)`). OLS-residuals, previously indistinguishable from multiple regression when the Temperature$\to$Mass path was small, now diverges from it: unlike multiple regression, OLS-residuals only removes Mass's association with *Appendage*, not with *Temperature* (Frisch--Waugh--Lovell), so once the two are appreciably correlated -- as they now are, by design, to make the confound biologically realistic (Temperature$\to$Mass path negative, matching Bergmann's rule) -- this two-step shortcut underestimates the true effect (`r round(Causal_dgp_a$Estimate[Causal_dgp_a$Model=="OLS residuals"],2)`). The realized $b_{avg}$ here (`r est_b_avg_a`, the average of the fitted OLS and SMA slopes) closely matches the simulated target (0.33), confirming mass and appendage were generated with a realistic allometric relationship, not an inflated one -- the SMA slope alone is higher (`r round(Causal_dgp_a$est_b_sma[1],2)`), the same $b_{avg}$-vs-SMA relationship documented for the main grid's Proportional categories (Effect classification). The remaining four methods all overshoot the truth substantially and in the same (positive) direction -- Ratio and SLI-estimated both roughly double it, Ratio2 and SLI-isometry are also clearly inflated -- because body mass now shrinks with warming (matching Bergmann's rule) while appendage length grows, and any method that does not correctly separate the Mass-mediated and direct-temperature routes mechanically overstates the direct effect, echoing the main text's own account of Bergmann-driven ratio bias (main text, Simulation performance). In short: when mass genuinely causes appendage, only the method built to condition on it correctly in one step -- multiple regression -- recovers the true effect, exactly as the DAG in the main text predicts.
-
-Under **panel b (appendage causes mass, i.e. mass as a collider)**, none of the six methods' 95% CIs include the true value (`r round(true_beta_causal_b,2)`), and -- unlike panel a -- multiple regression is no longer the standout: its estimate (`r round(Causal_dgp_b$Estimate[Causal_dgp_b$Model=="Multiple regression"],2)`) overshoots the truth by more than half, a similar magnitude of error to Ratio2 and SLI-estimated. OLS-residuals is the least biased of the six here (`r round(Causal_dgp_b$Estimate[Causal_dgp_b$Model=="OLS residuals"],2)`) but still misses; Ratio, SLI-isometry, and the rest cluster at similarly inflated values. This is not a failure specific to any one method; it is a direct consequence of every one of the six approaches conditioning on mass in some way (as a ratio denominator, an explicit covariate, a first-stage regressor, or a size-standardization exponent), and mass here is a collider, not a common cause. Conditioning on a collider does not isolate a direct effect — it induces a spurious association between temperature and appendage through the very act of standardizing by mass, and the size of that spurious association scales with how strongly temperature and appendage each drive the collider (deliberately set large here so the bias is visible against sampling noise at $n = 50{,}000$, not merely present in direction). There is consequently no principled way, among these six approaches, to recover "relative appendage length" when appendage causally precedes mass: the entire premise of standardizing appendage by body size presumes body size is a common cause of variation to be controlled for, not a downstream consequence of the trait being measured -- and critically, panel a's apparent winner offers no protection here, since which method looks best depends entirely on which causal structure holds, not on any inherent property of the method itself. Which of panel a or panel b better describes a given empirical system is not something this simulation can adjudicate — it is a biological question about the species and traits under study, one that determines whether any of these six methods are appropriate to apply at all.
-
-# Empirical case studies: per-species detail
-
-Figure 5 in the main text summarizes each method's estimates across species, grouped by method. This section shows the same underlying per-species estimates individually, in the format used in earlier drafts, with asterisks marking species whose rank order across methods is consistent with the simulation-predicted order.
+Figure 5 in the main text summarizes each method's estimates across species, grouped by method. This section shows the same underlying per-species estimates individually with asterisks marking species whose rank order across methods is consistent with the simulation-predicted order.
 
 ```{r}
 #| label: load-empirical-shared
@@ -591,7 +455,7 @@ plot_grid(
 
 # Mixed - Wingier and Mixed - Stouter empirical species
 
-In addition to the Bergmann's and Inverse Bergmann's species reported in the main text (Empirical case studies section), some species in the empirical datasets showed **Mixed - Wingier** responses: wing length increasing while body mass decreased, so that Allen's and Bergmann's rules reinforce one another. This is the empirical analogue of the simulated species whose mass and wing responses combine most strongly to produce an unambiguously longer relative appendage. A single Atlantic Forest species showed the opposite **Mixed - Stouter** response (wing length decreasing while body mass increased; main text species-accounting table).
+In addition to the Bergmann's and Inverse Bergmann's species reported in the main text, some species in the empirical datasets showed **Mixed - Wingier** responses: wing length increasing while body mass decreased, so that Allen's and Bergmann's rules reinforce one another. A single Atlantic Forest species showed the opposite **Mixed - Stouter** response (wing length decreasing while body mass increased).
 
 ```{r}
 #| label: load-mixed-data
@@ -628,7 +492,7 @@ build_mixed_plot <- function(df_panel, show_legend = FALSE) {
     ## dashed zero line sitting flush against the plot border looks like missing
     ## data rather than the panel's natural range.
     scale_y_continuous(expand = expansion(mult = 0.15)) +
-    labs(x = NULL, y = expression(beta ~ "on wing shape"), color = NULL, shape = NULL) +
+    labs(x = NULL, y = expression(hat(beta)[T] ~ "on relative appendage length"), color = NULL, shape = NULL) +
     theme(axis.text.x = element_text(angle = 60, hjust = 1, size = 8, color = axis_colors_p))
 
   if (show_legend) {
@@ -668,11 +532,11 @@ mixed_panels <- plot_grid(p_wingier, p_fatter, labels = c("a", "b"), label_size 
 plot_grid(shared_legend_mixed, mixed_panels, ncol = 1, rel_heights = c(0.08, 1))
 ```
 
-Across `r n_mixed_wingier` Mixed - Wingier species (panel a), the rank-order pattern among methods is visibly more variable than for Bergmann's or Inverse Bergmann's species (main text Empirical case studies section), consistent with the absence of a clear rank-order signal in the analogous simulated scenarios (main text, Simulation performance). The single Mixed - Stouter species (panel b) is shown for completeness; with only one species, no rank-order pattern can be assessed.
+Across `r n_mixed_wingier` Mixed - Wingier species (panel a) all approaches consistently show a positive effect of temperature on relative appendage length, and the Mixed - stouter species (panel b) shows a clear negative effect. Given that the temperature effects push appendage and mass in different directions, adherence to Allen's rule is not influenced greatly by the estimator.
 
 # Stable empirical species
 
-Species showing no significant ($p < 0.05$) change in either mass or wing length along the gradient of interest were classified as **Stable** (main text classification table) and excluded from the main-text rank-order comparison, since the predicted rank order (Ratio \> SLI \> OLS, or its reverse) is only defined relative to a directional shape response.
+Species showing no significant ($p < 0.05$) change in either mass or wing length along the gradient of interest were classified as **Stable** and excluded from the main-text rank-order comparison, since the predicted rank order (Ratio \> SLI \> OLS, or its reverse) is only defined relative to a directional size response.
 
 ```{r}
 #| label: load-stable-data
@@ -703,7 +567,7 @@ species_levels_stable <- species_meta_stable$species
 axis_colors_stable     <- study_colors[as.character(species_meta_stable$Study)]
 n_stable                <- n_distinct(parms_stable$species)
 
-fig_cap_stable <- glue::glue("Estimated effect of the gradient of interest on relative wing length for Stable species (no significant change in mass or wing length) across three empirical datasets (Nightjars — red labels; North American migratory birds — blue labels; Atlantic Forest birds — green labels); $n$ = {n_stable} species. Points are mean parameter estimates; error bars are 95% confidence intervals. Because neither trait changed significantly, these species have no true directional shape signal to recover, and these five methods (OLS-residuals omitted here for readability) are not expected to agree on rank order.")
+fig_cap_stable <- glue::glue("Estimated effect of the gradient of interest on relative wing length for Stable species (no significant change in mass or wing length) across three empirical datasets (Nightjars — red labels; North American migratory birds — blue labels; Atlantic Forest birds — green labels); $n$ = {n_stable} species. Points are mean parameter estimates; error bars are 95% confidence intervals.")
 ```
 
 ```{r}
@@ -725,230 +589,56 @@ parms_stable %>%
              position = position_dodge(width = 0.75)) +
   scale_color_hue(labels = approach_labs) +
   scale_shape_manual(values = shape_scale, drop = FALSE) +
-  labs(x = NULL, y = expression(beta ~ "on wing shape"), color = NULL, shape = NULL) +
+  labs(x = NULL, y = expression(hat(beta)[T] ~ "on relative appendage length"), color = NULL, shape = NULL) +
   theme(
     axis.text.x  = element_text(angle = 60, hjust = 1, size = 8, color = axis_colors_stable),
     legend.position = "top"
   )
 ```
 
-Across `r n_stable` Stable species, estimates cluster closer to zero than in the directional categories, as expected, though the five methods shown still disagree in both magnitude and, occasionally, sign — underscoring that even a "null" result can look different depending on the method used.
+# Correlation between relative appendage length metrics and body mass
 
-# Robustness check: rank order without family averaging
-
-The main text's rank-order comparison (Empirical case studies) first averages each species' gradient coefficient within three method families (Ratio, OLS-based, SLI) before checking whether the averaged values fall in the predicted order. Four of the six methods have a fixed, species-invariant implicit scaling exponent rather than one estimated from the data: $A/S$ ($\beta = 1$), $A^2/S$ ($\beta = 0.5$), SLI-isometry ($\beta = 0.33$), and multiple regression (which conditions on mass directly rather than using an explicit exponent, but is consistently the most negative of the OLS-based approaches; main text, Discussion). Because these four have a fixed reference relationship, the same rank order predicted at the family level should also hold for these four *individual* methods, without any averaging. SLI-estimated is excluded from this check because its exponent is each species' own empirically estimated SMA slope rather than a fixed constant, so it has no fixed position in such a chain; OLS-residuals is excluded because it is not part of this stricter ordering either.
+The ratio methods exhibit upward bias (relative to the isometric reference quantity) under Bergmann's rule due to a mechanical correlation between the ratio metric and body mass. @fig-mass-cor-empirical shows the full per-species distribution underlying the medians presented in Table 4 of the main text.
 
 ```{r}
-#| label: rank-consistency-strict
+#| label: mass-cor-empirical-stats
 #| include: false
 
-Rank_strict_all <- bind_rows(
-  read_csv("Derived/Csv/Nightjar_parms.csv",  show_col_types = FALSE),
-  read_csv("Derived/Csv/Weeks_parms.csv",     show_col_types = FALSE),
-  read_csv("Derived/Csv/Atlantic_parms.csv",  show_col_types = FALSE)
+Mass_cor_emp_all <- bind_rows(
+  read_csv("Derived/Csv/Nightjar_mass_cor.csv",  show_col_types = FALSE),
+  read_csv("Derived/Csv/Weeks_mass_cor.csv",     show_col_types = FALSE),
+  read_csv("Derived/Csv/Atlantic_mass_cor.csv",  show_col_types = FALSE)
 ) %>%
-  distinct(species, Study, Direction, rank_consistent, rank_strict_consistent) %>%
-  filter(Direction %in% c("Bergmann's", "Inverse Bergmann's"))
+  dplyr::select(Study, species, Metric, n, r, p_value) %>%
+  filter(Metric %in% c("Ratio", "Ratio2", "Sli_iso", "Sli_est")) %>%
+  mutate(Metric = factor(Metric, levels = c("Ratio", "Ratio2", "Sli_iso", "Sli_est"),
+                          labels = c("Wing / Mass", "Wing² / Mass", "SLI-isometry", "SLI-estimated")))
 
-summarize_rank <- function(col) {
-  Rank_strict_all %>%
-    group_by(Direction) %>%
-    summarize(n = n(), pct = round(100 * mean(.data[[col]], na.rm = TRUE)), .groups = "drop") %>%
-    mutate(Check = col)
-}
+n_sli_iso_emp_total <- Mass_cor_emp_all %>% filter(Metric == "SLI-isometry")  %>% nrow()
+n_sli_est_emp_total <- Mass_cor_emp_all %>% filter(Metric == "SLI-estimated") %>% nrow()
 
-Rank_check_tbl <- bind_rows(summarize_rank("rank_consistent"), summarize_rank("rank_strict_consistent")) %>%
-  pivot_wider(names_from = Direction, values_from = c(n, pct)) %>%
-  mutate(Check = if_else(Check == "rank_consistent", "Family-averaged (main text)", "Strict, no averaging")) %>%
-  dplyr::select(Check, `n_Bergmann's`, `pct_Bergmann's`, `n_Inverse Bergmann's`, `pct_Inverse Bergmann's`)
-
-pull_rank_strict_stat <- function(dir, col) {
-  Rank_strict_all %>%
-    group_by(Direction) %>%
-    summarize(n = n(), pct = round(100 * mean(rank_strict_consistent, na.rm = TRUE)), .groups = "drop") %>%
-    filter(Direction == dir) %>%
-    pull({{ col }})
-}
-
-n_rank_strict_total     <- nrow(Rank_strict_all)
-pct_rank_strict_overall <- round(100 * mean(Rank_strict_all$rank_strict_consistent, na.rm = TRUE))
-pct_rank_overall_main   <- round(100 * mean(Rank_strict_all$rank_consistent, na.rm = TRUE))
-
-pct_rank_strict_bergmanns     <- pull_rank_strict_stat("Bergmann's", pct)
-n_rank_strict_bergmanns       <- pull_rank_strict_stat("Bergmann's", n)
-pct_rank_strict_inv_bergmanns <- pull_rank_strict_stat("Inverse Bergmann's", pct)
-n_rank_strict_inv_bergmanns   <- pull_rank_strict_stat("Inverse Bergmann's", n)
+fig_cap_mass_cor_empirical <- glue::glue("Distribution of per-species Pearson correlations between each metric and body mass, by empirical dataset. Boxes show the median (also given as a numeric label, matching main text Table 4) and interquartile range; points are individual species, jittered horizontally. SLI-estimated has fewer points than the other three metrics ({n_sli_est_emp_total} of {n_sli_iso_emp_total} species across all three datasets) because it is undefined for species that failed the per-group allometric-correlation filter (main text, Methods).")
 ```
 
 ```{r}
-#| label: tbl-rank-strict
-#| tbl-cap: "Percentage of directionally classified species whose methods fall in the simulation-predicted order, comparing the main text's family-averaged check (Ratio, OLS-based, and SLI coefficients each averaged within family before comparing) against a stricter check applied directly to four individual methods with a fixed implicit scaling exponent ($A/S$, $A^2/S$, SLI-isometry, multiple regression), with no averaging."
-#| tbl-pos: 'H'
-
-knitr::kable(Rank_check_tbl,
-             col.names = c("Check", "n", "%", "n", "%"),
-             format = "latex", booktabs = TRUE, linesep = "") %>%
-  kableExtra::add_header_above(c(" " = 1, "Bergmann's" = 2, "Inverse Bergmann's" = 2)) %>%
-  kableExtra::column_spec(1, width = "4.5cm")
-```
-
-`r pct_rank_strict_overall`% of the `r n_rank_strict_total` directionally classified species satisfied the full strict order (`r pct_rank_strict_bergmanns`% of `r n_rank_strict_bergmanns` Bergmann's species and `r pct_rank_strict_inv_bergmanns`% of `r n_rank_strict_inv_bergmanns` Inverse Bergmann's species), somewhat lower than the `r pct_rank_overall_main`% obtained with family averaging (main text, Empirical case studies; @tbl-rank-strict). This is expected: averaging within a method family smooths over noise that a strict four-term inequality cannot, so the strict check is a harder bar to clear even when the underlying pattern is genuine. That the large majority of species still satisfy the full ordering under this less forgiving test supports reading the rank-order pattern as reflecting the methods' differing fixed reference relationships, rather than as an artifact of family-level averaging.
-
-# Robustness check: ratio-of-logs construction
-
-The main text's ratio metrics are the log of the ratio: $\log(A/S)$ and $\log(A^2/S)$, computed by dividing appendage length by mass (or its square) and then log-transforming the result. An alternative construction found in the shape-shifting literature — including the supplementary code for @rydingMultipleRegressionNot2025, one of the studies this manuscript directly engages with — instead logs appendage length and body mass separately and divides the two logged values: $\log(A)/\log(S)$. The two are not algebraically related in any simple way ($\log(A/S) = \log(A) - \log(S)$, a difference, not a ratio of logs), and unlike $\log(A/S)$, $\log(A)/\log(S)$ is not invariant to the units appendage length happens to be measured in — converting mm to cm shifts $\log(A)$ by an additive constant, which cancels exactly in $\log(A/S)$ but not in $\log(A)/\log(S)$, where it is divided by $\log(S)$ and so distorts the metric by an amount that depends on body size. Here I recompute Ratio and Ratio² using this ratio-of-logs construction and re-score them against the main text's isometric-relative ground truth, using the same simulated individuals as the main text (main text, Data simulation) — no new random draws — so any difference below is attributable to the choice of construction alone, not to sampling variability.
-
-```{r}
-#| label: altratio-3d-stats
-#| include: false
-
-## gen_ex_data() draws new individuals on every render; seed it so the figure is reproducible.
-set.seed(20260912)
-altratio_3d_parms <- Parms_mat3 %>%
-  filter(Scaling == "Isometry", Temp_eff == "Proportionally smaller", r_12 == 0.3, r_23 == -0.7) %>%
-  slice_max(abs(r_13 - r_23), n = 1, with_ties = FALSE)
-
-altratio_3d_df <- gen_ex_data(altratio_3d_parms) %>%
-  transmute(Append_mm = Append, Mass_g = Mass)
-
-mass_seq_3d   <- seq(min(altratio_3d_df$Mass_g), max(altratio_3d_df$Mass_g), length.out = 40)
-append_seq_3d <- seq(min(altratio_3d_df$Append_mm), max(altratio_3d_df$Append_mm), length.out = 40)  # mm
-
-build_Z_3d <- function(fn, append_vals) outer(mass_seq_3d, append_vals, function(m, a) fn(a, m))
-center_3d  <- function(Z) Z - mean(Z)
-
-# Fits a plane z ~ mass + appendage to a (mass, appendage) grid of metric values -- a compact
-# summary of the surface's steepness along each axis, comparable between the mm and cm versions.
-fit_plane_3d <- function(Z, append_vals) {
-  gd <- expand.grid(mass = mass_seq_3d, append = append_vals)
-  gd$z <- as.vector(Z)
-  co <- coef(lm(z ~ mass + append, data = gd))
-  c(mass = co[["mass"]], append = co[["append"]])
-}
-
-# Draws a wireframe of a second surface on top of an existing persp() scene, using the
-# projection matrix persp() returns -- both surfaces plotted over the SAME physical (mass,
-# appendage-in-mm) grid, since it's one shared 3D space: only the z-value (what the formula
-# outputs when fed mm-numbers vs. cm-numbers for the same individual) should differ, not the
-# horizontal position.
-overlay_wireframe_3d <- function(pmat, x, y, Z, col) {
-  for (i in seq_along(x)) lines(trans3d(x[i], y, Z[i, ], pmat), col = col, lwd = 1)
-  for (j in seq_along(y)) lines(trans3d(x, y[j], Z[, j], pmat), col = col, lwd = 1)
-}
-
-logr_fn <- function(a, m) log(a / m)
-rol_fn  <- function(a, m) log(a) / log(m)
-
-altratio_3d_specs <- list(
-  list(fn = logr_fn, name = "log(A/S)",      cols = c("steelblue", "grey20")),
-  list(fn = rol_fn,  name = "log(A)/log(S)", cols = c("darkorange", "grey20"))
-)
-
-fig_cap_altratio_3d <- glue::glue("Both ratio constructions evaluated as deterministic surfaces over the full (Mass, Appendage) plane, for the same Proportionally smaller example species used in @tbl-altratio-eval (Isometry scaling, true SMA slope = {round(altratio_3d_parms$true_b_sma, 2)}). Solid surface: appendage length in mm. Overlaid wireframe: the same species with appendage length converted to cm. Both surfaces are mean-centered; a fitted plane's slope along each axis is annotated above each panel. Under log(A/S) (left) the mm and cm surfaces are visually indistinguishable, and their fitted mass-slopes are identical to four decimal places. Under log(A)/log(S) (right) the two surfaces visibly diverge, and the fitted mass-slope changes when appendage length is re-expressed in different units, even though nothing about the underlying species changed.")
-```
-
-```{r}
-#| label: fig-altratio-3d
-#| fig-cap: !expr fig_cap_altratio_3d
-#| fig-width: 10
-#| fig-height: 5.5
+#| label: fig-mass-cor-empirical
+#| fig-cap: !expr fig_cap_mass_cor_empirical
+#| fig-width: 8
+#| fig-height: 5
 #| fig-pos: 'H'
 
-par(mfrow = c(1, 2), mar = c(2, 2, 5, 1))
-
-for (spec in altratio_3d_specs) {
-  Z_mm <- center_3d(build_Z_3d(spec$fn, append_seq_3d))
-  Z_cm <- center_3d(build_Z_3d(spec$fn, append_seq_3d / 10))
-  zlim <- range(Z_mm, Z_cm)
-  fit_mm <- fit_plane_3d(Z_mm, append_seq_3d)
-  fit_cm <- fit_plane_3d(Z_cm, append_seq_3d)
-
-  pmat <- persp(mass_seq_3d, append_seq_3d, Z_mm, zlim = zlim, theta = -35, phi = 22, expand = 0.7,
-                col = spec$cols[1], border = NA, shade = 0.35, ticktype = "detailed",
-                cex.axis = 0.55, cex.lab = 0.75, xlab = "Mass (g)", ylab = "Appendage (mm)",
-                zlab = "", main = "")
-  overlay_wireframe_3d(pmat, mass_seq_3d, append_seq_3d, Z_cm, col = spec$cols[2])
-
-  title(main = spec$name, cex.main = 1.1, line = 3.2)
-  mtext(sprintf("mm plane slope: mass=%.4f, append=%.4f", fit_mm["mass"], fit_mm["append"]),
-        side = 3, line = 2, cex = 0.6, col = spec$cols[1])
-  mtext(sprintf("cm plane slope: mass=%.4f, append=%.4f", fit_cm["mass"], fit_cm["append"]),
-        side = 3, line = 1, cex = 0.6, col = spec$cols[2])
-}
+Mass_cor_emp_all %>%
+  ggplot(aes(x = Metric, y = r)) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(width = 0.15, alpha = 0.5) +
+  stat_summary(fun = median, geom = "label",
+               aes(label = sprintf("%.2f", after_stat(y))),
+               size = 3, label.size = 0, label.padding = unit(0.12, "lines"),
+               fill = "white", alpha = 0.85) +
+  facet_wrap(~Study) +
+  labs(x = NULL, y = "Correlation with body mass") +
+  theme(axis.text.x = element_text(size = 9, vjust = .58, angle = 30))
 ```
 
-```{r}
-#| label: altratio-stats
-#| include: false
-
-Altratio_eval_tbl <- bind_rows(
-  Eval_tbl %>% filter(Model %in% c("Ratio", "Ratio2")) %>% mutate(Construction = "Log of ratio (main text)"),
-  Eval_tbl_altratio %>% filter(Model %in% c("Ratio_alt", "Ratio2_alt")) %>%
-    mutate(Model = str_remove(Model, "_alt"), Construction = "Ratio of logs")
-) %>%
-  mutate(Model = str_replace_all(Model, x_labs),
-         Prop_correct = round(Prop_correct * 100, 0)) %>%
-  dplyr::select(Model, Construction, Temp_eff, Prop_correct) %>%
-  pivot_wider(names_from = Temp_eff, values_from = Prop_correct) %>%
-  arrange(Model, desc(Construction)) %>%
-  # Both Proportional categories are 0% under every construction (main text vs. this
-  # section's prose already covers this) -- dropped from the table so Longer/Stouter,
-  # where the constructions actually diverge, have room to display at readable width.
-  dplyr::select(Model, Construction, Longer, Stouter)
-
-pull_altratio_pct <- function(model, temp_eff, tbl = Eval_tbl_altratio) {
-  tbl %>% filter(Model == model, Temp_eff == temp_eff) %>%
-    mutate(pct = round(Prop_correct * 100, 0)) %>% pull(pct)
-}
-
-Ratio_alt_stouter_pct    <- pull_altratio_pct("Ratio_alt",  "Stouter")
-Ratio2_alt_stouter_pct   <- pull_altratio_pct("Ratio2_alt", "Stouter")
-
-# Ratio and Ratio2 are constructed to differ only by squaring A before logging -- under the
-# ratio-of-logs form that becomes a constant multiplier (log(A^2)/log(S) = 2 * log(A)/log(S)),
-# and every numeric column is z-scored before fitting (01_Run_simulation.R), which removes
-# multiplicative constants entirely (scale(2*X) == scale(X) exactly). So Ratio_alt and
-# Ratio2_alt should fit identical models -- confirmed directly, not assumed.
-altratio_max_diff <- Parms_tbl4_altratio %>%
-  filter(Model %in% c("Ratio_alt", "Ratio2_alt")) %>%
-  dplyr::select(Scaling, r_12, r_13, r_23, Temp_eff, Model, b_temp_inc) %>%
-  pivot_wider(names_from = Model, values_from = b_temp_inc) %>%
-  summarize(max_diff = max(abs(Ratio2_alt - Ratio_alt))) %>%
-  pull(max_diff)
-
-Altratio_mass_cor <- bind_rows(
-  Mass_cor_tbl %>% filter(Model %in% c("Ratio", "Ratio2")) %>% mutate(Construction = "Log of ratio (main text)"),
-  Mass_cor_tbl_altratio %>% filter(Model %in% c("Ratio_alt", "Ratio2_alt")) %>%
-    mutate(Model = str_remove(Model, "_alt"), Construction = "Ratio of logs")
-) %>%
-  summarize(Mean_r = round(mean(r_mass), 2), .by = c(Model, Construction))
-
-pull_altratio_cor <- function(model, construction) {
-  Altratio_mass_cor %>% filter(Model == model, Construction == construction) %>% pull(Mean_r)
-}
-
-mean_r_ratio_alt   <- pull_altratio_cor("Ratio",  "Ratio of logs")
-mean_r_ratio2_alt  <- pull_altratio_cor("Ratio2", "Ratio of logs")
-```
-
-```{r}
-#| label: tbl-altratio-eval
-#| tbl-cap: "Percentage of simulated species correctly classified (main text, Simulation performance criterion), comparing the main text's log-of-ratio construction against the ratio-of-logs alternative, for Longer and Stouter species. Both Proportionally smaller and Proportionally larger species were correctly classified (0% -- their true effect is exactly null by design) under every construction and are omitted here."
-#| tbl-pos: 'H'
-
-knitr::kable(Altratio_eval_tbl, format = "latex", booktabs = TRUE, linesep = "") %>%
-  kableExtra::column_spec(1, width = "3.2cm") %>%
-  kableExtra::column_spec(2, width = "3.4cm")
-```
-
-The two constructions agree everywhere the isometric-relative reference quantity is unambiguous by design — Longer (100% both) and both Proportional categories (0% both, matching the main text's Proportionally smaller and Proportionally larger results) — but diverge for Stouter species, where Ratio² is by far the most affected: its accuracy falls from 96% under the main text's construction to `r Ratio2_alt_stouter_pct`% under the ratio-of-logs alternative, while Ratio's accuracy moves more modestly (64% to `r Ratio_alt_stouter_pct`%; @tbl-altratio-eval).
-
-That both alternate-construction accuracies land at exactly the same value is not a coincidence, and exposes a deeper problem with the ratio-of-logs construction than a change in accuracy alone: $\log(A^2)/\log(S) = 2 \cdot \log(A)/\log(S)$ is a constant multiple of $\log(A)/\log(S)$, and because every metric is standardized before fitting (main text, Data simulation), that constant cancels completely — Ratio and Ratio² fit *identical* models under the ratio-of-logs construction (maximum difference in the fitted temperature coefficient across all `r nrow(Parms_tbl3)` simulated species: `r formatC(altratio_max_diff, format = "e", digits = 2)`, floating-point noise). The distinction between an implicit exponent of 1 ($A/S$) and 0.5 ($A^2/S$) — central to how the main text distinguishes these two ratio metrics (main text, Approach classification) — cannot exist under this construction; the two metrics collapse into one.
-
-The ratio-of-logs construction also shows a stronger, not weaker, mechanical dependence on body mass (mean correlation with mass: Ratio `r mean_r_ratio` to `r mean_r_ratio_alt`; Ratio² `r mean_r_ratio2` to `r mean_r_ratio2_alt`) — in Ratio²'s case, erasing essentially all of the improvement that squaring the appendage term achieves under the main text's construction. Taken together, the ratio-of-logs construction is not simply a relabeling of the same idea: it performs worse for Stouter species, collapses two metrics the main text treats as distinct into one, and leaves relative appendage length more, not less, entangled with body mass — reinforcing $\log(A/S)$ and $\log(A^2/S)$ as the better-justified constructions when a ratio metric is logged at all.
-
-# EXTRAS - delete
-
-These classical approaches share a critical assumption: that body size is measured without error. This is the operating assumption of ordinary least squares regression and is retained in most implementations of multiple regression, maximum likelihood, and Bayesian models unless the model is explicitly formulated otherwise. In practice, this assumption is nearly always violated. Mass — the most commonly used body size proxy — reflects structural body size but also transient biological variation such as gut fill, hydration state, and reproductive condition. Instrument and observer error introduce additional noise. When predictor variables are measured with error, OLS slope estimates are attenuated toward zero — a bias that grows as the correlation between the predictor and response weakens [@wartonBivariateLinefittingMethods2006; @greenMassLengthResiduals2001]. By ignoring this attenuation, classical regression approaches underestimate the allometric relationship between mass and appendage length, which propagates as bias into downstream estimates of temperature's effect on shape.
-
-For instance, @rydingMultipleRegressionNot2025 found that multiple regression was unbiased in their simulation study, which targeted a different causal structure. These findings are therefore not contradictory, but instead reflect sensitivity to differing assumptions about the underlying causal system.
+# References
