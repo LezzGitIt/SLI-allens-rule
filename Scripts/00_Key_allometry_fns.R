@@ -1,6 +1,6 @@
 ## Relative appendage length key functions script
 
-### The simulation and SLI functions now live in the sliR package. Install with remotes::install_github("LezzGitIt/sliR@v0.1.0").
+### The simulation and SLI functions now live in the sliR package. Install with remotes::install_github("LezzGitIt/sliR@v0.2.0").
 # Called directly as sliR::... at the analysis-script call sites: calc_sli() (both b_sli/control's
 # unconditional averaging and, since session 39, control + method = "hierarchical"'s reliability-gated
 # fallback -- replaces this file's former calc_sli_hierarchical(), removed once all three empirical
@@ -19,10 +19,10 @@ library(MASS)
 library(tidyverse)
 library(sliR)
 
-### The wrappers below were validated for statistical equivalence against sliR 0.1.0. Fail loudly if an older sliR is installed, so a stale package cannot silently change manuscript results. Install/update with: remotes::install_github("LezzGitIt/sliR@v0.1.0").
+### The wrappers below were validated for statistical equivalence against sliR 0.2.0, which introduced implied_gradient_effect() and calc_sli(method = "hierarchical") -- both now load-bearing (01_Run_simulation.R, the three empirical scripts). Fail loudly if an older sliR is installed, so a stale package cannot silently change manuscript results. Install/update with: remotes::install_github("LezzGitIt/sliR@v0.2.0").
 stopifnot(
-  "sliR (>= 0.1.0) is required; install with remotes::install_github('LezzGitIt/sliR@v0.1.0')" =
-    utils::packageVersion("sliR") >= "0.1.0"
+  "sliR (>= 0.2.0) is required; install with remotes::install_github('LezzGitIt/sliR@v0.2.0')" =
+    utils::packageVersion("sliR") >= "0.2.0"
 )
 
 # Creation of temperature bins for plotting and examination of scaling intercepts
