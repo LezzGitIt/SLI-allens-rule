@@ -30,10 +30,10 @@ if (just_am && control_age_sex) {
 }
 # Age and Sex are held to the same per-group sample-size bar everywhere they're used as a
 # single-covariate grouping (Ryding/OLS-residual's covariate decision, and
-# calc_sli_hierarchical()'s Level-2 marginal check) -- min_n_age_group is passed explicitly
+# sliR::calc_sli(method = "hierarchical")'s Level-2 marginal check) -- min_n_age_group is passed explicitly
 # as that function's n_min_marginal, so this assertion is what actually keeps them tied
 # together rather than the two just happening to be set to the same number.
-stopifnot("min_n_age_group and min_n_sex_group must match -- both feed calc_sli_hierarchical()'s single n_min_marginal argument" =
+stopifnot("min_n_age_group and min_n_sex_group must match -- both feed sliR::calc_sli(method = 'hierarchical')'s single n_min_marginal argument" =
             min_n_age_group == min_n_sex_group)
 
 # Download temperature data -------------------------------------------------
@@ -237,7 +237,7 @@ map(sma_mod_l, \(sma_mod){
 #       covariate is included, they pick up their own "Unk"/"U" factor level in the fitted
 #       regression like any other level.
 #   (2) covs_sli (below): SLI-estimated's per-individual hierarchical cascade
-#       (calc_sli_hierarchical()), gated only by whether the covariate was significant at
+#       (sliR::calc_sli(method = "hierarchical")), gated only by whether the covariate was significant at
 #       all (sig_age_any/sig_sex_any) -- looser than covs, since the cascade itself
 #       determines per individual whether a cell/marginal group is reliable enough to use
 #       (including the r>=cor_min/p<cor_p_max SMA-reliability check), falling back to the
@@ -269,14 +269,19 @@ nj_df_l2 <- imap(nj_df_analysis_l, \(df, sp) {
   ## Estimated SLI: per-group SMA slopes when this species has valid covariates, otherwise the species-wide SMA slope. Kept as separate calls because sliR::calc_sli() ignores b_sli whenever control is supplied, so passing both would silently discard one of them.
   df_iso <- df %>% sliR::calc_sli(b_sli = 0.33, Append = Wing, rename_col = "sli_isometry")
 
-  ## SLI-estimated: calc_sli_hierarchical() now handles the species-level reliability gate
-  ## internally (returns NA for every individual if the species-wide correlation itself is
-  ## unreliable) and falls back to the plain pooled slope when no covariate was significant
-  ## (covs_sli empty), so one unconditional call covers every species -- matches Spp_keep_vec
-  ## exactly, since both check the same species-wide mass~wing correlation.
-  covs_sli <- c(if (sp %in% sig_age_any) "Age", if (sp %in% sig_sex_any) "Sex")
-  calc_sli_hierarchical(df_iso, Append = Wing, covariates = covs_sli, rename_col = "sli_estimated",
-                        n_min_marginal = min_n_age_group)
+  ## SLI-estimated: sliR::calc_sli(method = "hierarchical") now handles the species-level
+  ## reliability gate internally (returns NA for every individual if the species-wide
+  ## correlation itself is unreliable) and falls back to the plain pooled slope when no
+  ## covariate was significant (covs_sli empty), so one unconditional call covers every
+  ## species -- matches Spp_keep_vec exactly, since both check the same species-wide
+  ## mass~wing correlation.
+  # as.character(): c(if(FALSE)..., if(FALSE)...) is NULL, not character(0), which
+  # sliR::calc_sli()'s method = "hierarchical" path treats as "no control at all" and
+  # silently falls back to the flat isometric b_sli default -- as.character(NULL) is
+  # character(0), routing correctly into the pooled-only cascade instead.
+  covs_sli <- as.character(c(if (sp %in% sig_age_any) "Age", if (sp %in% sig_sex_any) "Sex"))
+  sliR::calc_sli(df_iso, Append = Wing, control = covs_sli, method = "hierarchical",
+                 rename_col = "sli_estimated", n_min_marginal = min_n_age_group)
 })
 
 # Per-group allometric correlation (Mass ~ Wing within each Age × Sex combination) --

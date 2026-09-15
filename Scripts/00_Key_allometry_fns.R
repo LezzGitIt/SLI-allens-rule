@@ -1,12 +1,17 @@
 ## Relative appendage length key functions script
 
 ### The simulation and SLI functions now live in the sliR package. Install with remotes::install_github("LezzGitIt/sliR@v0.1.0").
-# Called directly as sliR::... at the analysis-script call sites: calc_sli(), build_sli_slopes_tbl(), sim_allometric() (see gen_ex_data below), sim_correlated().
+# Called directly as sliR::... at the analysis-script call sites: calc_sli() (both b_sli/control's
+# unconditional averaging and, since session 39, control + method = "hierarchical"'s reliability-gated
+# fallback -- replaces this file's former calc_sli_hierarchical(), removed once all three empirical
+# scripts' call sites were confirmed to reproduce identical sli_estimated/sli_tarsus_est values),
+# build_sli_slopes_tbl(), sim_allometric() (see gen_ex_data below), sim_correlated(),
+# implied_gradient_effect() (01_Run_simulation.R's beta_iso_true, pmap'd row-by-row).
 # Kept as thin local wrappers here, because the paper's vocabulary differs from sliR's generic API:
 #   gen_data()   -> sim_allometric()  (adds the paper's Temp_inc/Temp_bin columns via format_temp(); driven by pmap() over a b_avg_12/r_12/r_13/r_23 parameter grid whose column names must match the wrapper's arguments)
 #   gen_cov_mat()-> build_cov_mat()   (rescales the gradient block to sd_temp; displayed as teaching content in Extra_scripts/SMA_body_shape_methods.qmd)
 #   build_group_cor_tbl() -> its sliR namesake (renames r/p_value back to the r_mw/p_mw that ~6 downstream filters per empirical script depend on)
-# Still local, deliberately not in sliR: format_temp, run_sma_mod, format_sma_parms, gen_ex_data, calc_lambda, classify_direction, build_sli_mass_cor_tbl, test_group_effect, calc_sli_hierarchical.
+# Still local, deliberately not in sliR: format_temp, run_sma_mod, format_sma_parms, gen_ex_data, calc_lambda, classify_direction, build_sli_mass_cor_tbl, test_group_effect.
 
 # Load required libraries
 # MASS is no longer used by this file, but is left attached because supporting_info.qmd sources this script without loading MASS itself; dropping it here would change that document's search path.
@@ -220,118 +225,6 @@ test_group_effect <- function(df_list, dv, iv, gradient, min_n_per_group = 0,
       dplyr::bind_cols(n_counts)
   }) %>%
     purrr::list_rbind(names_to = "species_")
-}
-
-# Fits SLI-estimated's exponent (b_sli) per individual via a reliability-gated cascade,
-# finest to coarsest:
-#   (1) the individual's own combined cell across all `covariates` (only possible/attempted
-#       when 2 covariates are supplied -- e.g. a species' own Age x Sex combination),
-#   (2) the individual's own single-covariate marginal group(s) (own Age class and/or own
-#       Sex class, pooling across the other covariate) -- averaged together when both pass
-#       reliability, used as-is (unblended) when only one does.
-#   (3) the species-wide pooled slope (fit on every individual passed in, regardless of
-#       covariate class) -- reached when neither marginal passes (or, for a species with
-#       only one significant covariate, when its own marginal fails), and also the value
-#       used for every individual when `covariates` is empty.
-# A level is used only when it clears BOTH a minimum sample size and a reliable mass~
-# appendage correlation (r >= cor_min, p < cor_p_max); otherwise the cascade drops to the
-# next-coarsest level. Individuals with unrecorded Age/Sex are collapsed to their own "Unk"
-# class and cascade through the identical levels -- not a special case or an automatic
-# fallback to pooled.
-# Species-level gate is internal, not the caller's responsibility: the cascade is only
-# attempted at all if the species-wide (all-individuals) mass~appendage correlation is
-# itself reliable; otherwise sli_estimated = NA for every individual, even ones that would
-# have had a reliable cell or marginal group -- this keeps SLI-estimated defined for either
-# all or none of a species' individuals, matching the other five approaches' shared N.
-calc_sli_hierarchical <- function(df, Append, Mass = Mass, covariates = character(0),
-                                   n_min_cell = 50, n_min_marginal = 100,
-                                   cor_min = 0.3, cor_p_max = 0.05,
-                                   unknown_codes = c("Unk", "U", "Unknown"),
-                                   M0 = NULL, rename_col = "sli_estimated") {
-  app_q   <- rlang::enquo(Append)
-  mass_q  <- rlang::enquo(Mass)
-  app_nm  <- rlang::as_label(app_q)
-  mass_nm <- rlang::as_label(mass_q)
-  stopifnot(length(covariates) %in% 0:2)
-
-  if (is.null(M0)) M0 <- mean(df[[mass_nm]], na.rm = TRUE)
-
-  d <- df %>%
-    dplyr::mutate(.log_app = log(.data[[app_nm]]), .log_mass = log(.data[[mass_nm]]))
-
-  # Fits an SMA slope (log scale, as allometric slopes require) plus mass~appendage
-  # reliability stats (raw scale, matching the cor_min/cor_p_max convention already used
-  # everywhere else in this pipeline -- Spp_keep_vec, build_group_cor_tbl's r_mw/p_mw --
-  # so the same species/group is never judged reliable by one check and not the other).
-  fit_group <- function(sub) {
-    if (nrow(sub) < 3) return(tibble::tibble(n = nrow(sub), r = NA_real_, p = NA_real_, slope = NA_real_))
-    r <- suppressWarnings(stats::cor(sub[[app_nm]], sub[[mass_nm]]))
-    p <- tryCatch(stats::cor.test(sub[[app_nm]], sub[[mass_nm]])$p.value, error = \(e) NA_real_)
-    slope <- tryCatch(
-      unname(stats::coef(smatr::sma(.log_app ~ .log_mass, data = sub, method = "SMA"))["slope"]),
-      error = \(e) NA_real_)
-    tibble::tibble(n = nrow(sub), r = r, p = p, slope = slope)
-  }
-  reliable <- function(tbl, n_min) !is.na(tbl$r) & tbl$n >= n_min & tbl$r >= cor_min & !is.na(tbl$p) & tbl$p < cor_p_max
-
-  # Level 3 / species-level gate: species-wide pooled fit, the final fallback for every
-  # individual, and (no minimum sample size beyond the species-inclusion filter already
-  # applied upstream) the reliability check deciding whether this species gets
-  # SLI-estimated at all.
-  pooled <- fit_group(d)
-  if (!isTRUE(reliable(pooled, n_min = 0))) {
-    return(df %>% dplyr::mutate("{rename_col}" := NA_real_))
-  }
-  if (length(covariates) == 0) {
-    return(df %>% dplyr::mutate("{rename_col}" := {{ Append }} * (M0 / {{ Mass }})^pooled$slope))
-  }
-
-  # Collapse unknown-coded/NA values in each covariate to an explicit "Unk" class.
-  for (v in covariates) {
-    raw <- as.character(d[[v]])
-    d[[paste0(".", v, "_cls")]] <- dplyr::if_else(is.na(raw) | raw %in% unknown_codes, "Unk", raw)
-  }
-  cls_cols <- paste0(".", covariates, "_cls")
-
-  # Level 1: combined-cell fit, only attempted with two covariates.
-  if (length(covariates) == 2) {
-    cell_tbl <- d %>%
-      dplyr::group_by(dplyr::across(dplyr::all_of(cls_cols))) %>%
-      dplyr::group_modify(~ fit_group(.x)) %>%
-      dplyr::ungroup()
-    cell_tbl$l1_pass  <- reliable(cell_tbl, n_min_cell)
-    cell_tbl$l1_slope <- cell_tbl$slope
-    d <- d %>% dplyr::left_join(cell_tbl %>% dplyr::select(dplyr::all_of(cls_cols), l1_slope, l1_pass), by = cls_cols)
-  } else {
-    d$l1_slope <- NA_real_
-    d$l1_pass  <- FALSE
-  }
-
-  # Level 2: one marginal fit per covariate, masked to NA wherever it doesn't pass, so a
-  # per-row average (below) automatically includes only the passing marginal(s) -- reducing
-  # to that one value, unblended, when only one passes.
-  for (v in covariates) {
-    cls <- paste0(".", v, "_cls")
-    marg_tbl <- d %>%
-      dplyr::group_by(dplyr::across(dplyr::all_of(cls))) %>%
-      dplyr::group_modify(~ fit_group(.x)) %>%
-      dplyr::ungroup()
-    marg_tbl$pass <- reliable(marg_tbl, n_min_marginal)
-    marg_tbl[[paste0(".", v, "_marg_masked")]] <- dplyr::if_else(marg_tbl$pass, marg_tbl$slope, NA_real_)
-    d <- d %>% dplyr::left_join(marg_tbl %>% dplyr::select(dplyr::all_of(cls), dplyr::ends_with("_marg_masked")), by = cls)
-  }
-
-  masked_cols <- paste0(".", covariates, "_marg_masked")
-  marg_avg    <- rowMeans(as.data.frame(d[masked_cols]), na.rm = TRUE)  # NaN where none passed
-  n_marg_pass <- rowSums(!is.na(as.data.frame(d[masked_cols])))
-
-  b_sli <- dplyr::case_when(
-    d$l1_pass %in% TRUE ~ d$l1_slope,
-    n_marg_pass >= 1    ~ marg_avg,
-    TRUE                ~ pooled$slope
-  )
-
-  df %>% dplyr::mutate("{rename_col}" := {{ Append }} * (M0 / {{ Mass }})^b_sli)
 }
 
 # calc_lambda function: calculate the empirical coefficients of variation

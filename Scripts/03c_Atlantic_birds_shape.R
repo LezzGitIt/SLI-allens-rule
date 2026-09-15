@@ -28,10 +28,10 @@ cor_min         <- 0.3    # min Pearson r (mass ~ wing) within group for allomet
 cor_p_max       <- 0.05   # max p-value for mass ~ wing within group
 # Age and Sex are held to the same per-group sample-size bar everywhere they're used as a
 # single-covariate grouping (Ryding/OLS-residual's covariate decision, and
-# calc_sli_hierarchical()'s Level-2 marginal check) -- min_n_age_group is passed explicitly
+# sliR::calc_sli(method = "hierarchical")'s Level-2 marginal check) -- min_n_age_group is passed explicitly
 # as that function's n_min_marginal, so this assertion is what actually keeps them tied
 # together rather than the two just happening to be set to the same number.
-stopifnot("min_n_age_group and min_n_sex_group must match -- both feed calc_sli_hierarchical()'s single n_min_marginal argument" =
+stopifnot("min_n_age_group and min_n_sex_group must match -- both feed sliR::calc_sli(method = 'hierarchical')'s single n_min_marginal argument" =
             min_n_age_group == min_n_sex_group)
 
 # Format ------------------------------------------------------------------
@@ -311,7 +311,7 @@ if (control_age_sex) {
 #       numerically unstable; Smith 2009), which is why it still gates (2) below. Unknown-
 #       coded individuals are excluded only from this decision (not from df).
 #   (2) covs_sli (below): SLI-estimated's per-individual hierarchical cascade
-#       (calc_sli_hierarchical()), gated only by whether the covariate was significant at
+#       (sliR::calc_sli(method = "hierarchical")), gated only by whether the covariate was significant at
 #       all (sig_age_any/sig_sex_any) -- looser than covs, since the cascade itself
 #       determines per individual whether a cell/marginal group is reliable enough to use
 #       (including the r>=cor_min/p<cor_p_max SMA-reliability check), falling back to the
@@ -345,17 +345,22 @@ Atl_birds_l3 <- imap(Atl_birds_l2, \(df, sp) {
     sliR::calc_sli(b_sli = 0.33, Append = wing,   Mass = mass, rename_col = "sli_isometry") %>%
     sliR::calc_sli(b_sli = 0.33, Append = tarsus, Mass = mass, rename_col = "sli_tarsus_iso")
 
-  ## SLI-estimated: calc_sli_hierarchical() now handles the species-level reliability gate
-  ## internally (returns NA for every individual if the species-wide correlation itself is
-  ## unreliable) and falls back to the plain pooled slope when no covariate was significant
-  ## (covs_sli empty), so one unconditional call covers every species -- matches Spp_keep_vec
-  ## exactly, since both check the same species-wide mass~wing correlation.
-  covs_sli <- c(if (sp %in% sig_age_any) "age", if (sp %in% sig_sex_any) "sex")
+  ## SLI-estimated: sliR::calc_sli(method = "hierarchical") now handles the species-level
+  ## reliability gate internally (returns NA for every individual if the species-wide
+  ## correlation itself is unreliable) and falls back to the plain pooled slope when no
+  ## covariate was significant (covs_sli empty), so one unconditional call covers every
+  ## species -- matches Spp_keep_vec exactly, since both check the same species-wide
+  ## mass~wing correlation.
+  # as.character(): c(if(FALSE)..., if(FALSE)...) is NULL, not character(0), which
+  # sliR::calc_sli()'s method = "hierarchical" path treats as "no control at all" and
+  # silently falls back to the flat isometric b_sli default -- as.character(NULL) is
+  # character(0), routing correctly into the pooled-only cascade instead.
+  covs_sli <- as.character(c(if (sp %in% sig_age_any) "age", if (sp %in% sig_sex_any) "sex"))
   df_res %>%
-    calc_sli_hierarchical(Append = wing,   Mass = mass, covariates = covs_sli, rename_col = "sli_estimated",
-                          n_min_marginal = min_n_age_group) %>%
-    calc_sli_hierarchical(Append = tarsus, Mass = mass, covariates = covs_sli, rename_col = "sli_tarsus_est",
-                          n_min_marginal = min_n_age_group)
+    sliR::calc_sli(Append = wing,   Mass = mass, control = covs_sli, method = "hierarchical",
+                   rename_col = "sli_estimated", n_min_marginal = min_n_age_group) %>%
+    sliR::calc_sli(Append = tarsus, Mass = mass, control = covs_sli, method = "hierarchical",
+                   rename_col = "sli_tarsus_est", n_min_marginal = min_n_age_group)
 })
 
 # Per-group SMA slope tables (for inspection — wing and tarsus)
