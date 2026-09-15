@@ -359,7 +359,13 @@ The six methods produced strikingly different estimates of temperature's effect 
 #| fig-height: 4.5
 #| fig-pos: 'H'
 
-plot_approaches(Parms_tbl4, x_txt_size = 11)
+Fig3_compare_approaches <- plot_approaches(Parms_tbl4, x_txt_size = 11)
+Fig3_compare_approaches
+
+# Figure 3 (main text) PDF for sharing outside the pipeline -- see Figs_share/ at repo root.
+dir.create("Figs_share", showWarnings = FALSE)
+ggsave("Figs_share/Figure3_compare_approaches.pdf", Fig3_compare_approaches,
+       width = 9, height = 4.5, units = "in")
 ```
 
 **Ratio approaches** tended to diverge from the isometric-relative reference quantity in the positive direction, although this was much more prominent when $A/S$ was used as the response variable. When simulated to become relatively stouter, $A^2/S$ disagreed with the reference for only `r Ratio2_fatter_wrong_n` of `r Fatter_n` hypothetical species, whereas $A/S$ disagreed for roughly 1/4 of species (@fig-eval). Among species simulated as Proportionally smaller, where $\beta_T = 0$, no species had 95% confidence intervals containing $0$ for either $A/S$ or $A^2/S$.

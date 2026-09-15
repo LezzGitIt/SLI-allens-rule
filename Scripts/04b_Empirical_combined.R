@@ -163,3 +163,8 @@ ggsave("Figures/Empirical_combined.png", combined,
        bg = "white", width = fig_width, height = fig_height, units = "in", dpi = 300)
 
 message(sprintf("Saved Figures/Empirical_combined.png  [%.1f\" × %.1f\"]", fig_width, fig_height))
+
+# Figure 5 (main text) PDF for sharing outside the pipeline -- see Figs_share/ at repo root.
+dir.create("Figs_share", showWarnings = FALSE)
+ggsave("Figs_share/Figure5_Empirical_combined.pdf", combined,
+       bg = "white", width = fig_width, height = fig_height, units = "in")

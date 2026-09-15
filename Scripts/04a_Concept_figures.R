@@ -238,6 +238,11 @@ Sli_concept_combined
 ggsave("Figures/SLI_concept.png", Sli_concept_combined,
        width = 13, height = 5.7, units = "in", dpi = 300, bg = "white")
 
+# Figure 2 (main text) PDF for sharing outside the pipeline -- see Figs_share/ at repo root.
+dir.create("Figs_share", showWarnings = FALSE)
+ggsave("Figs_share/Figure2_SLI_concept.pdf", Sli_concept_combined,
+       width = 13, height = 5.7, units = "in", bg = "white")
+
 # Box 1 figure (Introduction): OLS vs. SMA regression under a flip of the X/Y axes ------
 # Real data (not simulated): Whip-poor-will mass/wing-chord measurements from the same
 # Nightjar-family dataset used in 03a_Nightjar_shape.R. Two panels share one data table;
