@@ -27,8 +27,8 @@ r_23     <- r_13
 b_avg_12 <- c(0.22, 0.33, 0.44)
 
 # Parameter matrix ------------------------------------------------------------
-# Main grid: Longer / Stouter / Proportionally smaller -- three realizations of Bergmann's rule (temperature never increases mass or appendage length).
-Shape <- c("Longer", "Proportionally smaller", "Stouter")
+# Main grid: Longer / Stouter / Null-effect smaller -- three realizations of Bergmann's rule (temperature never increases mass or appendage length).
+Shape <- c("Longer", "Null-effect smaller", "Stouter")
 Shape <- setNames(Shape, Shape)
 
 Parms_mat <- expand_grid(
@@ -40,9 +40,9 @@ Parms_mat <- expand_grid(
   mutate(
     # Population SMA slope of Append~Mass implied by b_avg_12 (average of OLS + SMA slope) and r_12.
     true_b_sma = 2 * b_avg_12 / (r_12 + 1),
-    # Flag the "Proportionally smaller" design cells before r_13 is solved below, so the Longer/Stouter sign logic further down stays driven by the same untouched off-diagonal rows as before -- not by re-testing beta_iso_true == 0, which also happens to hold for one coincidental off-diagonal cell (b_avg_12=0.44, r_12=0.6, r_13=-0.3, r_23=-0.5; 0.3*0.55 == 0.33*0.5).
+    # Flag the "Null-effect smaller" design cells before r_13 is solved below, so the Longer/Stouter sign logic further down stays driven by the same untouched off-diagonal rows as before -- not by re-testing beta_iso_true == 0, which also happens to hold for one coincidental off-diagonal cell (b_avg_12=0.44, r_12=0.6, r_13=-0.3, r_23=-0.5; 0.3*0.55 == 0.33*0.5).
     is_proportional = r_13 == r_23,
-    # Solve r_13 (instead of leaving it equal to r_23) so beta_iso_true = 0 exactly for every Proportionally smaller cell regardless of allometric scaling category -- r_13 = r_23 only zeroed it for Hypoallometric species; see Project_notes.md / Ground_truth_explainer.qmd "Round 7" for the derivation. Off-diagonal (Longer/Stouter) rows keep their original r_13.
+    # Solve r_13 (instead of leaving it equal to r_23) so beta_iso_true = 0 exactly for every Null-effect smaller cell regardless of allometric scaling category -- r_13 = r_23 only zeroed it for Hypoallometric species; see Project_notes.md / Ground_truth_explainer.qmd "Round 7" for the derivation. Off-diagonal (Longer/Stouter) rows keep their original r_13.
     r_13 = if_else(is_proportional, 0.33 * r_23 / true_b_sma, r_13),
     # Closed-form sign of SLI-isometry's population coefficient on temperature -- this simulation's ground truth for "true" shape change (see Project_notes.md for derivation). sliR::implied_gradient_effect() is scalar (one scenario per call), so this is pmap'd row-by-row rather than the one-line vectorized arithmetic it replaces -- confirmed exactly equivalent to machine precision (~1e-17) before making this swap.
     beta_iso_true = purrr::pmap_dbl(
@@ -66,7 +66,7 @@ Parms_mat <- expand_grid(
     near(b_avg_12, 0.33) ~ "Isometry"
   ))
 
-# Proportionally larger: mirror of the negative "Proportionally smaller" diagonal, on the positive-r_23 side -- temperature increases wing and mass with equal, not differential, pull. r_13 is solved (not set equal to r_23) so beta_iso_true = 0 exactly, same fix as Proportionally smaller above. Simulated analogue of empirical "Inverse Bergmann's" species.
+# Null-effect larger: mirror of the negative "Null-effect smaller" diagonal, on the positive-r_23 side -- temperature increases wing and mass with equal, not differential, pull. r_13 is solved (not set equal to r_23) so beta_iso_true = 0 exactly, same fix as Null-effect smaller above. Simulated analogue of empirical "Inverse Bergmann's" species.
 r_temp_pos <- c(.15, .3, .5, .7)
 
 Parms_big <- expand_grid(
@@ -83,7 +83,7 @@ Parms_big <- expand_grid(
              r_grad_app = r_13, r_grad_mass = r_23, b_anchor = 0.33
            )$beta_ref
          ),
-         Temp_eff      = "Proportionally larger",
+         Temp_eff      = "Null-effect larger",
          Strength      = abs(r_13 - r_23),
          Scaling       = case_when(
            b_avg_12 < 0.33 ~ "Hypoallometry",
@@ -94,7 +94,7 @@ Parms_big <- expand_grid(
 Parms_mat2 <- bind_rows(Parms_mat, Parms_big) %>%
   mutate(
     Temp_eff = factor(Temp_eff,
-                      levels = c("Stouter", "Proportionally smaller", "Proportionally larger", "Longer")),
+                      levels = c("Stouter", "Null-effect smaller", "Null-effect larger", "Longer")),
     Scaling = factor(Scaling,
                      levels = c("Hypoallometry", "Isometry", "Hyperallometry"))
   ) %>%
@@ -279,7 +279,7 @@ Parms_tbl4_full <- Parms_tbl3 %>%
   mutate(Est_correct = case_when(
     Temp_eff == "Longer" ~ ci_lo > 0,
     Temp_eff == "Stouter" ~ ci_hi < 0,
-    Temp_eff %in% c("Proportionally smaller", "Proportionally larger") ~ ci_lo <= 0 & ci_hi >= 0,
+    Temp_eff %in% c("Null-effect smaller", "Null-effect larger") ~ ci_lo <= 0 & ci_hi >= 0,
     .default = FALSE
   ), .by = Model)
 
@@ -360,17 +360,17 @@ Ols_anchor_summary_tbl <- Ols_anchor_df %>%
   )
 
 # Figure-only companion to Ols_anchor_df: widens the OLS-anchored comparison to also include
-# Proportionally smaller species, matching main text's fig-eval/Eval_scatter_df convention
-# (excludes only Proportionally larger, the out-of-main-grid scenario). This can't just reuse
+# Null-effect smaller species, matching main text's fig-eval/Eval_scatter_df convention
+# (excludes only Null-effect larger, the out-of-main-grid scenario). This can't just reuse
 # Ols_anchor_df/Ols_anchor_summary_tbl above, which stay Longer/Stouter-only so Table 1's
 # figures in the surrounding prose are unaffected by widening the figure's scope. Unlike the SMA
-# anchor, which pins Proportionally smaller species to an exactly-null true effect by construction
+# anchor, which pins Null-effect smaller species to an exactly-null true effect by construction
 # (main text, Effect classification) and so needs Est_correct's reversed "CI includes zero" rule,
 # beta_iso_true_ols is not pinned to zero for these species -- the SMA-vs-OLS anchor choice is
 # exactly what breaks that exact nullity -- so the same sign-based ci_correct() used for
 # Longer/Stouter applies here without a special case.
 Ols_anchor_fig_df <- Parms_tbl4 %>%
-  filter(Temp_eff != "Proportionally larger") %>%
+  filter(Temp_eff != "Null-effect larger") %>%
   mutate(Model = str_replace_all(Model, x_labs),
          b_true_ols        = r_12 * true_b_sma,
          beta_iso_true_ols = r_13 * b_true_ols - 0.33 * r_23,
@@ -402,10 +402,10 @@ Olsresid_pct_ols <- pull_ols_pct("OLS residuals",     `% correct (OLS)`)
 # never accounted for. V = Var(Append - 0.33*Mass)/sd_M^2 = true_b_sma^2 + 0.33^2 - 2*0.33*r_12*true_b_sma;
 # dividing beta_iso_true by sqrt(V) restores the missing term and should put SLI-isometry almost
 # exactly on the 1:1 line (r ~ 0.9999) against a raw r ~ 0.97 -- see Project_notes.md /
-# Ground_truth_explainer.qmd for the derivation. Scoped to Longer/Stouter/Proportionally smaller,
-# matching fig-eval; Proportionally smaller collapses to 0 under both the raw and rescaled versions.
+# Ground_truth_explainer.qmd for the derivation. Scoped to Longer/Stouter/Null-effect smaller,
+# matching fig-eval; Null-effect smaller collapses to 0 under both the raw and rescaled versions.
 Sli_iso_rescale_df <- Parms_tbl4 %>%
-  filter(Temp_eff != "Proportionally larger", Model == "Sli_iso") %>%
+  filter(Temp_eff != "Null-effect larger", Model == "Sli_iso") %>%
   mutate(V = true_b_sma^2 + 0.33^2 - 2 * 0.33 * r_12 * true_b_sma,
          beta_T_rescaled = beta_iso_true / sqrt(V))
 
@@ -416,7 +416,7 @@ r_sli_iso_raw      <- Sli_iso_rescale_stats$r_raw
 r_sli_iso_rescaled <- Sli_iso_rescale_stats$r_rescaled
 
 Proportional_methods_eval <- Parms_tbl4 %>%
-  filter(Temp_eff == "Proportionally smaller") %>%
+  filter(Temp_eff == "Null-effect smaller") %>%
   summarize(Prop_pos = sum(b_dir == "Pos") / n(), .by = c(Model, Temp_eff)) %>%
   mutate(Prop_neg = 1 - Prop_pos) %>%
   pivot_longer(cols = c(Prop_pos, Prop_neg),
@@ -425,16 +425,16 @@ Proportional_methods_eval <- Parms_tbl4 %>%
          Model = str_replace_all(Model, x_labs))
 
 # True benchmark is now an exact analytic constant, not a quantity tabulated from beta_iso_true's sign (which is 0, not >0 or <0, for every row in both categories now that r_13 is solved above) -- an unbiased method's point-estimate sign should split ~50/50 by sampling noise alone, since the true effect is exactly null in every species in both categories.
-stopifnot(max(abs(Parms_mat3$beta_iso_true[Parms_mat3$Temp_eff == "Proportionally smaller"])) < 1e-9)
-stopifnot(max(abs(Parms_mat3$beta_iso_true[Parms_mat3$Temp_eff == "Proportionally larger"])) < 1e-9)
+stopifnot(max(abs(Parms_mat3$beta_iso_true[Parms_mat3$Temp_eff == "Null-effect smaller"])) < 1e-9)
+stopifnot(max(abs(Parms_mat3$beta_iso_true[Parms_mat3$Temp_eff == "Null-effect larger"])) < 1e-9)
 
 Prop_true_null_pct <- 50
 Prop_fatter   <- 0.5
 Prop_longer   <- 0.5
 
-# "Proportionally larger" scenario: same "no true shape signal" evaluation as Proportionally smaller, just mirrored to the positive-r_13/r_23 diagonal (species getting bigger, not smaller). Kept as a parallel/duplicate computation rather than generalizing Proportional_methods_eval, so those objects remain unaffected.
+# "Null-effect larger" scenario: same "no true shape signal" evaluation as Null-effect smaller, just mirrored to the positive-r_13/r_23 diagonal (species getting bigger, not smaller). Kept as a parallel/duplicate computation rather than generalizing Proportional_methods_eval, so those objects remain unaffected.
 Bigger_methods_eval <- Parms_tbl4 %>%
-  filter(Temp_eff == "Proportionally larger") %>%
+  filter(Temp_eff == "Null-effect larger") %>%
   summarize(Prop_pos = sum(b_dir == "Pos") / n(), .by = c(Model, Temp_eff)) %>%
   mutate(Prop_neg = 1 - Prop_pos) %>%
   pivot_longer(cols = c(Prop_pos, Prop_neg),
@@ -494,19 +494,19 @@ Bigger_longer_pct  <- round(Bigger_longer * 100, 0)
 # CI-based null-detection accuracy: % of species where the 95% CI correctly *includes* zero
 # (Est_correct's reversed criterion for the two Proportional categories, Evaluation section above).
 # Eval_tbl already carries these rows for every Model, so pull_percent() works unmodified.
-Sli.iso_proportional_null_correct   <- pull_percent("Sli_iso",   "Proportionally smaller")
-Sli.est_proportional_null_correct   <- pull_percent("Sli_est",   "Proportionally smaller")
-Ratio_proportional_null_correct     <- pull_percent("Ratio",     "Proportionally smaller")
-Ratio2_proportional_null_correct    <- pull_percent("Ratio2",    "Proportionally smaller")
-Ryding_proportional_null_correct    <- pull_percent("Ryding",    "Proportionally smaller")
-Olsresid_proportional_null_correct  <- pull_percent("Ols_resid", "Proportionally smaller")
+Sli.iso_proportional_null_correct   <- pull_percent("Sli_iso",   "Null-effect smaller")
+Sli.est_proportional_null_correct   <- pull_percent("Sli_est",   "Null-effect smaller")
+Ratio_proportional_null_correct     <- pull_percent("Ratio",     "Null-effect smaller")
+Ratio2_proportional_null_correct    <- pull_percent("Ratio2",    "Null-effect smaller")
+Ryding_proportional_null_correct    <- pull_percent("Ryding",    "Null-effect smaller")
+Olsresid_proportional_null_correct  <- pull_percent("Ols_resid", "Null-effect smaller")
 
-Sli.iso_bigger_null_correct   <- pull_percent("Sli_iso",   "Proportionally larger")
-Sli.est_bigger_null_correct   <- pull_percent("Sli_est",   "Proportionally larger")
-Ratio_bigger_null_correct     <- pull_percent("Ratio",     "Proportionally larger")
-Ratio2_bigger_null_correct    <- pull_percent("Ratio2",    "Proportionally larger")
-Ryding_bigger_null_correct    <- pull_percent("Ryding",    "Proportionally larger")
-Olsresid_bigger_null_correct  <- pull_percent("Ols_resid", "Proportionally larger")
+Sli.iso_bigger_null_correct   <- pull_percent("Sli_iso",   "Null-effect larger")
+Sli.est_bigger_null_correct   <- pull_percent("Sli_est",   "Null-effect larger")
+Ratio_bigger_null_correct     <- pull_percent("Ratio",     "Null-effect larger")
+Ratio2_bigger_null_correct    <- pull_percent("Ratio2",    "Null-effect larger")
+Ryding_bigger_null_correct    <- pull_percent("Ryding",    "Null-effect larger")
+Olsresid_bigger_null_correct  <- pull_percent("Ols_resid", "Null-effect larger")
 
 # Export --------------------------------------------------------------------
 dir.create("Derived/Rds", showWarnings = FALSE)
@@ -565,7 +565,7 @@ saveRDS(
     Sli.iso_bigger_pos = Sli.iso_bigger_pos, Sli.est_bigger_pos = Sli.est_bigger_pos,
     Ratio_bigger_pos   = Ratio_bigger_pos,   Ryding_bigger_pos  = Ryding_bigger_pos,
 
-    # CI-based null-detection accuracy (Proportionally smaller/larger)
+    # CI-based null-detection accuracy (Null-effect smaller/larger)
     Sli.iso_proportional_null_correct  = Sli.iso_proportional_null_correct,
     Sli.est_proportional_null_correct  = Sli.est_proportional_null_correct,
     Ratio_proportional_null_correct    = Ratio_proportional_null_correct,

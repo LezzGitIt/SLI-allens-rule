@@ -308,7 +308,7 @@ classify_direction <- function(mods_tbl, p_threshold = 0.05,
 # per this project's "extract a shared helper the first time logic is duplicated" convention.
 plot_approaches <- function(df, x_txt_size = 9, legend.pos = "top") {
   df <- df %>%
-    filter(Temp_eff != "Proportionally larger") %>%
+    filter(Temp_eff != "Null-effect larger") %>%
     mutate(Model = str_replace_all(Model, x_labs))
 
   ggplot(df, aes(x = Model, y = b_temp_inc)) +
