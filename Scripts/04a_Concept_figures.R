@@ -1,6 +1,6 @@
 ## Two conceptual figures for the manuscript:
 ##
-## Figure 3 (Methods): The Standardized Length Index (SLI), adapted from the Scaled Mass
+## Figure 3 (Methods): The Scaled Length Index (SLI), adapted from the Scaled Mass
 ## Index (Peig & Green 2009).
 ## (a) General SLI mechanism, illustrated with an independent hypothetical dataset (not
 ##     one of the paper's simulated species).

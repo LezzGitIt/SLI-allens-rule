@@ -6,7 +6,7 @@
 
 This repository contains the analysis code for a methods paper comparing approaches for quantifying relative appendage length (body shape) along environmental gradients, with application to Allen's rule (the ecogeographic pattern of longer appendages in warmer climates).
 
-I compare six commonly used methods — including log-ratio indices, OLS residuals, mass-as-covariate multiple regression, and two Standardized Length Index (SLI) variations — under a simulation framework with controlled allometric structure. In this simulation, the SLI approaches leveraging SMA-estimated slopes is the preferred metric for detecting shape-shifting.
+I compare six commonly used methods — including log-ratio indices, OLS residuals, mass-as-covariate multiple regression, and two Scaled Length Index (SLI) variations — under a simulation framework with controlled allometric structure. In this simulation, the SLI approaches leveraging SMA-estimated slopes is the preferred metric for detecting shape-shifting.
 
 ## Repository structure
 
