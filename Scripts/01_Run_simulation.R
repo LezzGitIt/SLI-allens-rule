@@ -44,8 +44,14 @@ Parms_mat <- expand_grid(
     is_proportional = r_13 == r_23,
     # Solve r_13 (instead of leaving it equal to r_23) so beta_iso_true = 0 exactly for every Proportionally smaller cell regardless of allometric scaling category -- r_13 = r_23 only zeroed it for Hypoallometric species; see Project_notes.md / Ground_truth_explainer.qmd "Round 7" for the derivation. Off-diagonal (Longer/Stouter) rows keep their original r_13.
     r_13 = if_else(is_proportional, 0.33 * r_23 / true_b_sma, r_13),
-    # Closed-form sign of SLI-isometry's population coefficient on temperature -- this simulation's ground truth for "true" shape change (see Project_notes.md for derivation).
-    beta_iso_true = r_13 * true_b_sma - 0.33 * r_23,
+    # Closed-form sign of SLI-isometry's population coefficient on temperature -- this simulation's ground truth for "true" shape change (see Project_notes.md for derivation). sliR::implied_gradient_effect() is scalar (one scenario per call), so this is pmap'd row-by-row rather than the one-line vectorized arithmetic it replaces -- confirmed exactly equivalent to machine precision (~1e-17) before making this swap.
+    beta_iso_true = purrr::pmap_dbl(
+      list(b_avg_12 = b_avg_12, r_12 = r_12, r_13 = r_13, r_23 = r_23),
+      \(b_avg_12, r_12, r_13, r_23) sliR::implied_gradient_effect(
+        b_avg = b_avg_12, r_app_mass = r_12,
+        r_grad_app = r_13, r_grad_mass = r_23, b_anchor = 0.33
+      )$beta_ref
+    ),
     Temp_eff = case_when(
       is_proportional ~ Shape[2],
       beta_iso_true > 0 ~ Shape[1],
@@ -70,7 +76,13 @@ Parms_big <- expand_grid(
 ) %>%
   mutate(true_b_sma    = 2 * b_avg_12 / (r_12 + 1),
          r_13          = 0.33 * r_23 / true_b_sma,
-         beta_iso_true = r_13 * true_b_sma - 0.33 * r_23,
+         beta_iso_true = purrr::pmap_dbl(
+           list(b_avg_12 = b_avg_12, r_12 = r_12, r_13 = r_13, r_23 = r_23),
+           \(b_avg_12, r_12, r_13, r_23) sliR::implied_gradient_effect(
+             b_avg = b_avg_12, r_app_mass = r_12,
+             r_grad_app = r_13, r_grad_mass = r_23, b_anchor = 0.33
+           )$beta_ref
+         ),
          Temp_eff      = "Proportionally larger",
          Strength      = abs(r_13 - r_23),
          Scaling       = case_when(
