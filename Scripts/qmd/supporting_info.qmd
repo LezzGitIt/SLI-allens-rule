@@ -240,9 +240,9 @@ The alternative formulation of the ratio, $\log(A)/\log(S)$, showed qualitativel
 
 # SLI-isometry's correlation with the reference quantity
 
-The main text notes that anchoring $\beta_T$ to the same SMA slope that SLI-isometry itself uses makes it circular to "test" SLI-isometry against the other approaches (section 'Approach classification' in the main text). Here I show that SLI-isometry's fitted coefficient ($\hat\beta_T$) is exactly correlated with the isometric reference quantity $\beta_T$ up to a scaling coefficient.
+The main text notes that anchoring $\beta_T$ to the same SMA slope that SLI-isometry itself uses makes it circular to "test" SLI-isometry against the other approaches (section 'Statistical approach classification' in the main text). Here I show that SLI-isometry's fitted coefficient ($\hat\beta_T$) is exactly correlated with the isometric reference quantity $\beta_T$ up to a scaling coefficient.
 
-$\beta_T$ is defined from $\mathrm{Cov}(\log SLI, \mathrm{Temperature})$ alone (main text, Effect classification), but a *fitted regression coefficient* is that covariance divided by $sd(\log SLI)$ too — a correlation, not a covariance. $sd(\log SLI)^2$ is proportional to
+$\beta_T$ is defined from $\mathrm{Cov}(\log SLI, \mathrm{Temperature})$ alone (main text, Temperature effect classification), but a *fitted regression coefficient* is that covariance divided by $sd(\log SLI)$ too — a correlation, not a covariance. $sd(\log SLI)^2$ is proportional to
 
 $$V = \beta_{SMA}^2 + 0.33^2 - 2 \cdot 0.33 \cdot \rho_{12} \cdot \beta_{SMA}$$
 
@@ -250,7 +250,7 @@ which varies species to species (it depends on each species' own $\beta_{SMA}$ a
 
 ```{r}
 #| label: fig-sli-iso-rescale
-#| fig-cap: "SLI-isometry's fitted coefficient against the variance-corrected ground truth (main text, Effect classification and this section). Longer, Stouter, and Null-effect smaller species, matching the main text's calibration scatter; the dashed line is 1:1, not a fitted trend."
+#| fig-cap: "SLI-isometry's fitted coefficient against the variance-corrected ground truth (main text, Temperature effect classification and this section). Longer, Stouter, and Null-effect smaller species, matching the main text's calibration scatter; the dashed line is 1:1, not a fitted trend."
 #| fig-width: 4.5
 #| fig-height: 4.5
 #| fig-pos: 'H'
@@ -268,7 +268,7 @@ ggplot(Sli_iso_rescale_df, aes(x = beta_T_rescaled, y = b_temp_inc, color = Temp
 
 # Anchoring the ground truth to OLS instead of SMA
 
-The main text anchors "isometric" (0.33) to the SMA slope ('Approach classification' in main text), matching SLI-isometry's own logic. To illustrate that the choice of reference quantity is statistically arbitrary, I show an alternative reference quantity anchored to OLS regression as well: $\beta_{OLS} = \rho_{12} \cdot \beta_{SMA}$, so $\beta_{T,OLS} = \rho_{13} \cdot \beta_{OLS} - 0.33 \cdot \rho_{23}$. I re-scored the correlation and sign-agreement between $\beta_{T,OLS}$ and $\hat\beta_{T}$ for all six methods.
+The main text anchors "isometric" (0.33) to the SMA slope ('Statistical approach classification' in main text), matching SLI-isometry's own logic. To illustrate that the choice of reference quantity is statistically arbitrary, I show an alternative reference quantity anchored to OLS regression as well: $\beta_{OLS} = \rho_{12} \cdot \beta_{SMA}$, so $\beta_{T,OLS} = \rho_{13} \cdot \beta_{OLS} - 0.33 \cdot \rho_{23}$. I re-scored the correlation and sign-agreement between $\beta_{T,OLS}$ and $\hat\beta_{T}$ for all six methods.
 
 ```{r}
 #| label: fig-calibration-ols
@@ -296,7 +296,7 @@ ggplot(Ols_anchor_fig_df, aes(x = beta_iso_true_ols, y = b_temp_inc, color = Tem
 
 # Null-effect larger scenario: simulated analogue of Inverse Bergmann's responses
 
-The main text simulation compares six methods for estimating relative appendage length across three realizations of Bergmann's rule (Stouter, Null-effect smaller, Longer), in which body size always decreases with warming. Here I additionally simulated a **Null-effect larger** scenario — the mirror image of Null-effect smaller, in which temperature increases wing length and body mass with equal pull ($b \in \{0.22, 0.33, 0.44\}$, $\rho_{12} \in \{0.3, 0.45, 0.6\}$, $\rho_{13}$ solved from a specified $\rho_{23} \in \{0.15, 0.3, 0.5, 0.7\}$ so the true isometric-relative effect is exactly null (see 'Effect classification' section in the main text)). The goal of this exercise was to understand the expectation for species exhibiting inverse Bergmannian patterns in which mass, wing length, or both increase with warming.
+The main text simulation compares six methods for estimating relative appendage length across three realizations of Bergmann's rule (Stouter, Null-effect smaller, Longer), in which body size always decreases with warming. Here I additionally simulated a **Null-effect larger** scenario — the mirror image of Null-effect smaller, in which temperature increases wing length and body mass with equal pull ($b \in \{0.22, 0.33, 0.44\}$, $\rho_{12} \in \{0.3, 0.45, 0.6\}$, $\rho_{13}$ solved from a specified $\rho_{23} \in \{0.15, 0.3, 0.5, 0.7\}$ so the true isometric-relative effect is exactly null (see 'Temperature effect classification' section in the main text)). The goal of this exercise was to understand the expectation for species exhibiting inverse Bergmannian patterns in which mass, wing length, or both increase with warming.
 
 ```{r}
 #| label: fig-bigger-compare
