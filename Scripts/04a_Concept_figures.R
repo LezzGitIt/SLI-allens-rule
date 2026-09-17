@@ -212,14 +212,14 @@ p_two_pathways <- ggplot(Ex_df_pathways_plot, aes(x = Mass_log, y = Append_log))
   annotate("text", x = 4.45, y = 5.118,
            label = "Estimated allometry", color = "blue", size = 4.2, hjust = 0.5, fontface = "bold") +
   annotate("text", x = 4.45, y = 5.102,
-           label = paste0("b[SMA] == ", round(sma_slope, 2)), parse = TRUE,
+           label = paste0("hat(beta)[SMA] == ", round(sma_slope, 2)), parse = TRUE,
            color = "blue", size = 4.2, hjust = 0.5) +
   # "Isometric reference" sits right of the isometric line, near the top where that line has
   # already exited the point cloud's own mass range -- genuinely blank space, not overlapping.
   annotate("text", x = x_grey_label + 0.12, y = iso_intercept + iso_slope * x_grey_label + 0.018,
            label = "Isometric reference", color = "grey35", size = 4.2, hjust = 0.5, fontface = "bold") +
   annotate("text", x = x_grey_label + 0.12, y = iso_intercept + iso_slope * x_grey_label + 0.004,
-           label = "b[SMA] == 0.33", parse = TRUE, color = "grey35", size = 4.2, hjust = 0.5) +
+           label = "b == 0.33", parse = TRUE, color = "grey35", size = 4.2, hjust = 0.5) +
   scale_color_viridis_c(option = "plasma") +
   scale_x_continuous(expand = expansion(mult = c(0.16, 0.26))) +
   labs(x = "Log(mass)", y = "Log(appendage)", color = "Temperature\nincrease") +
