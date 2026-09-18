@@ -259,13 +259,14 @@ Returning to @eq-b-true, the definition of $\beta_T$ makes it clear that there a
 $$\beta_T \;\propto\; \underbrace{\rho_{23}\left(\beta_{SMA} - 0.33\right)}_{\text{allometry-vs-isometry component}} \;+\; \underbrace{\beta_{SMA} \cdot \Delta\rho}_{\substack{\text{differential temperature-} \\ \text{association component}}}$$The two SLI estimators reflect this decomposition. Because SLI-isometry standardizes against the fixed isometric exponent it is capable of detecting departures due to the allometry-vs-isometry component and the temperature-association component. SLI-estimated, on the other hand, standardizes against each species' own SMA slope, effectively removing any impact due to non-isometric scaling. Thus, it is only sensitive to the differential temperature-association component (@fig-sli-concept, panel b). This decomposition is algebraic rather than causal.
 
 ```{=html}
-<!-- Both panels of @fig-sli-concept are built in Scripts/04a_Concept_figures.R (re-run it any
-time either panel's code changes) and saved to Figures/SLI_concept.png; that script also
-exports the panel-(b) example species to Derived/Rds/Ex_df_hypo_hyper.rds for fig-ols-sma
-(Discussion) to reuse. This script-generated PNG is the reproducible baseline Sylvia's
-polished PDF (below) is hand-edited from -- re-run 04a_Concept_figures.R and hand over the
-fresh PNG whenever the underlying data/code changes, so her edit stays in sync with the
-source. -->
+<!-- Figures 2, 3, and 5 in this manuscript are Sylvia's hand-polished PDFs, each hand-edited
+from a script-generated baseline: Figure 2 from Figures/SLI_concept.png (Scripts/04a_Concept_
+figures.R, which also exports the panel-(b) example species to Derived/Rds/Ex_df_hypo_hyper.rds
+for fig-ols-sma in the Discussion to reuse); Figure 3 from Figs_share/Figure3_compare_
+approaches.pdf (the fig-compare-approaches-source chunk below); Figure 5 from Figures/
+Empirical_combined.png (Scripts/04b_Empirical_combined.R). Whenever the underlying data or
+code changes, regenerate the relevant baseline and hand Sylvia the fresh copy so her edit
+stays in sync with the source -- see each figure's own embed below for its exact baseline path. -->
 ```
 
 ![The Scaled Length Index (SLI), adapted from the Scaled Mass Index [@peigNewPerspectivesEstimating2009]. (a) The SLI reprojects each individual's appendage length to the value it would take at the population's mean mass, $M_0$. Two example individuals (filled black circles) are shown sliding along their own standardization curves (dashed black line) to their standardized values (open points). If linearized, the standardization curves would be parallel to the population-level slope (solid grey curve). (b) SLI-estimated and SLI-isometry estimate two different quantities. Points are a representative subset of individuals (log-log scale) for a simulated hyperallometric species whose appendage length increases with warming, coloured by simulated temperature increase. The white-filled point marks the expected phenotype for an individual experiencing a 0.5°C temperature increase. The solid blue line ('Estimated allometry') is the empirical SMA relationship ($\hat\beta_{SMA} = 0.68$), which provides the reference relationship for SLI-estimated; the dashed grey line is the 'isometric reference' ($b = 0.33$), which provides the reference relationship for SLI-isometry. The green arrow shows the allometry-isometry component, i.e., the gap between the two reference lines at this individual's predicted body size. The red arrow shows the temperature-association component, i.e., the additional displacement associated with temperature, measured from the isometric line to this individual's predicted appendage length.](../../Figures/Sylvia/Figure2_SLI_concept_Sept16_edits.pdf){#fig-sli-concept width="100%" fig-pos="H"}
@@ -347,9 +348,7 @@ The six methods produced strikingly different estimates of temperature's effect 
 #| label: fig-compare-approaches-source
 #| include: false
 
-# Reproducible baseline for @fig-compare-approaches -- Sylvia's polished PDF (embedded below)
-# is hand-edited from this exported PDF. Re-run this chunk and hand over the fresh export
-# whenever plot_approaches() or Parms_tbl4 changes, so her edit stays in sync with the source.
+# Reproducible baseline for Figure 3 -- see the Sylvia's-figures note near Figure 2 above.
 Fig3_compare_approaches <- plot_approaches(Parms_tbl4, x_txt_size = 11)
 
 dir.create("Figs_share", showWarnings = FALSE)
@@ -358,6 +357,7 @@ ggsave("Figs_share/Figure3_compare_approaches.pdf", Fig3_compare_approaches,
 ```
 
 ![Estimated effect of temperature on relative appendage length ($\hat{\beta}_T$) for each method across three different realizations of Bergmann's rule (Stouter, Null-effect smaller, and Longer species). Positive values of $\hat{\beta}_T$ indicate that species were estimated to become relatively longer with increasing temperature. Negative values indicate they become relatively stouter. Each point is a simulated species. Point shape indicates allometric scaling category and colour indicates the strength of the difference between temperature's effect on appendage length and mass.](../../Figures/Sylvia/Figure3_compare_approaches_Sept16_edits.pdf){#fig-compare-approaches width="100%" fig-pos="H"}
+
 Ratio approaches tended to diverge from the isometric-relative reference quantity in the positive direction, although this was much more apparent for $A/S$ than $A^2/S$ . For example, in the 'stouter' simulated condition, $A/S$ disagreed for `r Ratio_fatter_wrong_pct`% of species, whereas $A^2/S$ disagreed with the reference for only `r Ratio2_fatter_wrong_n` of `r Fatter_n` hypothetical species (@fig-eval). Both ratio indicators performed poorly among species simulated as Null-effect smaller, where $\beta_T = 0$, in that no species had 95% confidence intervals containing 0 for either $A/S$ or $A^2/S$.
 
 **Multiple regression and OLS residuals** approaches behaved very similarly, consistent with their mathematical equivalence when predictor variables are uncorrelated [@freckletonMisuseResidualsEcology2002]. They both consistently diverged from the isometric-relative reference quantity in the negative direction (@fig-eval). Both methods correctly identified the direction of change in `r Ryding_longer_right`% of species simulated to become relatively longer, agreed with the reference for Stouter species, and overcorrected in Null-effect smaller species. Indeed, in null-effect smaller species, only `r Ryding_proportional_null_correct`% had a 95% confidence interval that included $0$ for either method.
@@ -519,14 +519,14 @@ Across the `r n_species_total` species examined here, the largest percentage (`r
 The rank-order pattern from simulations was generally reproduced in all three datasets: ratio methods consistently produced the most positive estimates and multiple regression / OLS residuals the most negative, with SLI falling between these extremes (@fig-empirical). `r pct_rank_overall`% of the `r n_rank_total` species with a directional (Bergmann's or Inverse Bergmann's) classification showed the rank order predicted by the simulations (`r pct_rank_bergmanns`% of `r n_rank_bergmanns` Bergmann's species and `r pct_rank_inv_bergmanns`% of `r n_rank_inv_bergmanns` Inverse Bergmann's species; SI Figure 10).
 
 ```{=html}
-<!-- Figures/Empirical_combined.png (Scripts/04b_Empirical_combined.R) is the reproducible
-baseline Sylvia's polished PDF (below) is hand-edited from -- re-run that script and hand
-over the fresh PNG whenever the underlying data/code changes, so her edit stays in sync
-with the source. Caption counts (n_rank_bergmanns / n_rank_inv_bergmanns) are inlined live,
-computed above. -->
+<!-- TEMPORARY: pointing at the raw Figures/Empirical_combined.png baseline (with the new
+%-labeled stacked bars) rather than Sylvia's polished PDF, since her PDF predates the label
+addition. Switch back to Figures/Sylvia/Figure5_Empirical_combined_<date>_edits.pdf once she
+sends an updated polish. Caption counts (n_rank_bergmanns / n_rank_inv_bergmanns) are inlined
+live, computed above. -->
 ```
 
-![Estimated effect ($\hat{\beta}$) of temperature or year on relative wing length for each of the six methods, across three empirical avian datasets (Nightjars: red points; North American migrants: blue points; Atlantic Forest birds: green points), grouped by direction of body size change: (a) Bergmann's ($n$ = `r n_rank_bergmanns` species) and (b) Inverse Bergmann's ($n$ = `r n_rank_inv_bergmanns` species). Each point is one species' estimate ($\hat{\beta}$) for a given method; boxplots summarize the distribution of these estimates across species within each method. The percentage in the top-right corner of each boxplot is the proportion of species whose rank order across methods matched the simulation-predicted order (Bergmann's: Ratio \> SLI \> OLS; Inverse Bergmann's: Ratio \< SLI \< OLS). The stacked barplots on the right of each panel show binary adherence to Allen's rule based on species' 95% confidence intervals. Species were classified as significantly longer if their 95% confidence interval was above zero, significantly stouter if entirely below zero, or not significant if it overlapped zero.](../../Figures/Sylvia/Figure5_Empirical_combined_Sept16_edits.pdf){#fig-empirical width="100%" fig-pos="H"}
+![Estimated effect ($\hat{\beta}$) of temperature or year on relative wing length for each of the six methods, across three empirical avian datasets (Nightjars: red points; North American migrants: blue points; Atlantic Forest birds: green points), grouped by direction of body size change: (a) Bergmann's ($n$ = `r n_rank_bergmanns` species) and (b) Inverse Bergmann's ($n$ = `r n_rank_inv_bergmanns` species). Each point is one species' estimate ($\hat{\beta}$) for a given method; boxplots summarize the distribution of these estimates across species within each method. The percentage in the top-right corner of each boxplot is the proportion of species whose rank order across methods matched the simulation-predicted order (Bergmann's: Ratio \> SLI \> OLS; Inverse Bergmann's: Ratio \< SLI \< OLS). The stacked barplots on the right of each panel show binary adherence to Allen's rule based on species' 95% confidence intervals. Species were classified as significantly longer if their 95% confidence interval was above zero, significantly stouter if entirely below zero, or not significant if it overlapped zero.](../../Figures/Empirical_combined.png){#fig-empirical width="100%" fig-pos="H"}
 
 ```{r}
 #| label: significance-classification-empirical

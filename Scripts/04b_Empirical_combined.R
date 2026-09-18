@@ -107,7 +107,7 @@ build_direction_plot <- function(df_panel, direction) {
 # (Sig. longer), entirely below zero (Sig. stouter), or overlapped zero (Not
 # significant).
 build_significance_plot <- function(df_panel) {
-  df_panel %>%
+  df_sig <- df_panel %>%
     mutate(Call = case_when(
       LCI95 > 0 ~ "Longer",
       UCI95 < 0 ~ "Stouter",
@@ -116,10 +116,25 @@ build_significance_plot <- function(df_panel) {
     Call = factor(Call, levels = sig_levels)) %>%
     count(Approach, Call, .drop = FALSE) %>%
     group_by(Approach) %>%
-    mutate(pct = n / sum(n)) %>%
-    ungroup() %>%
-    ggplot(aes(x = Approach, y = pct, fill = Call)) +
-    geom_col(width = 0.7, color = "white", linewidth = 0.3) +
+    mutate(pct = n / sum(n),
+           # Segment midpoints for label placement, in geom_col's bottom-to-top stacking order.
+           ymax = cumsum(pct), ymin = ymax - pct, ymid = (ymin + ymax) / 2,
+           # Suppress a segment's label only when it's under 5% of its bar, and never for more
+           # than one segment per bar -- so at least two of the three are always labeled and the
+           # unlabeled remainder is inferable by subtraction (the three sum to 100%).
+           n_small = sum(pct < 0.05),
+           show_label = !(pct < 0.05 & n_small <= 1)) %>%
+    ungroup()
+
+  ggplot(df_sig, aes(x = Approach, y = pct, fill = Call)) +
+    # reverse = TRUE stacks in ascending factor-level order (Longer at the bottom, Stouter at
+    # the top) to match ymin/ymax/ymid above, which were computed via a plain cumsum() over
+    # count()'s factor-level-ordered rows -- ggplot's default (reverse = FALSE) stacks in the
+    # opposite order and would misplace every label relative to its segment.
+    geom_col(width = 0.7, color = "white", linewidth = 0.3, position = position_stack(reverse = TRUE)) +
+    geom_text(data = \(d) dplyr::filter(d, show_label),
+              aes(y = ymid, label = paste0(round(pct * 100), "%")),
+              size = 2.6, color = "white", fontface = "bold") +
     scale_x_discrete(labels = approach_labs) +
     scale_y_continuous(labels = scales::percent, expand = expansion(mult = c(0, 0.02))) +
     scale_fill_manual(values = sig_colors, breaks = sig_levels, drop = FALSE) +
