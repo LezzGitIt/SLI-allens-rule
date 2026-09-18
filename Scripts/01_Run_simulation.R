@@ -466,6 +466,7 @@ Ryding_longer_right       <- pull_percent("Ryding",  "Longer")
 Ryding_fatter_right       <- pull_percent("Ryding",  "Stouter")
 Ratio_longer_right        <- pull_percent("Ratio",   "Longer")
 Ratio_fatter_right        <- pull_percent("Ratio",   "Stouter")
+Ratio_fatter_wrong_pct    <- 100 - Ratio_fatter_right
 Sli.est_longer_right      <- pull_percent("Sli_est", "Longer")
 Sli.est_fatter_right      <- pull_percent("Sli_est", "Stouter")
 
@@ -553,6 +554,7 @@ saveRDS(
     Sli.iso_fatter_right = Sli.iso_fatter_right, Sli.iso_longer_right = Sli.iso_longer_right,
     Ryding_longer_right  = Ryding_longer_right,  Ryding_fatter_right  = Ryding_fatter_right,
     Ratio_longer_right   = Ratio_longer_right,   Ratio_fatter_right   = Ratio_fatter_right,
+    Ratio_fatter_wrong_pct = Ratio_fatter_wrong_pct,
     Sli.est_longer_right = Sli.est_longer_right, Sli.est_fatter_right = Sli.est_fatter_right,
     Ratio2_fatter_right  = Ratio2_fatter_right,  Ratio2_fatter_wrong_n = Ratio2_fatter_wrong_n,
     Fatter_n = Fatter_n,
