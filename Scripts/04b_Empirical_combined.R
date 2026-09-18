@@ -33,8 +33,14 @@ parms_all <- bind_rows(
   )
 
 # Study aesthetics --------------------------------------------------------
+# study_order/study_colors key on the raw Study values from the source CSVs (also used
+# to filter/join elsewhere, e.g. Allens_methods_sim.qmd's per-study result chunks) --
+# study_labs remaps just the legend text to the reader-facing names already used in this
+# figure's own caption ("North American migrants", "Atlantic Forest birds").
 study_order  <- c("Nightjar", "Weeks (2020)", "Atlantic birds")
 study_colors <- c("Nightjar" = "#E41A1C", "Weeks (2020)" = "#377EB8", "Atlantic birds" = "#4DAF4A")
+study_labs   <- c("Nightjar" = "Nightjar", "Weeks (2020)" = "North American migrant",
+                   "Atlantic birds" = "Atlantic Forest")
 
 approach_labs <- c(
   "Ratio"     = "Wing / Mass",
@@ -86,7 +92,7 @@ build_direction_plot <- function(df_panel, direction) {
     scale_x_discrete(labels = approach_labs) +
     # drop = FALSE so both directions' plots emit an identical 3-entry Study
     # legend (no nightjars are Inverse Bergmann's) and patchwork collects it to one.
-    scale_color_manual(values = study_colors, drop = FALSE) +
+    scale_color_manual(values = study_colors, labels = study_labs, drop = FALSE) +
     # Axis label wording matches fig-compare-approaches (Figure 3, Allens_methods_sim.qmd)
     # so the two figures read as directly comparable quantities.
     labs(x = NULL, y = expression(hat(beta)[T] ~ "on relative appendage length"),
@@ -149,20 +155,24 @@ build_significance_plot <- function(df_panel) {
 
 # Assemble --------------------------------------------------------------
 # 2x2 patchwork: boxplot (magnitude/rank order, 2/3 width) + stacked bar (95%-CI
-# significance call, 1/3 width) per direction. axes = "collect_x" drops the top
-# row's repeated method labels. Guides are NOT collected: the Bergmann's-row
-# boxplot keeps the dataset (colour) legend above the boxplot column and the
-# Bergmann's-row stacked bar keeps the significance-call (fill) legend above the
-# bar column; the Inverse Bergmann's plots suppress both. patchwork still aligns
-# the panel regions, so the two data panels come out the same size.
+# significance call, 1/3 width) per direction. Tags follow standard reading order --
+# a/b top row (Bergmann's boxplot/bar), c/d bottom row (Inverse Bergmann's
+# boxplot/bar) -- rather than grouping by direction, so prose can cite an individual
+# panel (e.g. the bar plots specifically) instead of describing plots by position.
+# axes = "collect_x" drops the top row's repeated method labels. Guides are NOT
+# collected: the Bergmann's-row boxplot keeps the dataset (colour) legend above the
+# boxplot column and the Bergmann's-row stacked bar keeps the significance-call
+# (fill) legend above the bar column; the Inverse Bergmann's plots suppress both.
+# patchwork still aligns the panel regions, so the two data panels come out the
+# same size.
 df_berg <- parms_all %>% filter(Direction == "Bergmann's")
 df_inv  <- parms_all %>% filter(Direction == "Inverse Bergmann's")
 
 combined <-
   (build_direction_plot(df_berg, "Bergmann's") + labs(tag = "a")) +
-  build_significance_plot(df_berg) +
-  (build_direction_plot(df_inv, "Inverse Bergmann's") + labs(tag = "b") + guides(color = "none")) +
-  (build_significance_plot(df_inv) + guides(fill = "none")) +
+  (build_significance_plot(df_berg) + labs(tag = "b")) +
+  (build_direction_plot(df_inv, "Inverse Bergmann's") + labs(tag = "c") + guides(color = "none")) +
+  (build_significance_plot(df_inv) + labs(tag = "d") + guides(fill = "none")) +
   plot_layout(ncol = 2, widths = c(2, 1), axes = "collect_x") &
   theme(legend.position = "top",
         legend.text     = element_text(size = 9),
