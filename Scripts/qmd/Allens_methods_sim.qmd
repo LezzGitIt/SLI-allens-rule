@@ -285,7 +285,7 @@ n_weeks_spp    <- read_csv("Derived/Csv/Weeks_parms.csv",     show_col_types = F
 n_atlantic_spp <- read_csv("Derived/Csv/Atlantic_parms.csv",  show_col_types = FALSE) %>% distinct(species) %>% nrow()
 ```
 
-I applied all six methods to three independent empirical datasets to assess whether the rank-order patterns observed in simulation were also observed in real data. First, I used morphological data from `r n_nightjar_spp` migratory nightjar species, European nightjars (*Caprimulgus europaeus*), eastern whip-poor-wills (*Antrostomus vociferus*), and common nighthawks (*Chordeiles minor*), spanning a spatial temperature gradient [@skinnerEnvironmentalGeographicConditions2025]. Second, I applied the six methods to a dataset comprising `r n_weeks_spp` North American migrant species (1979–2016), using capture year as a proxy for temperature change [@weeksSharedMorphologicalConsequences2020]. Third, I applied the methods to a dataset of `r n_atlantic_spp` Atlantic Forest bird species spanning a spatial temperature gradient [@rodriguesATLANTICBIRDTRAITS2019]. Together, these datasets span different taxonomic groups, ecological systems, gradients of interest, and putative selective pressures, providing a broad test of whether the same rank-order patterns are observed across empirical contexts.
+I applied all six methods to three independent empirical datasets to assess whether the rank-order patterns observed in simulation were also observed in real data from: `r n_nightjar_spp` migratory nightjar species breeding in North America and Europe and spanning a spatial temperature gradient [@skinnerEnvironmentalGeographicConditions2025]; `r n_weeks_spp` North American migrant species (1979–2016), using capture year as a proxy for temperature change [@weeksSharedMorphologicalConsequences2020]; and `r n_atlantic_spp` Atlantic Forest bird species spanning a spatial temperature gradient [@rodriguesATLANTICBIRDTRAITS2019]. Together, these datasets span different taxonomic groups, ecological systems, gradients of interest, and putative selective pressures, providing a broad test of whether the same rank-order patterns are observed across empirical contexts.
 
 Age and sex can influence body size independently of temperature (i.e., through sexual size dimorphism or age-related growth). For each species, I therefore tested whether age or sex predicted mass or wing length while controlling for the gradient variable (i.e., temperature or year), retaining a covariate for further consideration only when it significantly predicted body size ($p < 0.10$). Incorporation of demographic covariates varied by the statistical approach (SI section 'Accounting for age and sex in empirical datasets').
 
@@ -295,7 +295,7 @@ Past authors have noted that ratio methods can remain strongly correlated with b
 
 ```{r}
 #| label: tbl-classification
-#| tbl-cap: "Classification of species according to significant ($p < 0.05$) changes in wing length and body mass across temperature or year gradients."
+#| tbl-cap: "Empirical species were grouped into size / shape-shifting categories according to significant ($p < 0.05$) changes in wing length and body mass across temperature or year gradients. Only species exhibiting Bergmann's and Inverse Bergmann's rules are shown in the main text."
 
 Classification_tbl <- tibble::tribble(
   ~Category,               ~`Classification criterion`,
@@ -362,7 +362,7 @@ Ratio approaches tended to diverge from the isometric-relative reference quantit
 
 **Multiple regression and OLS residuals** approaches behaved very similarly, consistent with their mathematical equivalence when predictor variables are uncorrelated [@freckletonMisuseResidualsEcology2002]. They both consistently diverged from the isometric-relative reference quantity in the negative direction (@fig-eval). Both methods correctly identified the direction of change in `r Ryding_longer_right`% of species simulated to become relatively longer, agreed with the reference for Stouter species, and overcorrected in Null-effect smaller species. Indeed, in null-effect smaller species, only `r Ryding_proportional_null_correct`% had a 95% confidence interval that included $0$ for either method.
 
-**SLI-isometry** tracked the isometric-relative reference quantity closely, as expected since both are anchored to the same isometric scaling exponent (@fig-eval). Its 95% confidence interval excluded zero on the correct side (matching the reference's sign) for `r Sli.iso_longer_right`% of species simulated to become relatively longer, and `r Sli.iso_fatter_right`% of species simulated to become relatively stouter. Among species simulated as Null-effect smaller, `r Sli.iso_proportional_null_correct`% had a 95% confidence interval that included zero. **SLI-estimated** agreed with the isometric reference quantity in the Longer and Stouter categories (`r Sli.est_longer_right`% and `r Sli.est_fatter_right`% agreement, respectively; @fig-eval), but diverged sharply among Null-effect smaller species, where only `r Sli.est_proportional_null_correct`% of species had a 95% confidence interval that included zero.
+**SLI-isometry** tracked the isometric-relative reference quantity closely, as expected since both are anchored to the same isometric scaling exponent (@fig-eval). Its 95% confidence interval excluded zero on the correct side (matching the reference's sign) for `r Sli.iso_longer_right`% of species simulated to become relatively longer, and `r Sli.iso_fatter_right`% of species simulated to become relatively stouter. Among species simulated as Null-effect smaller, `r Sli.iso_proportional_null_correct`% had a 95% confidence interval that included zero. **SLI-estimated** agreed with the isometric reference quantity in the Longer and Stouter categories (`r Sli.est_longer_right`% and `r Sli.est_fatter_right`% agreement, respectively; @fig-eval), but diverged sharply among Null-effect smaller species, where only `r Sli.est_proportional_null_correct`% of species had a 95% confidence interval that included zero. @tbl-binary-summary summarizes these agreement percentages for all six methods, including the Inverse Bergmann's (Null-effect larger) scenario shown in SI Figure 7.
 
 ```{r}
 #| label: fig-eval
@@ -405,12 +405,49 @@ ggplot(Eval_scatter_df, aes(x = beta_iso_true, y = b_temp_inc, color = Temp_eff,
   theme(legend.position = "top", legend.box = "vertical")
 ```
 
+```{r}
+#| label: tbl-binary-summary
+#| tbl-cap: "Percentage of simulated species for which each method's 95% confidence interval agreed with the isometric-relative reference quantity $\\beta_T$ (Figure 4), by allometric-scaling category: a positive CI when $\\beta_T > 0$, a negative CI when $\\beta_T < 0$, or a CI including zero when $\\beta_T = 0$. Null-effect larger is the Inverse Bergmann's analogue of Null-effect smaller (SI Figure 7). Total pools agreement across all four categories combined and is not restricted to the three categories shown in Figure 4."
+
+# Model order/display names match tbl-methods-estimands and fig-compare-approaches.
+binary_model_order <- c("Ratio", "Ratio2", "Ryding", "Ols_resid", "Sli_iso", "Sli_est")
+
+Binary_summary_tbl <- Eval_tbl %>%
+  filter(Temp_eff %in% c("Stouter", "Longer", "Null-effect smaller", "Null-effect larger")) %>%
+  mutate(pct_correct = round(100 * Prop_correct),
+         Model = factor(Model, levels = binary_model_order)) %>%
+  dplyr::select(Model, Temp_eff, pct_correct) %>%
+  pivot_wider(names_from = Temp_eff, values_from = pct_correct) %>%
+  arrange(Model)
+
+# Total pools agreement across all four categories at the individual-species level
+# (not an average of the four already-rounded percentages).
+Binary_summary_total <- Parms_tbl4 %>%
+  filter(Temp_eff %in% c("Stouter", "Longer", "Null-effect smaller", "Null-effect larger")) %>%
+  group_by(Model) %>%
+  summarize(Total = round(100 * mean(Est_correct)), .groups = "drop")
+
+Binary_summary_tbl <- Binary_summary_tbl %>%
+  left_join(Binary_summary_total, by = "Model") %>%
+  mutate(Model = str_replace_all(as.character(Model), x_labs)) %>%
+  dplyr::select(Model, Stouter, Longer, `Null-effect smaller`, `Null-effect larger`, Total)
+
+knitr::kable(Binary_summary_tbl, format = "latex", booktabs = TRUE, align = "c",
+             col.names = c("Method", "Stouter", "Longer", "Null-effect smaller",
+                           "Null-effect larger", "Total")) %>%
+  kableExtra::add_header_above(c(" " = 1, "Bergmann's" = 3, "Inverse Bergmann's" = 1, " " = 1))
+```
+
 ## Empirical case studies
 
 ```{r}
-#| label: tbl-species-accounting
-#| tbl-cap: "Number of empirical species classified into each size / shape-shifting category (@tbl-classification), by dataset. Species exhibiting Bergmann's and Inverse Bergmann's rules are shown in the main text (@fig-empirical)."
+#| label: species-accounting-stats
+#| include: false
 
+# Table display moved to supporting_info.qmd (SI Table 1, session 42) -- kept here as a
+# silent chunk since pct_bergmanns_all/pct_inv_bergmanns_all/etc. feed the paragraph below.
+# The SI table rebuilds Species_accounting_tbl independently from the same three CSVs,
+# since each .qmd renders in its own R session and can't share this chunk's objects.
 dir_order <- c("Bergmann's", "Inverse Bergmann's", "Mixed - Wingier", "Mixed - Stouter", "Stable")
 
 Species_accounting_tbl <- bind_rows(
@@ -445,14 +482,7 @@ pct_inv_bergmanns_all <- round(100 * Dir_totals_row$`Inverse Bergmann's` / n_spe
 pct_mixed_wingier_all <- round(100 * Dir_totals_row$`Mixed - Wingier` / n_species_total)
 n_mixed_fatter_all    <- Dir_totals_row$`Mixed - Stouter`
 pct_stable_all        <- round(100 * Dir_totals_row$Stable / n_species_total)
-
-knitr::kable(Species_accounting_tbl,
-             col.names = c("Study", "Bergmann's", "Inverse Bergmann's",
-                           "Mixed - Wingier", "Mixed - Stouter", "Stable", "Total"),
-             align = "c")
 ```
-
-Across the `r n_species_total` species examined here, the majority of species (`r pct_bergmanns_all`%) adhered to Bergmann's rule in at least one body size metric, whereas `r pct_inv_bergmanns_all`% exhibited a pattern consistent with Inverse Bergmann's rule. `r pct_mixed_wingier_all`% of species increased in wing length while simultaneously getting lighter, while only `r n_mixed_fatter_all` species got heavier and simultaneously decreased wing length. `r pct_stable_all`% of species showed no significant response in either mass or wing (@tbl-species-accounting).
 
 ```{r}
 #| label: rank-consistency-empirical
@@ -483,6 +513,8 @@ n_rank_bergmanns       <- pull_rank_stat("Bergmann's", n)
 pct_rank_inv_bergmanns <- pull_rank_stat("Inverse Bergmann's", pct)
 n_rank_inv_bergmanns   <- pull_rank_stat("Inverse Bergmann's", n)
 ```
+
+Across the `r n_species_total` species examined here, the largest percentage (`r pct_bergmanns_all`%) adhered to Bergmann's rule in at least one body size metric, whereas `r pct_inv_bergmanns_all`% exhibited a pattern consistent with Inverse Bergmann's rule. `r pct_mixed_wingier_all`% of species increased in wing length while simultaneously getting lighter, while only `r n_mixed_fatter_all` species got heavier and simultaneously decreased wing length. `r pct_stable_all`% of species showed no significant response in either mass or wing (SI Table 1). From here forward only the species adhering to Bergmann's ($n$ = `r n_rank_bergmanns`) or Inverse Bergmann's ($n$ = `r n_rank_inv_bergmanns`) rule are maintained as empirical tests of the six methods.
 
 The rank-order pattern from simulations was generally reproduced in all three datasets: ratio methods consistently produced the most positive estimates and multiple regression / OLS residuals the most negative, with SLI falling between these extremes (@fig-empirical). `r pct_rank_overall`% of the `r n_rank_total` species with a directional (Bergmann's or Inverse Bergmann's) classification showed the rank order predicted by the simulations (`r pct_rank_bergmanns`% of `r n_rank_bergmanns` Bergmann's species and `r pct_rank_inv_bergmanns`% of `r n_rank_inv_bergmanns` Inverse Bergmann's species; SI Figure 10).
 
@@ -590,19 +622,6 @@ Ratio_mass_cor_all <- bind_rows(
 ) %>%
   dplyr::select(Study, species, Metric, n, r, p_value)
 
-# One row per Study x Metric (Ratio, Ratio2, Sli_iso, Sli_est), median r only --
-# pivoted to one column per metric for display (tbl-ratio-mass-summary).
-Ratio_mass_summary_tbl <- Ratio_mass_cor_all %>%
-  summarize(N_species = n(), Median_r = median(r), .by = c(Study, Metric)) %>%
-  mutate(Median_r = round(Median_r, 2),
-         Metric = factor(Metric, levels = c("Ratio", "Ratio2", "Sli_iso", "Sli_est"))) %>%
-  arrange(Study, Metric)
-
-Ratio_mass_species_tbl <- Ratio_mass_cor_all %>%
-  arrange(Study, species, Metric) %>%
-  mutate(r = round(r, 2),
-         p_value = ifelse(p_value < 0.001, "< 0.001", as.character(round(p_value, 3))))
-
 # Simple ratio (A/S) -- the metric the surrounding prose already refers to
 Ratio_cor_only     <- Ratio_mass_cor_all %>% filter(Metric == "Ratio")
 n_rmc_total        <- nrow(Ratio_cor_only)
@@ -637,22 +656,9 @@ mean_rmc_sli_est  <- round(mean(Sli_est_cor_only$r), 2)
 range_rmc_sli_est <- paste0(round(min(Sli_est_cor_only$r), 2), " to ",
                             round(max(Sli_est_cor_only$r), 2))
 
-tbl_cap_ratio_mass_summary <- glue::glue("Median per-species Pearson correlation with body mass, by empirical dataset, for the wing/mass ratio $\\log(A/S)$, its squared counterpart $\\log(A^2/S)$, SLI-isometry, and SLI-estimated. SLI-estimated is reported for fewer species ({n_sli_est_total} of {n_sli_iso_total} across all three datasets) than the other three metrics, because it is undefined for species that failed the per-group allometric-correlation filter.")
 ```
 
-Across `r n_rmc_total` species, the ratio metric was consistently and strongly negatively correlated with mass (mean $r$ = `r mean_rmc_all`, range `r range_rmc_all`). `r pct_rmc_strong_neg`% of species had a correlation more negative than $-0.7$. This pattern held regardless of taxon, gradient type (spatial or temporal), or geographic region, confirming that the ratio's dependence on body size is a general mechanical property of the metric rather than a quirk of any one dataset (@tbl-ratio-mass-summary). The correlation between $\log(A^2/S)$ and body mass was still strongly negative, but consistently weaker in magnitude than its unsquared counterpart (mean $r$ = `r mean_rmc2_all`, range `r range_rmc2_all`, `r pct_rmc2_strong_neg`% of species below $-0.7$, @tbl-ratio-mass-summary). Both SLI parameterizations were less correlated with mass than either ratio metric (SLI-isometry: mean $r$ = `r mean_rmc_sli_iso`, range `r range_rmc_sli_iso`; SLI-estimated: mean $r$ = `r mean_rmc_sli_est`, range `r range_rmc_sli_est`) (@tbl-ratio-mass-summary; SI Figure 11).
-
-```{r}
-#| label: tbl-ratio-mass-summary
-#| tbl-cap: !expr tbl_cap_ratio_mass_summary
-
-Ratio_mass_summary_tbl %>%
-  dplyr::select(Study, Metric, Median_r) %>%
-  pivot_wider(names_from = Metric, values_from = Median_r) %>%
-  knitr::kable(
-    col.names = c("Study", "Wing / Mass", "Wing² / Mass", "SLI-isometry", "SLI-estimated")
-  )
-```
+Across `r n_rmc_total` species, the ratio metric was consistently and strongly negatively correlated with mass (mean $r$ = `r mean_rmc_all`, range `r range_rmc_all`). `r pct_rmc_strong_neg`% of species had a correlation more negative than $-0.7$. This pattern held regardless of taxon, gradient type (spatial or temporal), or geographic region, confirming that the ratio's dependence on body size is a general mechanical property of the metric rather than a quirk of any one dataset. The correlation between $\log(A^2/S)$ and body mass was still strongly negative, but consistently weaker in magnitude than its unsquared counterpart (mean $r$ = `r mean_rmc2_all`, range `r range_rmc2_all`, `r pct_rmc2_strong_neg`% of species below $-0.7$). Both SLI parameterizations were less correlated with mass than either ratio metric (SLI-isometry: mean $r$ = `r mean_rmc_sli_iso`, range `r range_rmc_sli_iso`; SLI-estimated: mean $r$ = `r mean_rmc_sli_est`, range `r range_rmc_sli_est`; SI Figure 11).
 
 # Discussion
 

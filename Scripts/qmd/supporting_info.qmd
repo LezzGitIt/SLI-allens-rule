@@ -61,6 +61,47 @@ list2env(readRDS("Derived/Rds/lit_review_results.rds"), envir = environment())
 tot_approach_uses <- unique(Lr_per_pooled$Tot_studies)
 ```
 
+# Empirical species accounting
+
+```{r}
+#| label: tbl-species-accounting
+#| tbl-cap: "Number of empirical species classified into each size / shape-shifting category (main text, Table 2), by dataset. Species exhibiting Bergmann's and Inverse Bergmann's rules are shown in the main text (Figure 5)."
+
+# Rebuilt independently from the same three CSVs the main text's species-accounting-stats
+# chunk uses, since each .qmd renders in its own R session and can't share that chunk's
+# objects -- kept in sync by construction, not by reference.
+dir_order <- c("Bergmann's", "Inverse Bergmann's", "Mixed - Wingier", "Mixed - Stouter", "Stable")
+
+Species_accounting_tbl <- bind_rows(
+  read_csv("Derived/Csv/Nightjar_parms.csv",  show_col_types = FALSE),
+  read_csv("Derived/Csv/Weeks_parms.csv",     show_col_types = FALSE),
+  read_csv("Derived/Csv/Atlantic_parms.csv",  show_col_types = FALSE)
+) %>%
+  distinct(Study, species, Direction) %>%
+  count(Study, Direction) %>%
+  pivot_wider(names_from = Direction, values_from = n, values_fill = 0) %>%
+  mutate(Study = case_match(Study,
+                             "Nightjar" ~ "Skinner et al (2025)",
+                             "Weeks (2020)" ~ "Weeks et al (2020)",
+                             "Atlantic birds" ~ "Rodrigues et al (2019)"),
+         Study = factor(Study, levels = c("Skinner et al (2025)", "Weeks et al (2020)", "Rodrigues et al (2019)"))) %>%
+  arrange(Study) %>%
+  mutate(Study = as.character(Study)) %>%
+  dplyr::select(Study, any_of(dir_order)) %>%
+  mutate(Total = rowSums(across(any_of(dir_order))))
+
+Species_accounting_tbl <- bind_rows(
+  Species_accounting_tbl,
+  Species_accounting_tbl %>%
+    summarise(Study = "Total", across(where(is.numeric), sum))
+)
+
+knitr::kable(Species_accounting_tbl,
+             col.names = c("Study", "Bergmann's", "Inverse Bergmann's",
+                           "Mixed - Wingier", "Mixed - Stouter", "Stable", "Total"),
+             align = "c")
+```
+
 # Literature review: methodological approaches
 
 The main text (Literature review) summarizes how the approaches used to quantify relative appendage length are distributed across the studies reviewed there; Figure 1 shows the full distribution referenced in that section.
