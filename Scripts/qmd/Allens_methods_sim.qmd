@@ -13,7 +13,7 @@ format: #docx
         \usepackage{fancyhdr}
         \pagestyle{fancy}
         \fancyhead[L]{}
-        \fancyhead[R]{SLI to examine Allen's rule}
+        \fancyhead[R]{Estimator Choice in Tests of Allen's Rule}
         \usepackage{makecell}
         \usepackage{lineno}
         \linenumbers
@@ -192,7 +192,7 @@ $$\begin{bmatrix}
 \end{bmatrix}
 \sim \mathrm{MVN}(\boldsymbol{\mu}, \boldsymbol{\Sigma})$$
 
-with $\boldsymbol{\mu} = [\log(180),\ \log(80),\ 1.0]^\top$ representing a species with a mean appendage length of 180 mm and mean mass of 80 g, experiencing an average 1°C temperature increase. The 1°C temperature increase could be imagined spatially or temporally (in the context of climate change) - the statistical implications are the same. The covariance matrix $\boldsymbol{\Sigma}$ was constructed from three Pearson correlations ($\rho_{12}$: appendage–mass; $\rho_{13}$: appendage–temperature; $\rho_{23}$: mass–temperature) and the allometric scaling slope. Hypothetical species were constructed by crossing the following parameter values: appendage–mass correlation $\rho_{12} \in {`r paste(r_12, collapse = ", ")`}$, temperature–morphology correlations $\rho_{13}, \rho_{23} \in {`r paste(r_13, collapse = ", ")`}$, crossed factorially to produce species with different relative temperature associations of mass and appendage, and allometric scaling slope $b \in {`r paste(b_avg_12, collapse = ", ")`}$, representing hypoallometry, isometry, and hyperallometry respectively. Standard deviations of log-mass and log-appendage were set so that the average of the OLS and SMA slopes equaled the specified allometric slope, allowing me to vary allometric scaling independently of the appendage–mass correlation. Correlations were chosen to represent a broad but realistic range observed in the literature: appendage–mass [@greenMassLengthResiduals2001; @goslerFieldDeterminationBody1998] and temperature-morphology correlations [@ashtonPatternsWithinSpeciesBody2002; @ashtonBergmannsRuleValid2000].
+with $\boldsymbol{\mu} = [\log(180),\ \log(80),\ 1.0]^\top$ representing a species with a mean appendage length of 180 mm and mean mass of 80 g, experiencing an average 1°C temperature increase. The 1°C temperature increase could be imagined spatially or temporally (in the context of climate change) - the statistical implications are the same. The covariance matrix $\boldsymbol{\Sigma}$ was constructed from three Pearson correlations ($\rho_{12}$: appendage–mass; $\rho_{13}$: appendage–temperature; $\rho_{23}$: mass–temperature) and the allometric scaling slope. Hypothetical species were constructed by crossing the following parameter values: appendage–mass correlation $\rho_{12} \in {`r paste(r_12, collapse = ", ")`}$, temperature–morphology correlations $\rho_{13}, \rho_{23} \in {`r paste(r_13, collapse = ", ")`}$, crossed factorially to produce species with different relative temperature associations of mass and appendage, and allometric scaling slope $b \in {`r paste(b_avg_12, collapse = ", ")`}$, representing hypoallometry, isometry, and hyperallometry respectively. Standard deviations of log-mass and log-appendage were set so that the average of the OLS and SMA slopes equaled the specified allometric slope, allowing me to vary allometric scaling independently of the appendage–mass correlation. Correlations were chosen to represent a broad but realistic range observed in the literature: appendage–mass [@greenMassLengthResiduals2001; @goslerFieldDeterminationBody1998] and temperature-morphology correlations [@ashtonPatternsWithinSpeciesBody2002; @ashtonBergmannsRuleValid2000]. Simulations were conducted with the R package sliR (an anonymized version is provided for review).
 
 ## Temperature effect classification
 
@@ -224,7 +224,7 @@ $$SLI_i = A_i \cdot \left(\frac{M_0}{M_i}\right)^{\hat\beta_{SMA}}$$
 
 where $A_i$ is the appendage length of individual $i$, $M_i$ is the mass of individual $i$, $M_0$ is the mean mass of the sampled population, and $\hat\beta_{SMA}$ is the SMA slope of $\log(A)$ on $\log(S)$ estimated from the data [@wartonSmatr3Package2012]. The SLI reprojects each individual's appendage length to the value it would take at the population mean body size (@fig-sli-concept). $SLI_i$ is then regressed on temperature.
 
-**Scaled Length Index — isometry (SLI-isometry):** Identical to SLI-estimated but replacing the estimated $\hat\beta_{SMA}$ with the fixed exponent $b = 0.33$, built to reflect the theoretical expectation that $A \propto M^{0.33}$ [@shingletonAllometryStudyBiological2010].
+**Scaled Length Index — isometry (SLI-isometry):** Identical to SLI-estimated but replacing the estimated $\hat\beta_{SMA}$ with the fixed exponent $b = 0.33$, built to reflect the theoretical expectation that $A \propto M^{0.33}$ [@shingletonAllometryStudyBiological2010]. Both SLI parameterizations were called from the R package sliR.
 
 I log-transformed all variables and then standardised to unit variance before fitting regression models so that coefficients were comparable across species and methods.
 
@@ -683,7 +683,7 @@ An important next step for forecasting morphological change is adopting an expli
 
 # Conclusions
 
-Relative appendage length is not a uniquely defined quantity. Different approaches encode different assumptions about how body size and appendage morphology are related, and these assumptions lead to systematically different estimates of morphological change. The SLI metrics presented here provide a flexible, interpretable, and generalizable framework for expressing a trait relative to body size, with two parameterizations that correspond to distinct biological questions. Adoption of the SLI metrics will encourage biologists to think critically about allometric scaling and, more importantly, about whether the statistical estimator matches the biological question at hand. I recommend that adjustment for body size should be treated as part of the inferential design of a study rather than as a routine preprocessing step.
+Relative appendage length is not a uniquely defined quantity. Different approaches encode different assumptions about how body size and appendage morphology are related, and these assumptions lead to systematically different estimates of morphological change. The SLI metrics presented here provide a flexible, interpretable, and generalizable framework for expressing a trait relative to body size, with two parameterizations that correspond to distinct biological questions (easily specified in R package sliR). Adoption of the SLI metrics will encourage biologists to think critically about allometric scaling and, more importantly, about whether the statistical estimator matches the biological question at hand. I recommend that adjustment for body size should be treated as part of the inferential design of a study rather than as a routine preprocessing step.
 
 {{< pagebreak >}}
 
