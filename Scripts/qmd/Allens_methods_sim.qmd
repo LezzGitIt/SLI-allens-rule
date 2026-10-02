@@ -302,7 +302,7 @@ Classification_tbl <- tibble::tribble(
   ~Category,               ~`Classification criterion`,
   "Bergmann's",            "Wing length, body mass, or both decrease",
   "Inverse Bergmann's",    "Wing length, body mass, or both increase",
-  "Mixed - Wingyier",      "Wing length increases while body mass decreases",
+  "Mixed - Wingier",       "Wing length increases while body mass decreases",
   "Mixed - Stouter",        "Wing length decreases while body mass increases",
   "Stable",                "No significant change in either trait"
 )
@@ -489,7 +489,7 @@ pct_rank_inv_bergmanns <- pull_rank_stat("Inverse Bergmann's", pct)
 n_rank_inv_bergmanns   <- pull_rank_stat("Inverse Bergmann's", n)
 ```
 
-Across the `r n_species_total` species examined here, the largest percentage (`r pct_bergmanns_all`%) adhered to Bergmann's rule in at least one body size metric, whereas `r pct_inv_bergmanns_all`% exhibited a pattern consistent with Inverse Bergmann's rule. `r pct_mixed_wingier_all`% of species increased in wing length while simultaneously getting lighter, while only `r n_mixed_fatter_all` species got heavier and simultaneously decreased wing length. `r pct_stable_all`% of species showed no significant response in either mass or wing (SI Table 1). From here forward only the species adhering to Bergmann's ($n$ = `r n_rank_bergmanns`) or Inverse Bergmann's ($n$ = `r n_rank_inv_bergmanns`) rule are maintained as empirical tests of the six methods.
+Across the `r n_species_total` species examined here, the largest percentage (`r pct_bergmanns_all`%) adhered to Bergmann's rule in at least one body size metric, whereas `r pct_inv_bergmanns_all`% exhibited a pattern consistent with Inverse Bergmann's rule. `r pct_mixed_wingier_all`% of species increased in wing length while simultaneously getting lighter, while only `r n_mixed_fatter_all` species got heavier and simultaneously decreased wing length (SI Figure 8). `r pct_stable_all`% of species showed no significant response in either mass or wing (SI Table 1; SI Figure 9). From here forward only the species adhering to Bergmann's ($n$ = `r n_rank_bergmanns`) or Inverse Bergmann's ($n$ = `r n_rank_inv_bergmanns`) rule are maintained as empirical tests of the six methods.
 
 The rank-order pattern from simulations was generally reproduced in all three datasets: ratio methods consistently produced the most positive estimates and multiple regression / OLS residuals the most negative, with SLI falling between these extremes (@fig-empirical). `r pct_rank_overall`% of the `r n_rank_total` species classified as exhibiting Bergmann's or Inverse Bergmann's rules showed the rank order exhibited by the simulations (`r pct_rank_bergmanns`% of `r n_rank_bergmanns` Bergmann's species and `r pct_rank_inv_bergmanns`% of `r n_rank_inv_bergmanns` Inverse Bergmann's species; SI Figure 10).
 
