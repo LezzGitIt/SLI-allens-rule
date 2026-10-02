@@ -8,7 +8,7 @@
 ##     species drawn from the manuscript's simulation grid.
 ## Saves the combined figure to Figures/SLI_concept.png (embedded in Allens_methods_sim.qmd)
 ## and the panel-(b) example species to Derived/Rds/Ex_df_hypo_hyper.rds, so fig-ols-sma
-## (Discussion) can reuse the same species without regenerating it.
+## (Supporting Information) can reuse the same species without regenerating it.
 ##
 ## Box 1 (Introduction, "Building intuition for SMA regression"): OLS vs. SMA regression
 ## under a flip of the X/Y axes, using real Whip-poor-will mass/wing-chord measurements.
@@ -124,7 +124,7 @@ p_sli_concept <- ggplot() +
 
 # Panel (b): the paper's own two-pathways decomposition, for a simulated hyperallometric
 # example species (Temp_eff == "Longer") drawn from the manuscript's own simulation grid.
-# Exported below to Derived/Rds/Ex_df_hypo_hyper.rds so fig-ols-sma (Discussion) can reuse
+# Exported below to Derived/Rds/Ex_df_hypo_hyper.rds so fig-ols-sma (Supporting Information) can reuse
 # the same species without regenerating it.
 Ex_parms_hypo_hyper <- Parms_mat3 %>%
   filter(Scaling != "Isometry" & Temp_eff == "Longer" & r_12 == r_12[1]) %>%

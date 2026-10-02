@@ -819,4 +819,32 @@ Mass_cor_emp_all %>%
   theme(axis.text.x = element_text(size = 9, vjust = .58, angle = 30))
 ```
 
+# OLS versus SMA scaling slopes for an example species
+
+The main-text Discussion ('Multiple regression for conditional associations') attributes the more negative $\hat\beta_T$ of multiple regression to the shallower OLS scaling slope. @fig-ols-sma illustrates this for the same simulated hyperallometric species shown in main-text Figure 2, panel b.
+
+```{r}
+#| label: fig-ols-sma
+#| fig-cap: "The allometric relationship between log-mass and log-appendage for a simulated hyperallometric species in which temperature increases produce relatively longer appendages. The SMA regression line (blue) is steeper than the OLS line (red). Individual points are coloured by temperature. Sections labelled I and II highlight regions where OLS and SMA assign opposite signs to residuals: small-bodied individuals (Section I) are classified as having relatively short appendages by OLS but relatively long appendages by SMA. Large-bodied individuals (Section II) are classified in the opposite direction. Where temperature increases select for smaller body size (Bergmann's rule), individuals are displaced toward Section I, exactly where OLS assigns more negative residuals than SMA, producing a more negative $\\hat{\\beta}_T$."
+#| fig-pos: 'H'
+#| fig-height: 4.5
+
+# Reuses Ex_df_hypo_hyper, the same example species shown in main-text Figure 2 (fig-sli-concept) panel (b), exported by Scripts/04a_Concept_figures.R.
+Ex_df_hypo_hyper <- readRDS("Derived/Rds/Ex_df_hypo_hyper.rds")
+xy_lims <- Ex_df_hypo_hyper %>%
+  summarize(max.append = max(Append_log), min.append = min(Append_log),
+            max.mass   = max(Mass_log),   min.mass   = min(Mass_log))
+
+ggplot(Ex_df_hypo_hyper, aes(x = Mass_log, y = Append_log)) +
+  geom_smooth(method = "lm", color = "red", se = FALSE) +
+  ggpmisc::stat_ma_line(method = sma_or_ma, color = "blue") +
+  geom_point(alpha = 0.4, aes(color = Temp_inc)) +
+  annotate("text", x = 4.23, y = 5.13, label = "I",  size = 6, color = "black") +
+  annotate("text", x = 4.52, y = 5.25, label = "II", size = 6, color = "black") +
+  scale_color_viridis_c(option = "plasma") +
+  lims(y = c(xy_lims$min.append, xy_lims$max.append),
+       x = c(xy_lims$min.mass,   xy_lims$max.mass)) +
+  labs(x = "Log(mass)", y = "Log(appendage)", color = "Temperature\nincrease")
+```
+
 # References

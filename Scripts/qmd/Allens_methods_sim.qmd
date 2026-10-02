@@ -260,7 +260,7 @@ $$\beta_T \;\propto\; \underbrace{\rho_{23}\left(\beta_{SMA} - 0.33\right)}_{\te
 <!-- Figures 2, 3, and 5 in this manuscript are Sylvia's hand-polished PDFs, each hand-edited
 from a script-generated baseline: Figure 2 from Figures/SLI_concept.png (Scripts/04a_Concept_
 figures.R, which also exports the panel-(b) example species to Derived/Rds/Ex_df_hypo_hyper.rds
-for fig-ols-sma in the Discussion to reuse); Figure 3 from Figs_share/Figure3_compare_
+for fig-ols-sma in the SI to reuse); Figure 3 from Figs_share/Figure3_compare_
 approaches.pdf (the fig-compare-approaches-source chunk below); Figure 5 from Figures/
 Empirical_combined.png (Scripts/04b_Empirical_combined.R). Whenever the underlying data or
 code changes, regenerate the relevant baseline and hand Sylvia the fresh copy so her edit
@@ -632,36 +632,11 @@ Ratios are attractive because they are simple, familiar, and directly interpreta
 
 This also highlights that SLI-isometry is not fundamentally distinct from ratio approaches; rather, it represents a mathematically explicit, geometrically-justified ratio. I argue that the primary advantages of the SLI framework come from transparency, interpretability, and flexibility. Rather than embedding scaling assumptions implicitly in a ratio, the SLI framework makes the scaling assumption, the reference body size ($M_0$), and the resulting units explicit. The same framework can then be used with an empirically estimated scaling exponent, as in SLI-estimated, rather than requiring a separate ratio formulation for each scaling assumption. These favorable properties make the SLI framework preferable to conventional ratio approaches.
 
-```{r}
-#| label: fig-ols-sma
-#| fig-cap: "The allometric relationship between log-mass and log-appendage for a simulated hyperallometric species in which temperature increases produce relatively longer appendages. The SMA regression line (blue) is steeper than the OLS line (red). Individual points are coloured by temperature. Sections labelled I and II highlight regions where OLS and SMA assign opposite signs to residuals: small-bodied individuals (Section I) are classified as having relatively short appendages by OLS but relatively long appendages by SMA. Large-bodied individuals (Section II) are classified in the opposite direction. Where temperature increases select for smaller body size (Bergmann's rule), individuals are displaced toward Section I, exactly where OLS assigns more negative residuals than SMA, producing a more negative $\\hat{\\beta}_T$."
-#| fig-pos: 'H'
-#| fig-height: 4.5
-
-# Reuses Ex_df_hypo_hyper, the same example species already generated for @fig-sli-concept
-# panel (b) by Scripts/04a_Concept_figures.R, which exports it here for reuse.
-Ex_df_hypo_hyper <- readRDS("Derived/Rds/Ex_df_hypo_hyper.rds")
-xy_lims <- Ex_df_hypo_hyper %>%
-  summarize(max.append = max(Append_log), min.append = min(Append_log),
-            max.mass   = max(Mass_log),   min.mass   = min(Mass_log))
-
-ggplot(Ex_df_hypo_hyper, aes(x = Mass_log, y = Append_log)) +
-  geom_smooth(method = "lm", color = "red", se = FALSE) +
-  ggpmisc::stat_ma_line(method = sma_or_ma, color = "blue") +
-  geom_point(alpha = 0.4, aes(color = Temp_inc)) +
-  annotate("text", x = 4.23, y = 5.13, label = "I",  size = 6, color = "black") +
-  annotate("text", x = 4.52, y = 5.25, label = "II", size = 6, color = "black") +
-  scale_color_viridis_c(option = "plasma") +
-  lims(y = c(xy_lims$min.append, xy_lims$max.append),
-       x = c(xy_lims$min.mass,   xy_lims$max.mass)) +
-  labs(x = "Log(mass)", y = "Log(appendage)", color = "Temperature\nincrease")
-```
-
 ## Multiple regression for conditional associations
 
 Multiple regression takes a different approach to body-size adjustment, estimating the relationship between appendage size and temperature conditional on body size. The properties and assumptions of multiple regression are well understood and are well-suited to questions regarding the conditional association between two variables [@zuurProtocolConductingPresenting2016; @freckletonMisuseResidualsEcology2002]. For these reasons, several authors have argued that multiple regression is the most appropriate way to adjust for body size in questions of Allen's rule [@nakagawaDivideConquerSize2017; @rydingResponseAllometryEvaluate2022; @rydingMultipleRegressionNot2025], including over the OLS residuals approach [@freckletonMisuseResidualsEcology2002]. Ultimately, multiple regression is appropriate if the goal of Allen's rule is to describe a pattern of covariation between temperature and appendage length [@symondsItsAllRelative2025], conditional on body size. However, it is important to note that multiple regression does not isolate departures from isometry or any other geometric null hypothesis.
 
-Relative to the other approaches examined, multiple regression consistently returned more negative estimates of $\hat\beta_T$, which can be understood by closer examination of the scaling slope (@fig-ols-sma). Relative to SMA regression, OLS produces a shallower slope whenever $|r| < 1$, because it minimizes deviations vertically rather than in both dimensions [@wartonBivariateLinefittingMethods2006; @smithUseMisuseReduced2009]. When temperature is associated with declining body size, as under Bergmann's rule, the temperature gradient shifts observations systematically toward region I, where OLS assigns more negative relative appendage values than SMA (@fig-ols-sma). Importantly, @rydingMultipleRegressionNot2025 found similar methodological divergences between ratio-based and multiple-regression approaches using a different simulation approach and analytical framework, lending strength to our findings. This statistical behavior has important implications for interpreting recent work regarding morphological responses to climate change. OLS-based approaches were used in `r pct_ols_relative`% of studies examining relative appendage length, which raises the possibility that the literature may be quite conservative regarding appendage elongation (assuming Bergmannian clines). A careful reevaluation of the shape-shifting literature may be warranted [e.g., @rydingShapeshiftingChangingAnimal2021].
+Relative to the other approaches examined, multiple regression consistently returned more negative estimates of $\hat\beta_T$, which can be understood by closer examination of the scaling slope (SI Figure 12). Relative to SMA regression, OLS produces a shallower slope whenever $|r| < 1$, because it minimizes deviations vertically rather than in both dimensions [@wartonBivariateLinefittingMethods2006; @smithUseMisuseReduced2009]. When temperature is associated with declining body size, as under Bergmann's rule, OLS assigns more negative relative appendage values than SMA (SI Figure 12). Importantly, @rydingMultipleRegressionNot2025 found similar methodological divergences between ratio-based and multiple-regression approaches using a different simulation approach and analytical framework, lending strength to our findings. This statistical behavior has important implications for interpreting recent work regarding morphological responses to climate change. OLS-based approaches were used in `r pct_ols_relative`% of studies examining relative appendage length, which raises the possibility that the literature may be quite conservative regarding appendage elongation (assuming Bergmannian clines). A careful reevaluation of the shape-shifting literature may be warranted [e.g., @rydingShapeshiftingChangingAnimal2021].
 
 ## What constitutes an Allen's-rule response?
 
