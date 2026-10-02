@@ -182,34 +182,6 @@ ggplot(Ols_anchor_fig_df, aes(x = beta_iso_true_ols, y = b_temp_inc, color = Tem
   theme(legend.position = "top", legend.box = "vertical")
 ```
 
-# SLI-isometry's correlation with the reference quantity
-
-The main text notes that anchoring $\beta_T$ to the same SMA slope that SLI-isometry itself uses makes it circular to "test" SLI-isometry against the other approaches (section 'Statistical approach classification' in the main text). Here I show that SLI-isometry's fitted coefficient ($\hat\beta_T$) is exactly correlated with the isometric reference quantity $\beta_T$ up to a scaling coefficient.
-
-$\beta_T$ is defined from $\mathrm{Cov}(\log SLI, \mathrm{Temperature})$ alone (main text, Temperature effect classification), but a *fitted regression coefficient* is that covariance divided by $sd(\log SLI)$ too — a correlation, not a covariance. $sd(\log SLI)^2$ is proportional to
-
-$$V = \beta_{SMA}^2 + 0.33^2 - 2 \cdot 0.33 \cdot \rho_{12} \cdot \beta_{SMA}$$
-
-which varies species to species (it depends on each species' own $\beta_{SMA}$ and $\rho_{12}$), and $\beta_T$ never accounted for it — only the *sign* claim survives that omission, since $\sqrt{V}>0$ always. Dividing $\beta_T$ by $\sqrt{V}$ restores the missing term, raising the raw correlation of $r \approx$ `r sprintf("%.2f", r_sli_iso_raw)` (main text's calibration scatter) to $r \approx$ `r sprintf("%.2f", r_sli_iso_rescaled)`.
-
-```{r}
-#| label: fig-sli-iso-rescale
-#| fig-cap: "SLI-isometry's fitted coefficient against the variance-corrected ground truth (main text, Temperature effect classification and this section). Longer, Stouter, and Null-effect smaller species, matching the main text's calibration scatter; the dashed line is 1:1, not a fitted trend."
-#| fig-width: 4.5
-#| fig-height: 4.5
-#| fig-pos: 'H'
-
-ggplot(Sli_iso_rescale_df, aes(x = beta_T_rescaled, y = b_temp_inc, color = Temp_eff, shape = Scaling)) +
-  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "grey50") +
-  geom_point(alpha = .55, size = 1.2) +
-  annotate("text", x = -Inf, y = Inf, label = paste0("r=", round(r_sli_iso_rescaled, 2)),
-           hjust = -0.1, vjust = 1.5, size = 3) +
-  labs(x = "Ground truth (variance-corrected)", y = expression(hat(beta)[T] ~ "(SLI-isometry, estimated)"),
-       color = "Category", shape = "Scaling") +
-  guides(color = guide_legend(nrow = 1), shape = guide_legend(nrow = 1)) +
-  theme(legend.position = "top", legend.box = "vertical")
-```
-
 # Robustness check: ratio-of-logs construction
 
 The main text's ratio metrics are the log of the ratio: $\log(A/S)$ and $\log(A^2/S)$, computed by dividing appendage length by mass (or its square) and then log-transforming the result. An alternative construction found in the shape-shifting literature (e.g., @rydingMultipleRegressionNot2025) instead logs appendage length and body mass separately and divides the two logged values: $\log(A)/\log(S)$. The two are not algebraically related in any simple way, and unlike $\log(A/S)$, $\log(A)/\log(S)$ is not invariant to the units appendage length happens to be measured in, i.e., converting mm to cm shifts $\log(A)$ by an additive constant, which cancels exactly in $\log(A/S)$ but not in $\log(A)/\log(S)$. Here I recompute Ratio and Ratio² using this ratio-of-logs construction and score them against the isometric-relative ground truth. I show $\log(A/S)$ as a point of comparison.
@@ -334,6 +306,34 @@ for (spec in altratio_3d_specs) {
 ```
 
 The alternative formulation of the ratio, $\log(A)/\log(S)$, showed qualitatively similar estimates of $\hat\beta_T$ relative to $\log(A/S)$, but producing slightly more positive results in the species simulated to become stouter with warming temperatures. Indeed, the median is slightly closer to zero, and the ratio-of-logs construction classifies `r Ratio_alt_stouter_pct`% of species as relatively stouter, compared to 64% in the log-of-ratios construction. Interestingly, $\log(A^2)/\log(S)$ returns the same results as $\log(A)/\log(S)$, which makes sense because $\log(A^2)/\log(S) = 2 \cdot \log(A)/\log(S)$, meaning the formula is identical up to a constant multiplier. That constant is lost during standardization, meaning the Ratio and Ratio² fit *identical* models under the ratio-of-logs construction. Taken together, the ratio-of-logs construction performs worse for Stouter species, collapses two metrics that remain distinct in the log-of-ratios construction, and is not unit-invariant. This reinforces that $\log(A/S)$ and $\log(A^2/S)$ are the better-justified constructions when a ratio metric is logged at all.
+
+# SLI-isometry's correlation with the reference quantity
+
+The main text notes that anchoring $\beta_T$ to the same SMA slope that SLI-isometry itself uses makes it circular to "test" SLI-isometry against the other approaches (section 'Statistical approach classification' in the main text). Here I show that SLI-isometry's fitted coefficient ($\hat\beta_T$) is exactly correlated with the isometric reference quantity $\beta_T$ up to a scaling coefficient.
+
+$\beta_T$ is defined from $\mathrm{Cov}(\log SLI, \mathrm{Temperature})$ alone (main text, Temperature effect classification), but a *fitted regression coefficient* is that covariance divided by $sd(\log SLI)$ too — a correlation, not a covariance. $sd(\log SLI)^2$ is proportional to
+
+$$V = \beta_{SMA}^2 + 0.33^2 - 2 \cdot 0.33 \cdot \rho_{12} \cdot \beta_{SMA}$$
+
+which varies species to species (it depends on each species' own $\beta_{SMA}$ and $\rho_{12}$), and $\beta_T$ never accounted for it — only the *sign* claim survives that omission, since $\sqrt{V}>0$ always. Dividing $\beta_T$ by $\sqrt{V}$ restores the missing term, raising the raw correlation of $r \approx$ `r sprintf("%.2f", r_sli_iso_raw)` (main text's calibration scatter) to $r \approx$ `r sprintf("%.2f", r_sli_iso_rescaled)`.
+
+```{r}
+#| label: fig-sli-iso-rescale
+#| fig-cap: "SLI-isometry's fitted coefficient against the variance-corrected ground truth (main text, Temperature effect classification and this section). Longer, Stouter, and Null-effect smaller species, matching the main text's calibration scatter; the dashed line is 1:1, not a fitted trend."
+#| fig-width: 4.5
+#| fig-height: 4.5
+#| fig-pos: 'H'
+
+ggplot(Sli_iso_rescale_df, aes(x = beta_T_rescaled, y = b_temp_inc, color = Temp_eff, shape = Scaling)) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "grey50") +
+  geom_point(alpha = .55, size = 1.2) +
+  annotate("text", x = -Inf, y = Inf, label = paste0("r=", round(r_sli_iso_rescaled, 2)),
+           hjust = -0.1, vjust = 1.5, size = 3) +
+  labs(x = "Ground truth (variance-corrected)", y = expression(hat(beta)[T] ~ "(SLI-isometry, estimated)"),
+       color = "Category", shape = "Scaling") +
+  guides(color = guide_legend(nrow = 1), shape = guide_legend(nrow = 1)) +
+  theme(legend.position = "top", legend.box = "vertical")
+```
 
 # Null-effect larger scenario: simulated analogue of Inverse Bergmann's responses
 
