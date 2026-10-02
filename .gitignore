@@ -16,6 +16,9 @@ Scripts/qmd/*.pdf
 Scripts/qmd/*.spl
 Scripts/qmd/*.cls
 Scripts/qmd/*.bst
+Scripts/qmd/*.bbl
+Scripts/qmd/*.blg
+Scripts/qmd/*.rmarkdown
 
 # Not needed to reproduce the render (Quarto reinstalls this extension via
 # `quarto add quarto-journals/elsevier`; kept locally, just not tracked)
@@ -28,10 +31,11 @@ Suppfiles/style-guide/
 # macOS
 .DS_Store
 
-# Untracked manuscripts (present locally, not version-controlled)
-Scripts/qmd/Recs_allens.qmd
-Scripts/qmd/SMA_body_shape_methods_reduced.qmd
-Scripts/qmd/Simulation_math_summary.qmd
+# Untracked manuscripts and personal explainer docs (present locally, not version-controlled)
+Extra_scripts/Recs_allens.qmd
+Extra_scripts/SMA_body_shape_methods_reduced.qmd
+Extra_scripts/Simulation_math_summary.qmd
+Extra_scripts/Ground_truth_explainer.qmd
 
 # Reviewer/collaborator feedback (personal working copies, not for circulation)
 Feedback/
@@ -42,9 +46,6 @@ Journal_submission/
 # Local working notes (session log for AI-assisted development, not the science itself)
 Project_notes.md
 Project_notes_archive.md
-
-# Personal working doc, not for publication or circulation
-Scripts/qmd/Ground_truth_explainer.qmd
 
 # Reference PDF, not tracked
 Example_paper_Ryding y McQueen - 2025 - Multiple regression, not ratios, for analyzing relative appendage size.pdf

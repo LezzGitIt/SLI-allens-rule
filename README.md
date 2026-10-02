@@ -28,7 +28,8 @@ Scripts/
 
 Extra_scripts/                  # Exploratory/superseded material, not part of the numbered pipeline
   Allometric_scaling_simulation.R  # Exploratory SMA vs OLS simulation
-  SMA_body_shape_methods.qmd    # Superseded pre-repo-split manuscript (kept locally; not tracked, see .gitignore)
+  SMA_body_shape_methods.qmd    # Superseded pre-repo-split manuscript
+  (+ several untracked personal drafts/explainer .qmd files, kept locally only; see .gitignore)
 
 Suppfiles/                      # Bibliography, journal metadata, title-page partial
 _extensions/                    # Quarto elsevier journal-format extension (needed to render)
