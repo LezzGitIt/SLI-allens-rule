@@ -577,6 +577,99 @@ n_rank_strict_inv_bergmanns   <- pull_rank_strict_stat("Inverse Bergmann's", n)
 
 `r pct_rank_strict_overall`% of the `r n_rank_strict_total` directionally classified species satisfied the full strict order (`r pct_rank_strict_bergmanns`% of `r n_rank_strict_bergmanns` Bergmann's species and `r pct_rank_strict_inv_bergmanns`% of `r n_rank_strict_inv_bergmanns` Inverse Bergmann's species), somewhat lower than the `r pct_rank_overall_main`% obtained with family averaging. This is expected as averaging within a method family smooths over noise that this stricter test does not; the overall congruence of this stricter test corroborates that rank-order patterns are generally consistent across simulations and empirical datasets.
 
+# Sensitivity to the classification threshold
+
+```{r}
+#| label: sens-p-threshold-stats
+#| include: false
+
+# Primary classification (p < 0.05) lives in each empirical script's parms CSV; each script's "sens_p_threshold" section re-classifies at the looser threshold and exports only Direction + rank_consistent, which are re-joined here to the same method coefficients by Study + species_.
+Parms_empirical <- bind_rows(
+  read_csv("Derived/Csv/Nightjar_parms.csv",  show_col_types = FALSE),
+  read_csv("Derived/Csv/Weeks_parms.csv",     show_col_types = FALSE),
+  read_csv("Derived/Csv/Atlantic_parms.csv",  show_col_types = FALSE)
+)
+Direction_sens <- bind_rows(
+  read_csv("Derived/Csv/Nightjar_direction_sens.csv", show_col_types = FALSE),
+  read_csv("Derived/Csv/Weeks_direction_sens.csv",    show_col_types = FALSE),
+  read_csv("Derived/Csv/Atlantic_direction_sens.csv", show_col_types = FALSE)
+)
+p_sens <- unique(Direction_sens$p_threshold)
+stopifnot("all three empirical scripts must use the same sensitivity threshold" = length(p_sens) == 1)
+
+Parms_sens <- Parms_empirical %>%
+  dplyr::select(-Direction, -rank_consistent) %>%
+  left_join(Direction_sens %>% dplyr::select(Study, species_, Direction, rank_consistent),
+            by = c("Study", "species_"))
+
+Dir_compare <- Parms_empirical %>%
+  distinct(Study, species_, Direction) %>%
+  inner_join(Parms_sens %>% distinct(Study, species_, Direction_sens = Direction), by = c("Study", "species_"))
+n_species_sens      <- nrow(Dir_compare)
+n_reclassified_sens <- sum(Dir_compare$Direction != Dir_compare$Direction_sens)
+
+# Directional species and rank-order consistency at each threshold, built as in the main text's rank-consistency-empirical chunk.
+rank_tbl <- function(parms_tbl) {
+  parms_tbl %>%
+    distinct(species, Study, Direction, rank_consistent) %>%
+    filter(Direction %in% c("Bergmann's", "Inverse Bergmann's"))
+}
+Rank_primary <- rank_tbl(Parms_empirical)
+Rank_sens    <- rank_tbl(Parms_sens)
+n_bergmanns_primary      <- sum(Rank_primary$Direction == "Bergmann's")
+n_inv_bergmanns_primary  <- sum(Rank_primary$Direction == "Inverse Bergmann's")
+n_bergmanns_sens         <- sum(Rank_sens$Direction == "Bergmann's")
+n_inv_bergmanns_sens     <- sum(Rank_sens$Direction == "Inverse Bergmann's")
+pct_rank_overall_primary <- round(100 * mean(Rank_primary$rank_consistent))
+pct_rank_overall_sens    <- round(100 * mean(Rank_sens$rank_consistent))
+
+# Percentage of directional species receiving each 95%-CI call (add_sig_call(), 00_Key_allometry_fns.R), per direction x method; unrounded so the max shift isn't distorted by rounding.
+sig_call_pct <- function(parms_tbl) {
+  add_sig_call(parms_tbl) %>%
+    count(Direction, Approach, Call) %>%
+    complete(Direction, Approach, Call, fill = list(n = 0)) %>%
+    group_by(Direction, Approach) %>%
+    mutate(pct = 100 * n / sum(n)) %>%
+    ungroup() %>%
+    dplyr::select(-n)
+}
+Sig_compare <- full_join(sig_call_pct(Parms_empirical), sig_call_pct(Parms_sens),
+                         by = c("Direction", "Approach", "Call"), suffix = c("_primary", "_sens"))
+max_adherence_shift_sens <- round(max(abs(Sig_compare$pct_primary - Sig_compare$pct_sens)))
+
+# Defined here rather than in the table chunk: a tbl-cap !expr is evaluated before its own chunk runs.
+tbl_cap_sens <- glue::glue("Percentage of empirical species whose 95% confidence interval for the gradient coefficient was significantly positive (Sig. longer), included zero (Not sig.), or was significantly negative (Sig. stouter), by method, when species' body size responses were classified at $p < {sprintf('%.2f', p_sens)}$ (Bergmann's $n$ = {n_bergmanns_sens}; Inverse Bergmann's $n$ = {n_inv_bergmanns_sens}). Values in parentheses are the corresponding percentages under the main-text threshold ($p < 0.05$; Figure 5, panels b and d).")
+```
+
+In the main text, empirical species were classified as Bergmannian or inverse Bergmannian when body mass, wing length, or both changed significantly along the gradient at $p < 0.05$. To check that the empirical results do not hinge on this threshold, I repeated the classification at $p <$ `r sprintf("%.2f", p_sens)`, using the same gradient models and the same method coefficients. The looser threshold reclassified `r n_reclassified_sens` of `r n_species_sens` species, leaving `r n_bergmanns_sens` Bergmann's and `r n_inv_bergmanns_sens` Inverse Bergmann's species (compared to `r n_bergmanns_primary` and `r n_inv_bergmanns_primary`). Rank-order consistency with the simulation-predicted order was `r pct_rank_overall_sens`% (compared to `r pct_rank_overall_primary`%), and the percentage of species receiving each 95%-CI call changed by at most `r max_adherence_shift_sens` percentage points for any method (@tbl-sens-p-threshold).
+
+```{r}
+#| label: tbl-sens-p-threshold
+#| tbl-cap: !expr tbl_cap_sens
+#| tbl-pos: 'H'
+
+# Method order and display names match main-text Figure 5 / Table 3.
+sens_method_labs <- c("Ratio" = "Wing / Mass", "Ratio2" = "Wing² / Mass", "Ryding" = "Multiple regression",
+                      "Resid_ols" = "OLS residuals", "Sli_iso" = "SLI isometry", "Sli_est" = "SLI estimated")
+sens_call_order  <- c("Sig. longer", "Not significant", "Sig. stouter")
+
+Sens_p_tbl <- Sig_compare %>%
+  mutate(cell     = sprintf("%.0f (%.0f)", pct_sens, pct_primary),
+         Approach = factor(Approach, levels = names(sens_method_labs)),
+         Call     = factor(Call, levels = sens_call_order),
+         Direction = factor(Direction, levels = c("Bergmann's", "Inverse Bergmann's"))) %>%
+  arrange(Direction, Call) %>%
+  dplyr::select(Approach, Direction, Call, cell) %>%
+  pivot_wider(names_from = c(Direction, Call), values_from = cell) %>%
+  arrange(Approach) %>%
+  mutate(Approach = sens_method_labs[as.character(Approach)])
+
+knitr::kable(Sens_p_tbl, format = "latex", booktabs = TRUE, align = "c", linesep = "",
+             col.names = c("Method", rep(c("Sig. longer", "Not sig.", "Sig. stouter"), 2))) %>%
+  kableExtra::add_header_above(c(" " = 1, "Bergmann's" = 3, "Inverse Bergmann's" = 3)) %>%
+  kableExtra::kable_styling(font_size = 9)
+```
+
 # Empirical case studies: per-species
 
 Figure 5 in the main text summarizes each method's estimates across species, grouped by method. This section shows the same underlying per-species estimates individually with asterisks marking species whose rank order across methods is consistent with the simulation-predicted order.

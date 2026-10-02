@@ -18,6 +18,9 @@ nj_raw <- read.csv("Data/Capri_BA_compare03.29.26.csv")
 control_age_sex <- TRUE   # TRUE: include age / sex as covariates where they significantly affect body size
 just_am         <- FALSE  # restrict entire analysis to Adult Males only
 # (Age == "Adult" & Sex == "M"); incompatible with control_age_sex
+p_bergmann      <- 0.05   # p-value threshold: Bergmann / Allen response classification (mass, wing)
+p_bergmann_sens <- 0.10   # looser threshold for the direction-classification sensitivity check
+run_sections    <- c("sens_p_threshold")  # optional sections to run; remove an entry to skip it
 p_age_sex       <- 0.10   # p-value threshold: age / sex covariate inclusion
 min_n_age_group <- 100    # min individuals per age group to include age control
 min_n_sex_group <- 100    # min individuals per sex group to include sex control
@@ -402,29 +405,11 @@ dir_mods_nj <- imap(nj_df_analysis_l, \(df, sp) {
   )
 }) %>% list_rbind()
 
-Direction_nj <- classify_direction(dir_mods_nj, species_col = "Species",
+Direction_nj <- classify_direction(dir_mods_nj, p_threshold = p_bergmann, species_col = "Species",
                                    mass_dv = "mass", wing_dv = "wing")
 
 # Rank consistency (same logic as Weeks / Atlantic) -----------------------
-rank_nj <- parms_df %>%
-  filter(term == "B.Temp",
-         Approach %in% c("Ratio", "Ratio2", "Ryding", "Resid_ols", "Sli_est", "Sli_iso")) %>%
-  mutate(approach_group = case_when(
-    Approach %in% c("Ratio", "Ratio2")     ~ "avg_ratio",
-    Approach %in% c("Sli_est", "Sli_iso")  ~ "avg_sli",
-    Approach %in% c("Ryding", "Resid_ols") ~ "avg_ols"
-  )) %>%
-  group_by(Species, approach_group) %>%
-  summarise(avg_coef = mean(estimate, na.rm = TRUE), .groups = "drop") %>%
-  pivot_wider(names_from = approach_group, values_from = avg_coef) %>%
-  left_join(Direction_nj, by = "Species") %>%
-  mutate(
-    rank_consistent = case_when(
-      Direction == "Bergmann's"         ~ avg_ratio > avg_sli & avg_sli > avg_ols,
-      Direction == "Inverse Bergmann's" ~ avg_ratio < avg_sli & avg_sli < avg_ols,
-      TRUE ~ NA
-    )
-  ) %>%
+rank_nj <- flag_rank_consistent(parms_df, Direction_nj, gradient_term = "B.Temp", species_col = "Species") %>%
   dplyr::select(Species, rank_consistent)
 
 # Strict rank-order check (no family averaging): A/S > A2/S > SLI-isometry > multiple regression
@@ -459,4 +444,18 @@ nj_parms_out <- parms_df %>%
     species  = Species
   )
 write_csv(nj_parms_out, "Derived/Csv/Nightjar_parms.csv")
+
+# Sensitivity: direction-classification threshold ---------------------------
+# Re-classifies each species' direction at the looser p_bergmann_sens using the same gradient models, then re-checks rank order. Method coefficients don't depend on the threshold, so only Direction and rank_consistent are exported; downstream they are joined to the primary parms CSV by Study + species_.
+if ("sens_p_threshold" %in% run_sections) {
+  Direction_nj_sens <- classify_direction(dir_mods_nj, p_threshold = p_bergmann_sens, species_col = "Species",
+                                          mass_dv = "mass", wing_dv = "wing")
+  Direction_nj_sens %>% count(Direction)
+
+  flag_rank_consistent(parms_df, Direction_nj_sens, gradient_term = "B.Temp", species_col = "Species") %>%
+    mutate(Study = "Nightjar", species_ = str_replace_all(Species, " ", "_"), p_threshold = p_bergmann_sens) %>%
+    dplyr::select(Study, species_, p_threshold, Direction, rank_consistent) %>%
+    arrange(species_) %>%
+    write_csv("Derived/Csv/Nightjar_direction_sens.csv")
+}
 

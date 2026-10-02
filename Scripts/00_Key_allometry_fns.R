@@ -301,6 +301,44 @@ classify_direction <- function(mods_tbl, p_threshold = 0.05,
     rename(!!sym(species_col) := species_)
 }
 
+# Per-species rank-order check of method-family-averaged gradient coefficients against the simulation-predicted ordering: Ratio (A/S, A²/S) > SLI (SLI-estimated, SLI-isometry) > OLS (multiple regression, OLS residuals) for Bergmann's species, reversed for Inverse Bergmann's, NA for any other direction. direction_tbl needs the species column and a Direction column (e.g. classify_direction() output); gradient_term is the gradient's term name in parms_df (e.g. "year", "B.Temp").
+flag_rank_consistent <- function(parms_df, direction_tbl, gradient_term, species_col = "species_") {
+  parms_df %>%
+    filter(term == gradient_term,
+           Approach %in% c("Ratio", "Ratio2", "Ryding", "Resid_ols", "Sli_est", "Sli_iso")) %>%
+    mutate(approach_group = case_when(
+      Approach %in% c("Ratio", "Ratio2")     ~ "avg_ratio",
+      Approach %in% c("Sli_est", "Sli_iso")  ~ "avg_sli",
+      Approach %in% c("Ryding", "Resid_ols") ~ "avg_ols"
+    )) %>%
+    group_by(.data[[species_col]], approach_group) %>%
+    summarise(avg_coef = mean(estimate, na.rm = TRUE), .groups = "drop") %>%
+    pivot_wider(names_from = approach_group, values_from = avg_coef) %>%
+    left_join(direction_tbl %>% dplyr::select(all_of(species_col), Direction), by = species_col) %>%
+    mutate(
+      rank_consistent = case_when(
+        Direction == "Bergmann's"         ~ avg_ratio > avg_sli & avg_sli > avg_ols,
+        Direction == "Inverse Bergmann's" ~ avg_ratio < avg_sli & avg_sli < avg_ols,
+        TRUE ~ NA
+      )
+    )
+}
+
+# Adds each method x species row's binary call on the gradient coefficient's 95% CI (Sig. longer / Sig. stouter / Not significant), restricted to the directional (Bergmann's / Inverse Bergmann's) species, the six compared methods, and estimable fits (std.error < 0.5) -- the basis of Figure 5's stacked bars and the adherence percentages in the manuscript.
+add_sig_call <- function(parms_tbl) {
+  parms_tbl %>%
+    filter(
+      Direction %in% c("Bergmann's", "Inverse Bergmann's"),
+      Approach  %in% c("Ratio", "Ratio2", "Ryding", "Resid_ols", "Sli_est", "Sli_iso"),
+      std.error  < 0.5
+    ) %>%
+    mutate(Call = case_when(
+      LCI95 > 0 ~ "Sig. longer",
+      UCI95 < 0 ~ "Sig. stouter",
+      TRUE      ~ "Not significant"
+    ))
+}
+
 # Shared boxplot skeleton for a Parms_tbl4-shaped df (Model, Temp_eff, b_temp_inc, Strength,
 # Scaling columns): one panel per Temp_eff category, methods on the x-axis. Used by the main
 # text's fig-compare-approaches and by supporting_info.qmd's ratio-of-logs robustness check

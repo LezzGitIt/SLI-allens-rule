@@ -21,6 +21,8 @@ Weeks20    <- read_csv(Weeks_path, skip = 2)
 min_n_obs       <- 100    # minimum observations per species
 year_cutoff     <- 1978   # exclude records from this year and before
 p_bergmann      <- 0.05   # threshold for temporal trend classification (mass, wing)
+p_bergmann_sens <- 0.10   # looser threshold for the direction-classification sensitivity check
+run_sections    <- c("sens_p_threshold")  # optional sections to run; remove an entry to skip it
 p_age_sex       <- 0.10   # threshold for age / sex covariate inclusion
 pos_allom       <- TRUE   # retain only species with cor_mw >= cor_min & p_mw < cor_p_max
 filter_temporal <- FALSE  # TRUE: retain only species with a significant temporal mass trend
@@ -411,25 +413,7 @@ parms_df <- map(Weeks_l4, \(df) {
 # Groups: Ratio (Ratio+Ratio2), SLI (Sli_est+Sli_iso), OLS (Ryding+Resid_ols)
 # Simulation prediction for Bergmann's species:  avg_ratio > avg_sli > avg_ols
 # Simulation prediction for Inverse Bergmann's:  avg_ratio < avg_sli < avg_ols
-rank_summary <- parms_df %>%
-  filter(term == "year",
-         Approach %in% c("Ratio", "Ratio2", "Ryding", "Resid_ols", "Sli_est", "Sli_iso")) %>%
-  mutate(approach_group = case_when(
-    Approach %in% c("Ratio", "Ratio2")     ~ "avg_ratio",
-    Approach %in% c("Sli_est", "Sli_iso")  ~ "avg_sli",
-    Approach %in% c("Ryding", "Resid_ols") ~ "avg_ols"
-  )) %>%
-  group_by(species_, approach_group) %>%
-  summarise(avg_coef = mean(estimate, na.rm = TRUE), .groups = "drop") %>%
-  pivot_wider(names_from = approach_group, values_from = avg_coef) %>%
-  left_join(Spp_keep2 %>% dplyr::select(species_, Direction), by = "species_") %>%
-  mutate(
-    rank_consistent = case_when(
-      Direction == "Bergmann's"         ~ avg_ratio > avg_sli & avg_sli > avg_ols,
-      Direction == "Inverse Bergmann's" ~ avg_ratio < avg_sli & avg_sli < avg_ols,
-      TRUE ~ NA
-    )
-  ) %>%
+rank_summary <- flag_rank_consistent(parms_df, Spp_keep2, gradient_term = "year") %>%
   arrange(Direction, species_)
 
 rank_summary
@@ -531,6 +515,25 @@ write_csv(
   parms_df_p %>% mutate(Study = "Weeks (2020)"),
   "Derived/Csv/Weeks_parms.csv"
 )
+
+# Sensitivity: direction-classification threshold ---------------------------
+# Re-classifies each species' direction at the looser p_bergmann_sens using the same gradient models, then re-checks rank order. Method coefficients don't depend on the threshold, so only Direction and rank_consistent are exported; downstream they are joined to the primary parms CSV by Study + species_.
+if ("sens_p_threshold" %in% run_sections) {
+  # classify_direction() is the shared form of this script's inline classification above; confirm the two agree at the primary threshold before trusting it at the sensitivity one.
+  Dir_check <- classify_direction(Temporal_mods, p_threshold = p_bergmann, mass_dv = "Mass", wing_dv = "Wing") %>%
+    inner_join(Spp_keep2 %>% dplyr::select(species_, Direction_primary = Direction), by = "species_")
+  stopifnot("classify_direction() must reproduce the primary classification" =
+              nrow(Dir_check) > 0 && all(Dir_check$Direction == Dir_check$Direction_primary))
+
+  Direction_sens <- classify_direction(Temporal_mods, p_threshold = p_bergmann_sens, mass_dv = "Mass", wing_dv = "Wing")
+  Direction_sens %>% tabyl(Direction)
+
+  flag_rank_consistent(parms_df, Direction_sens, gradient_term = "year") %>%
+    mutate(Study = "Weeks (2020)", p_threshold = p_bergmann_sens) %>%
+    dplyr::select(Study, species_, p_threshold, Direction, rank_consistent) %>%
+    arrange(species_) %>%
+    write_csv("Derived/Csv/Weeks_direction_sens.csv")
+}
 
 # EXTRAS ------------------------------------------------------------------
 
