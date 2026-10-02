@@ -326,10 +326,10 @@ Flip_legend <- ggdraw() +
 # sitting high in the column, well clear of the "Mass"/"Appendage" axis titles at the
 # bottom of panels (a)/(b).
 Flip_arrow_grob <- curveGrob(
-  x1 = 0.2, y1 = 0.8, x2 = 0.8, y2 = 0.8,
-  curvature = -0.5, ncp = 8, square = FALSE,
-  arrow = arrow(ends = "both", length = unit(0.16, "inches"), angle = 25),
-  gp = gpar(lwd = 3.5)
+  x1 = 0.05, y1 = 0.8, x2 = 0.95, y2 = 0.8,
+  curvature = -0.4, ncp = 8, square = FALSE,
+  arrow = arrow(ends = "both", length = unit(0.11, "inches"), angle = 30),
+  gp = gpar(lwd = 3)
 )
 Flip_arrow_panel <- ggdraw() +
   draw_label("flip axes", x = 0.5, y = 0.92, size = 16) +
@@ -341,7 +341,7 @@ Flip_arrow_panel <- ggdraw() +
 # patchwork (not cowplot::plot_grid) because it aligns fixed-aspect (square) panels exactly; plot_grid's align option leaves panel (b) offset when the two panels' tick labels differ in width.
 Flip_top_row <- patchwork::wrap_plots(
   Flip_panel_a + labs(tag = "a"), Flip_arrow_panel, Flip_panel_b + labs(tag = "b"),
-  nrow = 1, widths = c(1, 0.2, 1)
+  nrow = 1, widths = c(1, 0.25, 1)
 ) & theme(plot.tag = element_text(size = 12, face = "bold"))
 Flip_combined <- plot_grid(Flip_legend, Flip_top_row, ncol = 1, rel_heights = c(0.06, 1))
 Flip_combined
