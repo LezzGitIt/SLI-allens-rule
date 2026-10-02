@@ -317,31 +317,6 @@ Claude Code (Anthropic) was used throughout development of the analysis pipeline
 
 ## Simulation performance
 
-```{r}
-#| label: plot-approaches-fun
-#| include: false
-
-plot_approaches <- function(df, x_txt_size = 9, legend.pos = "top") {
-  df <- df %>%
-    filter(Temp_eff != "Null-effect larger") %>%
-    mutate(Model = str_replace_all(Model, x_labs))
-
-  ggplot(df, aes(x = Model, y = b_temp_inc)) +
-    geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
-    geom_boxplot(outlier.shape = NA) +
-    geom_jitter(width = 0.15, height = 0, alpha = .5, size = 1.9,
-                aes(color = Strength, shape = Scaling)) +
-    facet_wrap(vars(Temp_eff)) +
-    labs(x = NULL, y = expression(hat(beta)[T] ~ "on relative appendage length"),
-         color = "Strength", shape = "Scaling") +
-    guides(shape = guide_legend(nrow = 1)) +
-    theme(
-      axis.text.x = element_text(size = x_txt_size, vjust = .58, angle = 55),
-      legend.position = legend.pos, legend.box = "vertical"
-    )
-}
-```
-
 The six methods produced strikingly different estimates of temperature's effect on relative appendage length, and the pattern was largely consistent across allometric scaling categories and correlation structures (@fig-compare-approaches). The **Null-effect larger** species showed the inverse pattern as the Null-effect smaller species (SI Figure 7).
 
 ```{r}
@@ -349,7 +324,7 @@ The six methods produced strikingly different estimates of temperature's effect 
 #| include: false
 
 # Reproducible baseline for Figure 3 -- see the Sylvia's-figures note near Figure 2 above.
-Fig3_compare_approaches <- plot_approaches(Parms_tbl4, x_txt_size = 11)
+Fig3_compare_approaches <- plot_approaches(Parms_tbl4, x_txt_size = 11, legend.box = "horizontal")
 
 dir.create("Figs_share", showWarnings = FALSE)
 ggsave("Figs_share/Figure3_compare_approaches.pdf", Fig3_compare_approaches,
@@ -518,15 +493,7 @@ Across the `r n_species_total` species examined here, the largest percentage (`r
 
 The rank-order pattern from simulations was generally reproduced in all three datasets: ratio methods consistently produced the most positive estimates and multiple regression / OLS residuals the most negative, with SLI falling between these extremes (@fig-empirical). `r pct_rank_overall`% of the `r n_rank_total` species with a directional (Bergmann's or Inverse Bergmann's) classification showed the rank order predicted by the simulations (`r pct_rank_bergmanns`% of `r n_rank_bergmanns` Bergmann's species and `r pct_rank_inv_bergmanns`% of `r n_rank_inv_bergmanns` Inverse Bergmann's species; SI Figure 10).
 
-```{=html}
-<!-- TEMPORARY: pointing at the raw Figures/Empirical_combined.png baseline (with the new
-%-labeled stacked bars) rather than Sylvia's polished PDF, since her PDF predates the label
-addition. Switch back to Figures/Sylvia/Figure5_Empirical_combined_<date>_edits.pdf once she
-sends an updated polish. Caption counts (n_rank_bergmanns / n_rank_inv_bergmanns) are inlined
-live, computed above. -->
-```
-
-![Estimated effect ($\hat{\beta}$) of temperature or year on relative wing length for each of the six methods, across three empirical avian datasets, grouped by direction of body size change: a) and b) Bergmann's ($n$ = `r n_rank_bergmanns` species) and c) and d) Inverse Bergmann's ($n$ = `r n_rank_inv_bergmanns` species). Each point is one species' estimate ($\hat{\beta}$) for a given method; boxplots summarize the distribution of these estimates across species within each method. The percentage in the top-right corner of each boxplot is the proportion of species whose rank order across methods matched the simulation-predicted order (Bergmann's: Ratio \> SLI \> OLS; Inverse Bergmann's: Ratio \< SLI \< OLS). The stacked barplots on the right of each panel show binary adherence to Allen's rule based on species' 95% confidence intervals relative to $0$.](../../Figures/Sylvia/Figure5_Empirical_combined.pdf){#fig-empirical width="100%" fig-pos="H"}
+![Estimated effect ($\hat{\beta}$) of temperature or year on relative wing length for each of the six methods, across three empirical avian datasets, grouped by direction of body size change: a) and b) Bergmann's ($n$ = `r n_rank_bergmanns` species) and c) and d) Inverse Bergmann's ($n$ = `r n_rank_inv_bergmanns` species). Each point is one species' estimate ($\hat{\beta}$) for a given method; boxplots summarize the distribution of these estimates across species within each method. The stacked barplots on the right of each panel show binary adherence to Allen's rule based on species' 95% confidence intervals relative to $0$.](../../Figures/Sylvia/Figure5_Empirical_combined.pdf){#fig-empirical width="100%" fig-pos="H"}
 
 ```{r}
 #| label: significance-classification-empirical

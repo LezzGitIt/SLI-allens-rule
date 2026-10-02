@@ -306,7 +306,7 @@ classify_direction <- function(mods_tbl, p_threshold = 0.05,
 # text's fig-compare-approaches and by supporting_info.qmd's ratio-of-logs robustness check
 # (same plot, fed the alt-ratio-substituted data) -- moved here once a second call site existed,
 # per this project's "extract a shared helper the first time logic is duplicated" convention.
-plot_approaches <- function(df, x_txt_size = 9, legend.pos = "top") {
+plot_approaches <- function(df, x_txt_size = 9, legend.pos = "top", legend.box = "vertical") {
   df <- df %>%
     filter(Temp_eff != "Null-effect larger") %>%
     mutate(Model = str_replace_all(Model, x_labs))
@@ -322,6 +322,6 @@ plot_approaches <- function(df, x_txt_size = 9, legend.pos = "top") {
     guides(shape = guide_legend(nrow = 1)) +
     theme(
       axis.text.x = element_text(size = x_txt_size, vjust = .58, angle = 55),
-      legend.position = legend.pos, legend.box = "vertical"
+      legend.position = legend.pos, legend.box = legend.box
     )
 }

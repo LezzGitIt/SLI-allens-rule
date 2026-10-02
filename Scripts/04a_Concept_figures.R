@@ -266,8 +266,17 @@ Flip_a_sma_a <- mean(Flip_df$Append) - Flip_b_sma_a * mean(Flip_df$Mass)
 # X-axis, but far below the cloud in Y), rather than an individual extreme in both variables.
 Flip_pt <- Flip_df %>% filter(abs(Mass - 52) < 2) %>% slice_min(Append, n = 1)
 
-Flip_xrng_a <- range(Flip_df$Mass); Flip_yrng_a <- range(Flip_df$Append)
-Flip_line_a <- tibble(Mass = seq(Flip_xrng_a[1] - 3, Flip_xrng_a[2] + 3, length.out = 2)) %>%
+# Axis windows in SD units: both variables get the same span (in SDs) and both panels are square, so the SMA line (slope = SD(Y)/SD(X)) is drawn at exactly 45 degrees in both panels and visibly unchanged by the flip. Each window is centred on its own variable's data range rather than its mean, so the long-tailed mass distribution (one ~78 g bird, +4.8 SD) stays in view without leaving the appendage axis mostly empty.
+flip_sd_window <- function(x, span_sd) {
+  mid <- mean(range(x))
+  mid + c(-1, 1) * span_sd * sd(x) / 2
+}
+Flip_span_sd <- 1.05 * max(diff(range(scale(Flip_df$Mass))), diff(range(scale(Flip_df$Append))))
+Flip_lim_mass <- flip_sd_window(Flip_df$Mass, Flip_span_sd)
+Flip_lim_append <- flip_sd_window(Flip_df$Append, Flip_span_sd)
+
+# Lines drawn across the full window and clipped by coord_cartesian(), so neither line's endpoints stretch an axis.
+Flip_line_a <- tibble(Mass = Flip_lim_mass) %>%
   mutate(OLS = Flip_a_ols_a + Flip_b_ols_a * Mass, SMA = Flip_a_sma_a + Flip_b_sma_a * Mass)
 
 Flip_panel_a <- ggplot(Flip_df, aes(Mass, Append)) +
@@ -276,9 +285,10 @@ Flip_panel_a <- ggplot(Flip_df, aes(Mass, Append)) +
   geom_line(data = Flip_line_a, aes(y = SMA, color = "SMA"), linewidth = 1) +
   geom_point(data = Flip_pt, color = "forestgreen", size = 4) +
   scale_color_manual(name = NULL, values = c(OLS = "firebrick", SMA = "steelblue")) +
+  coord_cartesian(xlim = Flip_lim_mass, ylim = Flip_lim_append, expand = FALSE) +
   labs(x = "Mass (g)", y = "Appendage (mm)") +
   theme_cowplot(font_size = 16) +
-  theme(legend.position = "none")
+  theme(legend.position = "none", aspect.ratio = 1)
 
 # Panel (b): OLS refit with the roles swapped; SMA algebraically re-expressed (not refit).
 Flip_ols_b <- lm(Mass ~ Append, data = Flip_df)
@@ -286,8 +296,7 @@ Flip_a_ols_b <- coef(Flip_ols_b)[1]; Flip_b_ols_b <- coef(Flip_ols_b)[2]
 Flip_b_sma_b <- 1 / Flip_b_sma_a
 Flip_a_sma_b <- -Flip_a_sma_a / Flip_b_sma_a
 
-Flip_yrng_b <- range(Flip_df$Append)
-Flip_line_b <- tibble(Append = seq(Flip_yrng_b[1] - 3, Flip_yrng_b[2] + 3, length.out = 2)) %>%
+Flip_line_b <- tibble(Append = Flip_lim_append) %>%
   mutate(OLS = Flip_a_ols_b + Flip_b_ols_b * Append, SMA = Flip_a_sma_b + Flip_b_sma_b * Append)
 
 Flip_panel_b <- ggplot(Flip_df, aes(Append, Mass)) +
@@ -296,9 +305,10 @@ Flip_panel_b <- ggplot(Flip_df, aes(Append, Mass)) +
   geom_line(data = Flip_line_b, aes(y = SMA, color = "SMA"), linewidth = 1) +
   geom_point(data = Flip_pt, aes(x = Append, y = Mass), color = "forestgreen", size = 4) +
   scale_color_manual(name = NULL, values = c(OLS = "firebrick", SMA = "steelblue")) +
+  coord_cartesian(xlim = Flip_lim_append, ylim = Flip_lim_mass, expand = FALSE) +
   labs(x = "Appendage (mm)", y = "Mass (g)") +
   theme_cowplot(font_size = 16) +
-  theme(legend.position = "none")
+  theme(legend.position = "none", aspect.ratio = 1)
 
 # Small legend, drawn manually (cowplot::get_legend() returns an empty grob under the
 # currently-installed ggplot2/cowplot combination) and positioned near panel (a)'s own
@@ -316,24 +326,27 @@ Flip_legend <- ggdraw() +
 # sitting high in the column, well clear of the "Mass"/"Appendage" axis titles at the
 # bottom of panels (a)/(b).
 Flip_arrow_grob <- curveGrob(
-  x1 = 0.2, y1 = 0.82, x2 = 0.8, y2 = 0.82,
+  x1 = 0.2, y1 = 0.8, x2 = 0.8, y2 = 0.8,
   curvature = -0.5, ncp = 8, square = FALSE,
   arrow = arrow(ends = "both", length = unit(0.16, "inches"), angle = 25),
   gp = gpar(lwd = 3.5)
 )
 Flip_arrow_panel <- ggdraw() +
-  draw_label("flip axes", x = 0.5, y = 0.89, size = 16) +
+  draw_label("flip axes", x = 0.5, y = 0.92, size = 16) +
   draw_grob(Flip_arrow_grob)
 
 # Narrow middle column (just enough room for the arrow) so the two data panels get most
 # of the width -- previously a lot of width sat empty between them, leaving each panel (and
 # its axis text) smaller than it needed to be.
-Flip_top_row <- plot_grid(Flip_panel_a, Flip_arrow_panel, Flip_panel_b, nrow = 1,
-                           rel_widths = c(1, 0.2, 1), labels = c("a", "", "b"), label_size = 12)
+# patchwork (not cowplot::plot_grid) because it aligns fixed-aspect (square) panels exactly; plot_grid's align option leaves panel (b) offset when the two panels' tick labels differ in width.
+Flip_top_row <- patchwork::wrap_plots(
+  Flip_panel_a + labs(tag = "a"), Flip_arrow_panel, Flip_panel_b + labs(tag = "b"),
+  nrow = 1, widths = c(1, 0.2, 1)
+) & theme(plot.tag = element_text(size = 12, face = "bold"))
 Flip_combined <- plot_grid(Flip_legend, Flip_top_row, ncol = 1, rel_heights = c(0.06, 1))
 Flip_combined
 
 ggsave("Figures/sma_flip_axes.png", Flip_combined,
-       width = 10, height = 6.2, units = "in", dpi = 300, bg = "white")
+       width = 10, height = 5, units = "in", dpi = 300, bg = "white")
 
 message("Saved Figures/SLI_concept.png, Figures/sma_flip_axes.png, and Derived/Rds/Ex_df_hypo_hyper.rds")

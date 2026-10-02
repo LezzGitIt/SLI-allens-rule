@@ -60,35 +60,24 @@ approach_labs <- c(
 # factor level at the bar's base, so levels are ordered longer -> not sig. ->
 # stouter to put "Sig. stouter" at the bottom and "Sig. longer" at the top,
 # mirroring the adjoining boxplot's own negative-below/positive-above zero line.
-# Short labels ("Longer" / "Stouter" rather than "significantly longer") so the
-# three-item legend fits above the narrow 1/3-width bar column; the caption
-# spells out the 95%-CI definitions.
+# Short labels so the three-item legend fits above the narrow 1/3-width bar column; the caption spells out the 95%-CI definitions.
+# Displayed with a "Sig." prefix so these empirical CI-based outcomes aren't mistaken for the simulation's Longer / Stouter categories.
+sig_labs <- c("Longer" = "Sig. longer", "Not significant" = "Not sig.", "Stouter" = "Sig. stouter")
 sig_levels <- c("Longer", "Not significant", "Stouter")
 sig_colors <- c("Stouter" = "#e34948", "Not significant" = "#898781", "Longer" = "#2a78d6")
 
 # Per-direction panel builder ---------------------------------------------
 # Grouped by method (matching fig-compare-approaches / Figure 3's format) rather
 # than by species: boxplot summarizes each method's distribution across species,
-# jittered points colored by dataset. Percentage in the top-right corner of each
-# panel is the share of species whose rank order across methods matches the
-# simulation-predicted order (same rank_consistent field used for tbl-species-
-# accounting / the Results prose in Allens_methods_sim.qmd's rank-consistency chunk).
+# jittered points colored by dataset. Rank-order consistency percentages are reported in the Results text, not annotated on the panels.
 build_direction_plot <- function(df_panel, direction) {
   df_panel <- df_panel %>% mutate(Study = factor(Study, levels = study_order))
-
-  pct_consistent <- df_panel %>%
-    distinct(species, rank_consistent) %>%
-    summarise(pct = round(100 * mean(rank_consistent, na.rm = TRUE))) %>%
-    pull(pct)
 
   df_panel %>%
     ggplot(aes(x = Approach, y = estimate)) +
     geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
     geom_boxplot(outlier.shape = NA) +
     geom_jitter(aes(color = Study), width = 0.15, height = 0, alpha = .6, size = 1.8) +
-    annotate("text", x = Inf, y = Inf, hjust = 1.1, vjust = 1.5, size = 3.2,
-             fontface = "italic",
-             label = paste0(pct_consistent, "% rank-order consistent")) +
     scale_x_discrete(labels = approach_labs) +
     # drop = FALSE so both directions' plots emit an identical 3-entry Study
     # legend (no nightjars are Inverse Bergmann's) and patchwork collects it to one.
@@ -143,7 +132,7 @@ build_significance_plot <- function(df_panel) {
               size = 2.6, color = "white", fontface = "bold") +
     scale_x_discrete(labels = approach_labs) +
     scale_y_continuous(labels = scales::percent, expand = expansion(mult = c(0, 0.02))) +
-    scale_fill_manual(values = sig_colors, breaks = sig_levels, drop = FALSE) +
+    scale_fill_manual(values = sig_colors, breaks = sig_levels, labels = sig_labs, drop = FALSE) +
     labs(x = NULL, y = "% of species", fill = NULL) +
     theme(
       axis.text.x  = element_text(angle = 55, hjust = 1, vjust = 1, size = 9,
