@@ -71,7 +71,9 @@ quarto render Scripts/qmd/supporting_info.qmd
 
 ## Dependencies
 
-R packages: `tidyverse`, `smatr`, `cowplot`, `patchwork`, `broom`, `MASS`, `MBESS`, `rlang`, `janitor`, `lubridate`, `naniar`
+R packages: `tidyverse`, `smatr`, `cowplot`, `patchwork`, `broom`, `MASS`, `rlang`, `janitor`, `lubridate`, `naniar`, `scales`, `glue`, `png`, `ggpubr`, `ggpmisc`, `kableExtra`
+
+Simulation and SLI core: [`sliR`](https://github.com/LezzGitIt/sliR) (v0.2.0 or later)
 
 For WorldClim temperature extraction (Nightjar case study only): `geodata`, `terra`
 
@@ -79,8 +81,10 @@ Install all at once:
 
 ``` r
 install.packages(c("tidyverse", "smatr", "cowplot", "patchwork", "broom",
-                   "MASS", "MBESS", "rlang", "janitor", "lubridate", "naniar",
-                   "geodata", "terra"))
+                   "MASS", "rlang", "janitor", "lubridate", "naniar",
+                   "scales", "glue", "png", "ggpubr", "ggpmisc", "kableExtra",
+                   "geodata", "terra", "remotes"))
+remotes::install_github("LezzGitIt/sliR@v0.2.0")
 ```
 
 ## Citation

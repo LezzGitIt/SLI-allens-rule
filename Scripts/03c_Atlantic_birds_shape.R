@@ -10,6 +10,7 @@ library(patchwork)
 library(naniar)
 library(sliR)   # SLI + simulation functions; see github.com/LezzGitIt/sliR
 source("Scripts/00_Key_allometry_fns.R")
+dir.create("Derived/Csv", recursive = TRUE, showWarnings = FALSE)
 ggplot2::theme_set(theme_cowplot())
 
 Atlantic_birds <- read_csv("/Users/aaronskinner/Library/CloudStorage/OneDrive-UBC/Academia/Datasets_external/Ecology/Atlantic_bird_traits/ATLANTIC_BIRD_TRAITS_completed_2018_11_d05.csv")

@@ -510,7 +510,7 @@ Ryding_bigger_null_correct    <- pull_percent("Ryding",    "Null-effect larger")
 Olsresid_bigger_null_correct  <- pull_percent("Ols_resid", "Null-effect larger")
 
 # Export --------------------------------------------------------------------
-dir.create("Derived/Rds", showWarnings = FALSE)
+dir.create("Derived/Rds", recursive = TRUE, showWarnings = FALSE)
 saveRDS(
   list(
     # Settings / parameter grid (used inline in Methods prose)

@@ -145,7 +145,7 @@ ggsave("Figures/lit_review.png", fig_lit_review, bg = "white",
        width = 7, height = 6, units = "in", dpi = 300)
 
 # Export ---------------------------------------------------------------------
-dir.create("Derived/Rds", showWarnings = FALSE)
+dir.create("Derived/Rds", recursive = TRUE, showWarnings = FALSE)
 saveRDS(
   list(
     Unclear_exclude = Unclear_exclude,

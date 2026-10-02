@@ -59,4 +59,4 @@ Reads the three CSVs from `Derived/Csv/` and produces `Figures/Empirical_combine
 - **Shapeshifting direction**: Classified per species as Bergmann's (mass ↓ or wing ↑ with temperature), Inverse Bergmann's, Mixed (both significant), or Stable (neither significant).
 
 ## Primary R Packages
-`tidyverse`, `smatr`, `cowplot`, `MASS` (mvrnorm), `broom`, `ggpubr`, `MBESS` (cor2cov), `rlang`, `geodata` + `terra` (temperature extraction, Nightjar only)
+`tidyverse`, `smatr`, `sliR` (simulation/SLI core), `cowplot`, `patchwork`, `MASS`, `broom`, `ggpubr`, `kableExtra`, `rlang`, `geodata` + `terra` (temperature extraction, Nightjar only)
