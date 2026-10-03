@@ -1,0 +1,11 @@
+# Redacted author block for double-anonymous review. supporting_info.qmd points here during review; switch it back to authors.yml at acceptance (the main text is anonymized separately by the elsevier format's `formatting: doubleblind`).
+affiliations:
+  - id: anon
+    name: Redacted for double-anonymous review
+
+author:
+  - name: Author redacted for double-anonymous review
+    affiliations:
+      - ref: anon
+    attributes:
+      corresponding: true

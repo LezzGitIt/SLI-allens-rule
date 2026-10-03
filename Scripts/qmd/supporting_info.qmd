@@ -19,7 +19,8 @@ knitr:
 editor_options:
   chunk_output_type: console
 metadata-files:
-  - ../../Suppfiles/authors.yml
+  # Redacted author block for double-anonymous review; switch back to authors.yml at acceptance.
+  - ../../Suppfiles/authors_review.yml
 ---
 
 {{< pagebreak >}}
@@ -65,7 +66,8 @@ tot_approach_uses <- unique(Lr_per_pooled$Tot_studies)
 
 ```{r}
 #| label: tbl-species-accounting
-#| tbl-cap: "Number of empirical species classified into each size / shape-shifting category (main text, Table 2), by dataset. Species exhibiting Bergmann's and Inverse Bergmann's rules are shown in the main text (Figure 5)."
+#| tbl-cap: "Number of empirical species classified into each size / shape-shifting category (main text, Table 2), by dataset: Nightjar [@skinnerEnvironmentalGeographicConditions2025], North American migrant [@weeksSharedMorphologicalConsequences2020], and Atlantic Forest [@rodriguesATLANTICBIRDTRAITS2019]. Species exhibiting Bergmann's and Inverse Bergmann's rules are shown in the main text (Figure 5)."
+#| tbl-pos: 'H'
 
 # Rebuilt independently from the same three CSVs the main text's species-accounting-stats
 # chunk uses, since each .qmd renders in its own R session and can't share that chunk's
@@ -80,11 +82,12 @@ Species_accounting_tbl <- bind_rows(
   distinct(Study, species, Direction) %>%
   count(Study, Direction) %>%
   pivot_wider(names_from = Direction, values_from = n, values_fill = 0) %>%
+  # Dataset names match main-text Figure 5's legend; the source citations are in the caption.
   mutate(Study = case_match(Study,
-                             "Nightjar" ~ "Skinner et al (2025)",
-                             "Weeks (2020)" ~ "Weeks et al (2020)",
-                             "Atlantic birds" ~ "Rodrigues et al (2019)"),
-         Study = factor(Study, levels = c("Skinner et al (2025)", "Weeks et al (2020)", "Rodrigues et al (2019)"))) %>%
+                             "Nightjar" ~ "Nightjar",
+                             "Weeks (2020)" ~ "North American migrant",
+                             "Atlantic birds" ~ "Atlantic Forest"),
+         Study = factor(Study, levels = c("Nightjar", "North American migrant", "Atlantic Forest"))) %>%
   arrange(Study) %>%
   mutate(Study = as.character(Study)) %>%
   dplyr::select(Study, any_of(dir_order)) %>%
@@ -96,10 +99,16 @@ Species_accounting_tbl <- bind_rows(
     summarise(Study = "Total", across(where(is.numeric), sum))
 )
 
-knitr::kable(Species_accounting_tbl,
-             col.names = c("Study", "Bergmann's", "Inverse Bergmann's",
-                           "Mixed - Wingier", "Mixed - Stouter", "Stable", "Total"),
-             align = "c")
+# LaTeX booktabs (as SI Table 2) with two-line headers: a plain markdown table lets LaTeX squeeze the headers into each other. The rule above Total goes in via linesep (row_spec(hline_after) adds extra vertical space under booktabs).
+n_rows <- nrow(Species_accounting_tbl)
+knitr::kable(Species_accounting_tbl, format = "latex", booktabs = TRUE, escape = FALSE,
+             linesep = c(rep("", n_rows - 2), "\\midrule", ""),
+             col.names = kableExtra::linebreak(c("Dataset", "Bergmann's", "Inverse\nBergmann's",
+                                                 "Mixed -\nWingier", "Mixed -\nStouter", "Stable", "Total"),
+                                               align = "c"),
+             align = c("l", rep("c", 6))) %>%
+  kableExtra::row_spec(n_rows, bold = TRUE) %>%
+  kableExtra::kable_styling(font_size = 10, latex_options = "scale_down")
 ```
 
 # Allometric scaling and correlation strength
@@ -138,8 +147,6 @@ vary_scaling_tbl %>%
 
 # Literature review: methodological approaches
 
-The main text (Literature review) summarizes how the approaches used to quantify relative appendage length are distributed across the studies reviewed there; Figure 2 shows the full distribution referenced in that section.
-
 ```{r}
 #| label: fig-lit-review
 #| fig-cap: !expr fig_cap_lit_review
@@ -154,13 +161,13 @@ lit_review_grob <- grid::rasterGrob(lit_review_img, width = grid::unit(1, "npc")
 cowplot::ggdraw() + cowplot::draw_grob(lit_review_grob)
 ```
 
-# Anchoring the ground truth to OLS instead of SMA
+# Defining the reference quantity with OLS
 
-The main text anchors "isometric" (0.33) to the SMA slope ('Statistical approach classification' in main text), matching SLI-isometry's own logic. To illustrate that the choice of reference quantity is statistically arbitrary, I show an alternative reference quantity anchored to OLS regression as well: $\beta_{OLS} = \rho_{12} \cdot \beta_{SMA}$, so $\beta_{T,OLS} = \rho_{13} \cdot \beta_{OLS} - 0.33 \cdot \rho_{23}$. I re-scored the correlation and sign-agreement between $\beta_{T,OLS}$ and $\hat\beta_{T}$ for all six methods.
+In the main text, I anchor the isometrically-defined reference quantity ($\beta_T$) to the SMA slope of 0.33, matching SLI-isometry's own logic. To illustrate that the choice of reference quantity is statistically arbitrary, I show an alternative reference quantity anchored to OLS regression: $\beta_{OLS} = \rho_{12} \cdot \beta_{SMA}$, so $\beta_{T,OLS} = \rho_{13} \cdot \beta_{OLS} - 0.33 \cdot \rho_{23}$. I re-scored the correlation and sign-agreement between $\beta_{T,OLS}$ and $\hat\beta_{T}$ for all six methods.
 
 ```{r}
 #| label: fig-calibration-ols
-#| fig-cap: "The main text's per-species calibration scatter (main text, Simulation performance) recreated with the ground truth anchored to OLS instead of SMA (x-axis: the OLS-anchored true effect), including Longer, Stouter, and Null-effect smaller species. Same species and estimated coefficients as the main text figure; only the definition of the true value has moved. As in the main text figure, species in agreement with the OLS-anchored reference are faded; species not in agreement are drawn at full opacity."
+#| fig-cap: "Main-text Figure 4 recreated with the reference quantity anchored to OLS instead of SMA (x-axis: $\\beta_{T,OLS}$), for Longer, Stouter, and Null-effect smaller species. The species and estimated coefficients are the same as in main-text Figure 4; only the definition of the reference quantity differs. As in main-text Figure 4, species in agreement with the OLS-anchored reference are faded; species not in agreement are drawn at full opacity."
 #| fig-width: 9
 #| fig-height: 6.5
 #| fig-pos: 'H'
@@ -182,9 +189,9 @@ ggplot(Ols_anchor_fig_df, aes(x = beta_iso_true_ols, y = b_temp_inc, color = Tem
   theme(legend.position = "top", legend.box = "vertical")
 ```
 
-# Robustness check: ratio-of-logs construction
+# The ratio-of-logs construction
 
-The main text's ratio metrics are the log of the ratio: $\log(A/S)$ and $\log(A^2/S)$, computed by dividing appendage length by mass (or its square) and then log-transforming the result. An alternative construction found in the shape-shifting literature (e.g., @rydingMultipleRegressionNot2025) instead logs appendage length and body mass separately and divides the two logged values: $\log(A)/\log(S)$. The two are not algebraically related in any simple way, and unlike $\log(A/S)$, $\log(A)/\log(S)$ is not invariant to the units appendage length happens to be measured in, i.e., converting mm to cm shifts $\log(A)$ by an additive constant, which cancels exactly in $\log(A/S)$ but not in $\log(A)/\log(S)$. Here I recompute Ratio and Ratio² using this ratio-of-logs construction and score them against the isometric-relative ground truth. I show $\log(A/S)$ as a point of comparison.
+The main text's ratio metrics are the log of the ratio: $\log(A/S)$ and $\log(A^2/S)$, computed by dividing appendage length by mass (or its square) and then log-transforming the result. An alternative construction found in the shape-shifting literature [e.g., @rydingMultipleRegressionNot2025] instead logs appendage length and body mass separately and divides the two logged values: $\log(A)/\log(S)$. The two are not algebraically related in any simple way, and unlike $\log(A/S)$, $\log(A)/\log(S)$ is not invariant to the units appendage length happens to be measured in, i.e., converting mm to cm shifts $\log(A)$ by an additive constant, which cancels exactly in $\log(A/S)$ but not in $\log(A)/\log(S)$. Here I recompute $A/S$ and $A^2/S$ using this ratio-of-logs construction and score them against the isometric reference quantity, with $\log(A/S)$ shown for comparison.
 
 ```{r}
 #| label: altratio-stats
@@ -213,7 +220,7 @@ Parms_tbl4_altratio_fig <- bind_rows(
 
 ```{r}
 #| label: fig-altratio-compare
-#| fig-cap: "The three ratio constructions compared directly: the main text's log(A/S), against Ratio and Ratio² redefined under the ratio-of-logs construction, log(A)/log(S) and log(A²)/log(S). Multiple regression, OLS residuals, and both SLI parameterizations are omitted here since ratio-of-logs leaves them byte-identical to the main text (main text, Simulation performance)."
+#| fig-cap: "The three ratio constructions compared directly: the main text's log(A/S), against $A/S$ and $A^2/S$ redefined under the ratio-of-logs construction, log(A)/log(S) and log(A²)/log(S). Multiple regression, OLS residuals, and both SLI parameterizations are omitted because the ratio-of-logs construction leaves them identical to main-text Figure 3."
 #| fig-width: 6
 #| fig-height: 4.5
 #| fig-pos: 'H'
@@ -272,7 +279,7 @@ altratio_3d_specs <- list(
   list(fn = rol_fn,  name = "log(A)/log(S)", cols = c("darkorange", "grey20"))
 )
 
-fig_cap_altratio_3d <- glue::glue("Both ratio constructions evaluated as deterministic surfaces over the full (Mass, Appendage) plane, for one representative Null-effect smaller example species (Isometry scaling, true SMA slope = {round(altratio_3d_parms$true_b_sma, 2)}). Solid surface: appendage length in mm. Overlaid wireframe: the same species with appendage length converted to cm. Both surfaces are mean-centered; a fitted plane's mass-slope is annotated above each panel. The plane's appendage-slope is omitted: both surfaces are evaluated over the same physical appendage-in-mm grid position (only the z-value, i.e. what the formula outputs for mm- vs cm-expressed appendage length, differs), so the fitted appendage-slope is identical between the mm and cm surfaces by construction, in both panels -- it is the mass-slope alone that is diagnostic of unit-sensitivity. Under log(A/S) (left) the mm and cm surfaces are visually indistinguishable, and their fitted mass-slopes are identical to four decimal places. Under log(A)/log(S) (right) the two surfaces visibly diverge, and the fitted mass-slope changes when appendage length is re-expressed in different units, even though nothing about the underlying species changed.")
+fig_cap_altratio_3d <- glue::glue("Both ratio constructions evaluated as deterministic surfaces over the full (Mass, Appendage) plane, for one representative Null-effect smaller example species. The solid surface shows each metric computed with appendage length in mm, and the overlaid black wireframe shows the same metric with appendage length converted to cm. Both surfaces are mean-centered. A fitted plane's mass-slope is annotated above each panel. The plane's appendage-slope is omitted as it is identical between the mm and cm surfaces by construction. Under log(A/S) (left) the mm and cm surfaces are indistinguishable and their fitted mass-slopes are identical to four decimal places. Under log(A)/log(S) (right) the two surfaces visibly diverge, and the fitted mass-slope changes when appendage length is re-expressed in different units.")
 ```
 
 ```{r}
@@ -294,7 +301,7 @@ for (spec in altratio_3d_specs) {
   pmat <- persp(mass_seq_3d, append_seq_3d, Z_mm, zlim = zlim, theta = -35, phi = 22, expand = 0.7,
                 col = spec$cols[1], border = NA, shade = 0.35, ticktype = "detailed",
                 cex.axis = 0.65, cex.lab = 0.9, xlab = "Mass (g)", ylab = "Appendage (mm)",
-                zlab = "", main = "")
+                zlab = spec$name, main = "")
   overlay_wireframe_3d(pmat, mass_seq_3d, append_seq_3d, Z_cm, col = spec$cols[2])
 
   title(main = spec$name, cex.main = 1.3, line = 3.2)
@@ -305,22 +312,20 @@ for (spec in altratio_3d_specs) {
 }
 ```
 
-The alternative formulation of the ratio, $\log(A)/\log(S)$, showed qualitatively similar estimates of $\hat\beta_T$ relative to $\log(A/S)$, but producing slightly more positive results in the species simulated to become stouter with warming temperatures. Indeed, the median is slightly closer to zero, and the ratio-of-logs construction classifies `r Ratio_alt_stouter_pct`% of species as relatively stouter, compared to 64% in the log-of-ratios construction. Interestingly, $\log(A^2)/\log(S)$ returns the same results as $\log(A)/\log(S)$, which makes sense because $\log(A^2)/\log(S) = 2 \cdot \log(A)/\log(S)$, meaning the formula is identical up to a constant multiplier. That constant is lost during standardization, meaning the Ratio and Ratio² fit *identical* models under the ratio-of-logs construction. Taken together, the ratio-of-logs construction performs worse for Stouter species, collapses two metrics that remain distinct in the log-of-ratios construction, and is not unit-invariant. This reinforces that $\log(A/S)$ and $\log(A^2/S)$ are the better-justified constructions when a ratio metric is logged at all.
+The alternative formulation of the ratio, $\log(A)/\log(S)$, showed qualitatively similar estimates of $\hat\beta_T$ relative to $\log(A/S)$, but estimates were slightly more positive in the species simulated to become stouter with warming temperatures. Indeed, the median is slightly closer to zero, and the ratio-of-logs construction classifies `r Ratio_alt_stouter_pct`% of species as relatively stouter, compared to `r Ratio_fatter_right`% under the log-of-ratios construction. Interestingly, $\log(A^2)/\log(S)$ returns the same results as $\log(A)/\log(S)$, which occurred because $\log(A^2)/\log(S) = 2 \cdot \log(A)/\log(S)$, meaning the formula is identical up to a constant multiplier. That constant is lost during standardization, so $A/S$ and $A^2/S$ fit identical models under the ratio-of-logs construction. Taken together, the ratio-of-logs construction performs worse for Stouter species, collapses two metrics that remain distinct in the log-of-ratios construction, and is not unit-invariant. This reinforces that $\log(A/S)$ and $\log(A^2/S)$ are the better-justified constructions when a ratio metric is logged at all.
 
 # SLI-isometry's correlation with the reference quantity
 
-The main text notes that anchoring $\beta_T$ to the same SMA slope that SLI-isometry itself uses makes it circular to "test" SLI-isometry against the other approaches (section 'Statistical approach classification' in the main text). Here I show that SLI-isometry's fitted coefficient ($\hat\beta_T$) is exactly correlated with the isometric reference quantity $\beta_T$ up to a scaling coefficient.
+Because the reference quantity $\beta_T$ (main text, Equation 1) and SLI-isometry share the same isometric exponent ($b = 0.33$), SLI-isometry's close agreement with $\beta_T$ follows from their shared construction rather than from superior performance. On the log scale, SLI-isometry is $\log SLI = \log A - 0.33 \log M$ plus a constant. The reference quantity is the covariance of this index with temperature, expressed in standard-deviation units of mass and temperature: $\beta_T = \mathrm{Cov}(\log SLI, T)/(\sigma_{\log M}\,\sigma_T)$. Because all variables were standardized before model fitting, SLI-isometry's fitted coefficient instead estimates the correlation $\mathrm{Cov}(\log SLI, T)/(\sigma_{\log SLI}\,\sigma_T)$. SLI-isometry's fitted coefficient and $\beta_T$ therefore differ only by the ratio $\sigma_{\log SLI}/\sigma_{\log M}$:
 
-$\beta_T$ is defined from $\mathrm{Cov}(\log SLI, \mathrm{Temperature})$ alone (main text, Temperature effect classification), but a *fitted regression coefficient* is that covariance divided by $sd(\log SLI)$ too — a correlation, not a covariance. $sd(\log SLI)^2$ is proportional to
+$$\hat\beta_T \approx \frac{\beta_T}{\sqrt{V}}, \qquad V = \frac{\mathrm{Var}(\log SLI)}{\mathrm{Var}(\log M)} = \beta_{SMA}^2 + 0.33^2 - 2 \cdot 0.33 \cdot \rho_{12} \cdot \beta_{SMA}$$
 
-$$V = \beta_{SMA}^2 + 0.33^2 - 2 \cdot 0.33 \cdot \rho_{12} \cdot \beta_{SMA}$$
-
-which varies species to species (it depends on each species' own $\beta_{SMA}$ and $\rho_{12}$), and $\beta_T$ never accounted for it — only the *sign* claim survives that omission, since $\sqrt{V}>0$ always. Dividing $\beta_T$ by $\sqrt{V}$ restores the missing term, raising the raw correlation of $r \approx$ `r sprintf("%.2f", r_sli_iso_raw)` (main text's calibration scatter) to $r \approx$ `r sprintf("%.2f", r_sli_iso_rescaled)`.
+$V$ depends on each species' $\beta_{SMA}$ and $\rho_{12}$, so this scaling differs among species. Because $\sqrt{V} > 0$, the scaling never changes the sign of the coefficient, and the sign-based agreement criterion used in the main text is unaffected. It does, however, weaken the correlation between $\hat\beta_T$ and $\beta_T$ across species: dividing $\beta_T$ by $\sqrt{V}$ raises that correlation from $r \approx$ `r sprintf("%.2f", r_sli_iso_raw)` (main text, Figure 4) to $r \approx$ `r sprintf("%.2f", r_sli_iso_rescaled)` (@fig-sli-iso-rescale).
 
 ```{r}
 #| label: fig-sli-iso-rescale
-#| fig-cap: "SLI-isometry's fitted coefficient against the variance-corrected ground truth (main text, Temperature effect classification and this section). Longer, Stouter, and Null-effect smaller species, matching the main text's calibration scatter; the dashed line is 1:1, not a fitted trend."
-#| fig-width: 4.5
+#| fig-cap: "SLI-isometry's fitted coefficient ($\\hat{\\beta}_T$) against the variance-corrected reference quantity ($\\beta_T/\\sqrt{V}$) for Longer, Stouter, and Null-effect smaller species. The dashed line is 1:1, not a fitted trend."
+#| fig-width: 6.5
 #| fig-height: 4.5
 #| fig-pos: 'H'
 
@@ -329,19 +334,19 @@ ggplot(Sli_iso_rescale_df, aes(x = beta_T_rescaled, y = b_temp_inc, color = Temp
   geom_point(alpha = .55, size = 1.2) +
   annotate("text", x = -Inf, y = Inf, label = paste0("r=", round(r_sli_iso_rescaled, 2)),
            hjust = -0.1, vjust = 1.5, size = 3) +
-  labs(x = "Ground truth (variance-corrected)", y = expression(hat(beta)[T] ~ "(SLI-isometry, estimated)"),
+  labs(x = "Reference quantity (variance-corrected)", y = expression(hat(beta)[T] ~ "(SLI-isometry, estimated)"),
        color = "Category", shape = "Scaling") +
-  guides(color = guide_legend(nrow = 1), shape = guide_legend(nrow = 1)) +
-  theme(legend.position = "top", legend.box = "vertical")
+  # Legends on the right: one-row legends above a square-ish panel overflow the figure width.
+  theme(legend.position = "right")
 ```
 
-# Null-effect larger scenario: simulated analogue of Inverse Bergmann's responses
+# Null-effect larger scenario
 
-The main text simulation compares six methods for estimating relative appendage length across three realizations of Bergmann's rule (Stouter, Null-effect smaller, Longer), in which body size always decreases with warming. Here I additionally simulated a Null-effect larger scenario — the mirror image of Null-effect smaller, in which temperature increases wing length and body mass with equal pull ($b \in \{0.22, 0.33, 0.44\}$, $\rho_{12} \in \{0.3, 0.45, 0.6\}$, $\rho_{13}$ solved from a specified $\rho_{23} \in \{0.15, 0.3, 0.5, 0.7\}$ so the true isometric-relative effect is exactly null (see 'Temperature effect classification' section in the main text)). The goal of this exercise was to understand the expectation for species exhibiting inverse Bergmannian patterns in which mass, wing length, or both increase with warming.
+The main text simulation compares six methods for estimating relative appendage length across three realizations of Bergmann's rule (Stouter, Null-effect smaller, Longer), in which body size always decreases with warming. Here I additionally simulated a Null-effect larger scenario — the mirror image of Null-effect smaller, in which temperature increases wing length and body mass with equal pull ($b \in \{0.22, 0.33, 0.44\}$, $\rho_{12} \in \{0.3, 0.45, 0.6\}$, $\rho_{13}$ solved from a specified $\rho_{23} \in \{0.15, 0.3, 0.5, 0.7\}$ ), so that the isometric reference quantity is exactly zero. The goal of this exercise was to understand the expectation for species exhibiting inverse Bergmannian patterns.
 
 ```{r}
 #| label: fig-bigger-compare
-#| fig-cap: "Estimated effect of temperature on relative appendage length ($\\hat{\\beta}_T$) for each method among species simulated as Null-effect larger (body mass and wing length both increasing with warming; 36 simulated species). Positive values indicate that species were classified as becoming relatively longer; the true effect is exactly zero in every species, so the expected value is zero for an unbiased method. Point shape indicates allometric scaling category."
+#| fig-cap: "Estimated effect of temperature on relative appendage length ($\\hat{\\beta}_T$) for each method among species simulated as Null-effect larger (n = 36). The isometric reference quantity is 0 in all cases, so a method performing well should contain 0 in it's 95% confidence interval."
 #| fig-width: 8
 #| fig-height: 5
 #| fig-pos: 'H'
@@ -360,7 +365,7 @@ Parms_tbl4_bigger %>%
 
 Retained covariates were incorporated differently by method. For the ratio ($A/S$) and squared-ratio ($A^2/S$) I assume that age and sex influence wing and mass roughly proportionally, and thus would not importantly modify the ratios. I do not include age and sex in the SLI-isometry approach because its scaling exponent is fixed at $b = 0.33$ by definition. For the OLS-residual approach, age and sex were included in the first-stage regression of wing on mass; for multiple regression, they were included alongside mass and the gradient variable. In both cases, a covariate entered the model only when it had at least two groups that each met a minimum sample size (100 individuals). Individuals with unrecorded age or sex were retained as their own category in both regressions rather than dropped. All six approaches were fit to the same individuals within a species, differing only in how age and sex information was incorporated.
 
-For SLI-estimated, each individual's SMA slope was estimated using the most specific reliable grouping available. Importantly, SMA regression is unreliable when the correlation between appendage and body mass is weak [@smithUseMisuseReduced2009]. Thus, SLI-estimated was calculated only for species with reliable mass–wing correlation (i.e., $r \geq 0.3$ and $p < 0.05$). Where possible, I estimated per-group SMA slopes, starting with the: (1) age-by-sex combination, when it contained at least 50 individuals and had a reliable mass–wing correlation; (2) age and/or sex class considered separately (each pooling across the other covariate, requiring at least 100 individuals per group as well as a reliable correlation); or (3) otherwise, the species-wide SMA slope. In (2), if age and sex were both able to be estimated they were averaged together (i.e., a hatch-year male would receive $(b_{HY} + b_M)/2$). Individuals with unrecorded age or sex were treated as their own class and passed through this same hierarchical slope-estimation procedure.
+For SLI-estimated, each individual's SMA slope was estimated using the most specific reliable grouping available. Thus, SLI-estimated was calculated only for species with reliable mass–wing correlation [i.e., $r \geq 0.3$ and $p < 0.05$; @smithUseMisuseReduced2009]. Where possible, I estimated per-group SMA slopes, starting with the: (1) age-by-sex combination, when it contained at least 50 individuals and had a reliable mass–wing correlation; (2) age and/or sex class considered separately (each pooling across the other covariate, requiring at least 100 individuals per group as well as a reliable correlation); or (3) otherwise, the species-wide SMA slope. In (2), if age and sex were both able to be estimated they were averaged together (i.e., a hatch-year male would receive $(b_{HY} + b_M)/2$). Individuals with unrecorded age or sex were treated as their own class and passed through this same hierarchical slope-estimation procedure.
 
 ```{r}
 #| label: load-empirical-shared
@@ -398,9 +403,9 @@ load_direction <- function(direction) {
 }
 ```
 
-# Mixed - Wingier and Mixed - Stouter empirical species
+# Mixed - Wingier and Mixed - Stouter species
 
-In addition to the Bergmann's and Inverse Bergmann's species reported in the main text, some species in the empirical datasets showed **Mixed - Wingier** responses: wing length increasing while body mass decreased, so that Allen's and Bergmann's rules reinforce one another. A single Atlantic Forest species showed the opposite **Mixed - Stouter** response (wing length decreasing while body mass increased).
+In addition to the Bergmann's and Inverse Bergmann's species reported in the main text, some species in the empirical datasets showed Mixed - Wingier responses: wing length increasing while body mass decreased, so that Allen's and Bergmann's rules reinforce one another. A single Atlantic Forest species showed the opposite Mixed - Stouter response (wing length decreasing while body mass increased).
 
 ```{r}
 #| label: load-mixed-data
@@ -454,7 +459,7 @@ parms_fatter  <- load_direction("Mixed - Stouter")
 n_mixed_wingier <- n_distinct(parms_wingier$species)
 n_mixed_fatter  <- n_distinct(parms_fatter$species)
 
-fig_cap_mixed <- glue::glue("Estimated effect of the gradient of interest on relative wing length across three empirical datasets (Nightjars — red labels; North American migratory birds — blue labels; Atlantic Forest birds — green labels): (a) Mixed - Wingier species (wing length increasing while body mass decreased; $n$ = {n_mixed_wingier}) and (b) Mixed - Stouter species (wing length decreasing while body mass increased; $n$ = {n_mixed_fatter}). Only species with a significant ($p < 0.05$) mass or wing response are shown. Points are mean parameter estimates; error bars are 95% confidence intervals.")
+fig_cap_mixed <- glue::glue("Estimated effect of the gradient of interest on relative wing length across three empirical datasets (North American migratory birds — blue labels; Atlantic Forest birds — green labels): (a) Mixed - Wingier species (wing length increasing while body mass decreased; $n$ = {n_mixed_wingier}) and (b) Mixed - Stouter species (wing length decreasing while body mass increased; $n$ = {n_mixed_fatter}). Points are mean parameter estimates; error bars are 95% confidence intervals.")
 ```
 
 ```{r}
@@ -481,7 +486,7 @@ Across `r n_mixed_wingier` Mixed - Wingier species (panel a) all approaches cons
 
 # Stable empirical species
 
-Species showing no significant ($p < 0.05$) change in either mass or wing length along the gradient of interest were classified as **Stable** and excluded from the main-text rank-order comparison, since the predicted rank order (Ratio \> SLI \> OLS, or its reverse) is only defined relative to a directional size response.
+Species showing no significant ($p < 0.05$) change in either mass or wing length along the gradient of interest were classified as Stable and excluded from the main-text rank-order comparison, since the predicted rank order (Ratio \> SLI \> OLS, or its reverse) is only defined for species with Bergmannian or inverse Bergmannian size responses.
 
 ```{r}
 #| label: load-stable-data
@@ -512,7 +517,7 @@ species_levels_stable <- species_meta_stable$species
 axis_colors_stable     <- study_colors[as.character(species_meta_stable$Study)]
 n_stable                <- n_distinct(parms_stable$species)
 
-fig_cap_stable <- glue::glue("Estimated effect of the gradient of interest on relative wing length for Stable species (no significant change in mass or wing length) across three empirical datasets (Nightjars — red labels; North American migratory birds — blue labels; Atlantic Forest birds — green labels); $n$ = {n_stable} species. Points are mean parameter estimates; error bars are 95% confidence intervals.")
+fig_cap_stable <- glue::glue("Estimated effect of the gradient of interest on relative wing length for Stable species (no significant change in mass or wing length) across three empirical datasets (North American migratory birds — blue labels; Atlantic Forest birds — green labels); $n$ = {n_stable} species. Points are mean parameter estimates; error bars are 95% confidence intervals.")
 ```
 
 ```{r}
@@ -543,7 +548,7 @@ parms_stable %>%
 
 # Rank order without method-family averaging
 
-To examine congruence between the patterns observed between the simulated and empirical datasets, I examined the rank-order comparison of the average of each species' $\hat\beta_T$ coefficient within the three method families (Ratio, OLS-based, SLI). Here I examine an additional (stricter) rank-order comparison amongst each method individually (not averaged by family). I exclude SLI-estimated because its exponent is estimated empirically, and thus, $\hat\beta_T$ is expected to move depending on the estimated SMA slope. I also exclude OLS-residuals as its $\hat\beta_T$ was always highly correlated with the multiple regression coefficient, but was sometimes slightly higher or lower depending on the collinearity between predictor variables.
+To examine congruence between the patterns observed between the simulated and empirical datasets, I examined the rank-order comparison of the average of each species' $\hat\beta_T$ coefficient within the three method families (Ratio, OLS-based, SLI). Here I examine an additional (stricter) rank-order comparison amongst each method individually (not averaged by family). I exclude SLI-estimated because its exponent is estimated empirically, and thus, $\hat\beta_T$ is expected to move depending on the estimated SMA slope. I also exclude OLS residuals as its $\hat\beta_T$ was always highly correlated with the multiple regression coefficient, but was sometimes slightly higher or lower depending on the collinearity between predictor variables.
 
 ```{r}
 #| label: rank-consistency-strict
@@ -575,7 +580,7 @@ pct_rank_strict_inv_bergmanns <- pull_rank_strict_stat("Inverse Bergmann's", pct
 n_rank_strict_inv_bergmanns   <- pull_rank_strict_stat("Inverse Bergmann's", n)
 ```
 
-`r pct_rank_strict_overall`% of the `r n_rank_strict_total` directionally classified species satisfied the full strict order (`r pct_rank_strict_bergmanns`% of `r n_rank_strict_bergmanns` Bergmann's species and `r pct_rank_strict_inv_bergmanns`% of `r n_rank_strict_inv_bergmanns` Inverse Bergmann's species), somewhat lower than the `r pct_rank_overall_main`% obtained with family averaging. This is expected as averaging within a method family smooths over noise that this stricter test does not; the overall congruence of this stricter test corroborates that rank-order patterns are generally consistent across simulations and empirical datasets.
+`r pct_rank_strict_overall`% of the `r n_rank_strict_total` species exhibiting Bergmannian or inverse Bergmannian clines satisfied the full strict order (`r pct_rank_strict_bergmanns`% of `r n_rank_strict_bergmanns` Bergmann's species and `r pct_rank_strict_inv_bergmanns`% of `r n_rank_strict_inv_bergmanns` Inverse Bergmann's species). This is somewhat lower than the `r pct_rank_overall_main`% obtained with family averaging. This is expected as averaging within a method family smooths over noise that this stricter test does not. The overall congruence of this stricter test corroborates that rank-order patterns are generally consistent across simulations and empirical datasets.
 
 # Sensitivity to the classification threshold
 
@@ -641,7 +646,7 @@ max_adherence_shift_sens <- round(max(abs(Sig_compare$pct_primary - Sig_compare$
 tbl_cap_sens <- glue::glue("Percentage of empirical species whose 95% confidence interval for the gradient coefficient was significantly positive (Sig. longer), included zero (Not sig.), or was significantly negative (Sig. stouter), by method, when species' body size responses were classified at $p < {sprintf('%.2f', p_sens)}$ (Bergmann's $n$ = {n_bergmanns_sens}; Inverse Bergmann's $n$ = {n_inv_bergmanns_sens}). Values in parentheses are the corresponding percentages under the main-text threshold ($p < 0.05$; Figure 5, panels b and d).")
 ```
 
-In the main text, empirical species were classified as Bergmannian or inverse Bergmannian when body mass, wing length, or both changed significantly along the gradient at $p < 0.05$. To check that the empirical results do not hinge on this threshold, I repeated the classification at $p <$ `r sprintf("%.2f", p_sens)`, using the same gradient models and the same method coefficients. The looser threshold reclassified `r n_reclassified_sens` of `r n_species_sens` species, leaving `r n_bergmanns_sens` Bergmann's and `r n_inv_bergmanns_sens` Inverse Bergmann's species (compared to `r n_bergmanns_primary` and `r n_inv_bergmanns_primary`). Rank-order consistency with the simulation-predicted order was `r pct_rank_overall_sens`% (compared to `r pct_rank_overall_primary`%), and the percentage of species receiving each 95%-CI call changed by at most `r max_adherence_shift_sens` percentage points for any method (@tbl-sens-p-threshold).
+In the main text, empirical species were classified as Bergmannian or inverse Bergmannian when body mass, wing length, or both changed significantly along the gradient at $p < 0.05$. To check that the empirical results do not hinge on this threshold, I repeated the classification at $p <$ `r sprintf("%.2f", p_sens)`. The $p <$ `r sprintf("%.2f", p_sens)` threshold reclassified `r n_reclassified_sens` of `r n_species_sens` species, leaving `r n_bergmanns_sens` Bergmann's and `r n_inv_bergmanns_sens` Inverse Bergmann's species (compared to `r n_bergmanns_primary` and `r n_inv_bergmanns_primary`). Rank-order consistency with the simulation-predicted order was `r pct_rank_overall_sens`% (compared to `r pct_rank_overall_primary`%), and, for every method, the percentage of species classified as significantly longer, not significant, or significantly stouter differed from the main-text values by at most `r max_adherence_shift_sens` percentage points (@tbl-sens-p-threshold).
 
 ```{r}
 #| label: tbl-sens-p-threshold
@@ -670,7 +675,7 @@ knitr::kable(Sens_p_tbl, format = "latex", booktabs = TRUE, align = "c", linesep
   kableExtra::kable_styling(font_size = 9)
 ```
 
-# Empirical case studies: per-species
+# Empirical per-species plots
 
 Figure 5 in the main text summarizes each method's estimates across species, grouped by method. This section shows the same underlying per-species estimates individually with asterisks marking species whose rank order across methods is consistent with the simulation-predicted order.
 
@@ -747,7 +752,7 @@ n_inv_bergs_supp <- n_distinct(parms_inv_bergmanns$species)
 # rightmost entries, regardless of how many species columns the panels themselves need.
 fig_width_species <- max(8, n_bergs_supp * 0.13)
 
-fig_cap_empirical_species <- glue::glue("Per-species detail underlying Figure 5 (main text): estimated effect ($\\hat{{\\beta}}$) of the gradient of interest on relative wing length across three empirical avian datasets (Nightjars: red labels; North American migrants: blue labels; Atlantic Forest birds: green labels), grouped by direction of body size change: (a) Bergmann's ($n$ = {n_bergs_supp} species) and (b) Inverse Bergmann's ($n$ = {n_inv_bergs_supp} species). Only species with a significant ($p < 0.05$) mass or wing response are shown. Points are mean parameter estimates ($\\hat{{\\beta}}$) and error bars are 95% confidence intervals. The y-axis label matches Figure 3's (main text) to indicate that both figures show the same quantity, temperature's estimated effect on relative appendage length. A positive slope indicates birds become relatively longer with increasing temperature (or through time). A negative slope indicates they become relatively stouter. Asterisks mark species for which the rank order is consistent with simulation results (Bergmann's: Ratio > SLI > OLS; Inverse Bergmann's: Ratio < SLI < OLS).")
+fig_cap_empirical_species <- glue::glue("Per-species detail underlying Figure 5 (main text): estimated effect ($\\hat{{\\beta}}$) of the gradient of interest on relative wing length across three empirical avian datasets (Nightjars: red labels; North American migrants: blue labels; Atlantic Forest birds: green labels), grouped by direction of body size change: (a) Bergmann's ($n$ = {n_bergs_supp} species) and (b) Inverse Bergmann's ($n$ = {n_inv_bergs_supp} species). Only species with a significant ($p < 0.05$) mass or wing response are shown. Points are mean parameter estimates ($\\hat{{\\beta}}$) and error bars are 95% confidence intervals. Asterisks mark species for which the rank order is consistent with simulation results (Bergmann's: Ratio > SLI > OLS; Inverse Bergmann's: Ratio < SLI < OLS).")
 ```
 
 ```{r}
@@ -774,9 +779,9 @@ plot_grid(
 )
 ```
 
-# Correlation between relative appendage length metrics and body mass
+# Correlation between relative appendage length and mass
 
-The ratio methods exhibit upward bias (relative to the isometric reference quantity) under Bergmann's rule due to a mechanical correlation between the ratio metric and body mass. @fig-mass-cor-empirical shows the full per-species distribution underlying the medians presented in Table 4 of the main text.
+Ratio methods were negatively correlated with body mass. @fig-mass-cor-empirical shows the full per-species distribution of these correlations, which are summarized in the main-text Results.
 
 ```{r}
 #| label: mass-cor-empirical-stats
@@ -795,7 +800,7 @@ Mass_cor_emp_all <- bind_rows(
 n_sli_iso_emp_total <- Mass_cor_emp_all %>% filter(Metric == "SLI-isometry")  %>% nrow()
 n_sli_est_emp_total <- Mass_cor_emp_all %>% filter(Metric == "SLI-estimated") %>% nrow()
 
-fig_cap_mass_cor_empirical <- glue::glue("Distribution of per-species Pearson correlations between each metric and body mass, by empirical dataset. Boxes show the median (also given as a numeric label, matching main text Table 4) and interquartile range; points are individual species, jittered horizontally. SLI-estimated has fewer points than the other three metrics ({n_sli_est_emp_total} of {n_sli_iso_emp_total} species across all three datasets) because it is undefined for species that failed the per-group allometric-correlation filter (main text, Methods).")
+fig_cap_mass_cor_empirical <- glue::glue("Distribution of per-species Pearson correlations between relative appendage length metrics and body mass, by empirical dataset. Boxes show the median and interquartile range; points are individual species, jittered horizontally. SLI-estimated has fewer points than the other three metrics ({n_sli_est_emp_total} of {n_sli_iso_emp_total} species across all three datasets) because it was not estimated for species that failed the per-group allometric-correlation filters.")
 ```
 
 ```{r}
@@ -819,9 +824,7 @@ Mass_cor_emp_all %>%
   theme(axis.text.x = element_text(size = 9, vjust = .58, angle = 30))
 ```
 
-# OLS versus SMA scaling slopes for an example species
-
-The main-text Discussion ('Multiple regression for conditional associations') attributes the more negative $\hat\beta_T$ of multiple regression to the shallower OLS scaling slope. @fig-ols-sma illustrates this for the same simulated hyperallometric species shown in main-text Figure 2, panel b.
+# OLS versus SMA scaling slopes
 
 ```{r}
 #| label: fig-ols-sma
