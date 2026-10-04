@@ -115,30 +115,7 @@ df_morph_l <- pmap(Cols, \(...) gen_data(..., n = N, meas_error = 0,
                                          transient_error_mass = 0,
                                          transient_error_append = 0))
 
-# Validate simulated direction via SMA intercepts ------------------------------
-extract_sma_intercepts <- function(df) {
-  mod_temp_bin     <- run_sma_mod(df, interaction = FALSE)
-  mod_temp_bin_int <- run_sma_mod(df, interaction = TRUE)
-  mod_parms     <- format_sma_parms(mod_temp_bin)
-  mod_parms_int <- format_sma_parms(mod_temp_bin_int)
-  tibble(
-    cor_allometry     = cor(mod_parms$Temp_inc, mod_parms$elevation),
-    cor_allometry_int = cor(mod_parms_int$Temp_inc, mod_parms_int$elevation)
-  )
-}
-
-sma_intercepts  <- map(df_morph_l, extract_sma_intercepts) %>% list_rbind()
-sma_intercepts2 <- bind_cols(Parms_mat3, sma_intercepts)
-
-# Species with the wrong-signed correlation are excluded from further analysis.
-Sim_fail <- sma_intercepts2 %>%
-  left_join(sma_intercepts2) %>%
-  filter(
-    Temp_eff == "Stouter"  & cor_allometry_int > -.2 |
-    Temp_eff == "Stouter"  & cor_allometry     > -.2 |
-    Temp_eff == "Longer"  & cor_allometry_int <  .2 |
-    Temp_eff == "Longer"  & cor_allometry     <  .2
-  )
+# No post-hoc filtering of simulated species: each species' direction (Longer / Stouter / null) is defined analytically by the sign of beta_iso_true from known parameters, so all designed species are analysed. (An earlier SMA-intercept "validation" step excluded 79 Longer/Stouter species, 73 of them via an unreliable bin-specific-slope criterion; removed Oct 2026.)
 
 # Fit all six methods to each simulated species --------------------------------
 generate_metrics <- function(Sim_df) {
@@ -238,7 +215,7 @@ Parms_tbl <- map(df_morph_l, \(df) {
 }) %>% list_rbind()
 
 Parms_tbl2 <- bind_cols(Parms_mat3, Parms_tbl)
-Parms_tbl3 <- Parms_tbl2 %>% anti_join(Sim_fail)
+Parms_tbl3 <- Parms_tbl2
 
 x_labs <- c(
   "Sli_est"   = "SLI estimated",
@@ -518,9 +495,8 @@ saveRDS(
     r_12 = r_12, r_13 = r_13, r_23 = r_23, b_avg_12 = b_avg_12,
     sma_or_ma = sma_or_ma, log_ratio = log_ratio,
 
-    # Parameter grid + validation tables
+    # Parameter grid + results tables
     Parms_mat3    = Parms_mat3,
-    Sim_fail      = Sim_fail,
     Parms_tbl3    = Parms_tbl3,
     Parms_tbl4    = Parms_tbl4,
     Mass_cor_tbl  = Mass_cor_tbl,

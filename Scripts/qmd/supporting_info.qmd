@@ -153,7 +153,7 @@ vary_scaling_tbl %>%
 #| fig-height: 6.5
 #| fig-pos: 'H'
 
-fig_cap_lit_review <- glue::glue("Frequency of the primary methodological approaches used across 45 studies testing Allen's rule since 2021. Each point represents one analytical approach (n = {tot_approach_uses}) to classify relative appendage length, and colored lines connect a single study with multiple approaches. Percentages are computed as the proportion of total approaches rather than the proportion of studies.")
+fig_cap_lit_review <- glue::glue("Frequency of the primary methodological approaches used across {nrow(Lr)} studies testing Allen's rule since 2021. Each point represents one analytical approach (n = {tot_approach_uses}) to classify relative appendage length, and colored lines connect a single study with multiple approaches. Percentages are computed as the proportion of total approaches rather than the proportion of studies.")
 
 lit_review_img  <- png::readPNG("Figures/lit_review.png")
 lit_review_grob <- grid::rasterGrob(lit_review_img, width = grid::unit(1, "npc"),
@@ -346,7 +346,7 @@ The main text simulation compares six methods for estimating relative appendage 
 
 ```{r}
 #| label: fig-bigger-compare
-#| fig-cap: "Estimated effect of temperature on relative appendage length ($\\hat{\\beta}_T$) for each method among species simulated as Null-effect larger (n = 36). The isometric reference quantity is 0 in all cases, so a method performing well should contain 0 in it's 95% confidence interval."
+#| fig-cap: "Estimated effect of temperature on relative appendage length ($\\hat{\\beta}_T$) for each method among species simulated as Null-effect larger (n = 36). The isometric reference quantity is 0 in all cases, so a method performing well should contain 0 in its 95% confidence interval."
 #| fig-width: 8
 #| fig-height: 5
 #| fig-pos: 'H'
