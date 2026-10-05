@@ -183,7 +183,7 @@ I reviewed `r nrow(Lit_review)` empirical studies published between 2021 and 202
 
 ## Data simulation
 
-I simulated appendage length, mass, and a temperature increase for `r N_spp` hypothetical species, each species with `r N_ind` individuals. I simulated mass measurements as a proxy for body size as it was the single most frequent variable (`r pct_mass_control`%) used to control for body size in studies of Allen’s rule. Data were drawn from a multivariate normal distribution:
+I simulated appendage length, mass, and a temperature increase for `r N_spp` hypothetical species, each species with `r N_ind` individuals. I simulated mass measurements as a proxy for body size as it was the single most frequent variable (`r pct_mass_control`%) used to control for body size in studies of Allen’s rule. Data were drawn from a multivariate normal distribution with no sampling noise:
 
 $$\begin{bmatrix}
 \log(\text{Appendage}) \\
@@ -192,7 +192,7 @@ $$\begin{bmatrix}
 \end{bmatrix}
 \sim \mathrm{MVN}(\boldsymbol{\mu}, \boldsymbol{\Sigma})$$
 
-with $\boldsymbol{\mu} = [\log(180),\ \log(80),\ 1.0]^\top$ representing a species with a mean appendage length of 180 mm and mean mass of 80 g, experiencing an average 1°C temperature increase. The 1°C temperature increase could be imagined spatially or temporally (in the context of climate change) - the statistical implications are the same. The covariance matrix $\boldsymbol{\Sigma}$ was constructed from three Pearson correlations ($\rho_{12}$: appendage–mass; $\rho_{13}$: appendage–temperature; $\rho_{23}$: mass–temperature) and the allometric scaling slope. Hypothetical species were constructed by crossing the following parameter values: appendage–mass correlation $\rho_{12} \in {`r paste(r_12, collapse = ", ")`}$, temperature–morphology correlations $\rho_{13}, \rho_{23} \in {`r paste(r_13, collapse = ", ")`}$, crossed factorially to produce species with different relative temperature associations of mass and appendage, and allometric scaling slope $b \in {`r paste(b_avg_12, collapse = ", ")`}$, representing hypoallometry, isometry, and hyperallometry respectively. Standard deviations of log-mass and log-appendage were set so that the average of the OLS and SMA slopes equaled the specified allometric slope, allowing me to vary allometric scaling independently of the appendage–mass correlation. Correlations were chosen to represent a broad but realistic range observed in the literature: appendage–mass [@greenMassLengthResiduals2001; @goslerFieldDeterminationBody1998] and temperature-morphology correlations [@ashtonPatternsWithinSpeciesBody2002; @ashtonBergmannsRuleValid2000]. Simulations were conducted with the R package sliR (an anonymized version is provided for review).
+with $\boldsymbol{\mu} = [\log(180),\ \log(80),\ 1.0]^\top$ representing a species with a mean appendage length of 180 mm and mean mass of 80 g, experiencing an average 1°C temperature increase. The 1°C temperature increase could be imagined spatially or temporally (in the context of climate change) - the statistical implications are the same. Given that species were simulated on the log-scale, I removed individuals more than 3 SD (raw scale) from the mean of either trait (`r pct_trimmed`% of individuals on average) to reduce positive skew. The covariance matrix $\boldsymbol{\Sigma}$ was constructed from three Pearson correlations ($\rho_{12}$: appendage–mass; $\rho_{13}$: appendage–temperature; $\rho_{23}$: mass–temperature) and the allometric scaling slope. Hypothetical species were constructed by crossing the following parameter values: appendage–mass correlation $\rho_{12} \in {`r paste(r_12, collapse = ", ")`}$, temperature–morphology correlations $\rho_{13}, \rho_{23} \in {`r paste(r_13, collapse = ", ")`}$, crossed factorially to produce species with different relative temperature associations of mass and appendage, and allometric scaling slope $b \in {`r paste(b_avg_12, collapse = ", ")`}$, representing hypoallometry, isometry, and hyperallometry respectively. Standard deviations of log-mass and log-appendage were set so that the average of the OLS and SMA slopes equaled the specified allometric slope, allowing variation in allometric scaling independent of the appendage–mass correlation. Correlations were chosen to represent a broad but realistic range observed in the literature: appendage–mass [@greenMassLengthResiduals2001; @goslerFieldDeterminationBody1998] and temperature-morphology correlations [@ashtonPatternsWithinSpeciesBody2002; @ashtonBergmannsRuleValid2000]. Simulations were conducted with the R package sliR (an anonymized version is provided for review).
 
 ## Temperature effect classification
 
@@ -273,7 +273,7 @@ version arrives rather than adding a dated copy. -->
 
 ## Statistical approach classification
 
-I evaluated the six statistical approaches using two criteria relative to the isometrically defined benchmark quantity $\beta_T$. First, I assessed whether each approach agreed with the sign of $\beta_T$: a positive $\hat{\beta}_T$ when $\beta_T > 0$, a negative $\hat{\beta}_T$ when $\beta_T < 0$, and $\beta_T \approx 0$ when $\beta_T = 0$. I considered $\hat{\beta}_T$ to agree with the benchmark when its 95% confidence interval excluded zero in cases where $\beta_T \neq 0$, or included zero when $\beta_T = 0$. Second, I assessed how closely $\hat{\beta}_T$ tracked $\beta_T$ in magnitude using a bivariate regression of $\hat{\beta}_T$ on $\beta_T$ across species. An approach that reproduced the benchmark exactly would yield no sign misclassifications, $r = 1$, and estimates falling on the 1:1 line.
+I evaluated the six statistical approaches using two criteria relative to the isometrically defined benchmark quantity $\beta_T$. First, I assessed whether each approach agreed with the sign of $\beta_T$: a positive $\hat{\beta}_T$ when $\beta_T > 0$, a negative $\hat{\beta}_T$ when $\beta_T < 0$, and $\beta_T \approx 0$ when $\beta_T = 0$. I considered $\hat{\beta}_T$ to agree with the benchmark when its 95% confidence interval excluded zero in cases where $\beta_T \neq 0$, or included zero when $\beta_T = 0$. Second, I assessed how closely $\hat{\beta}_T$ tracked $\beta_T$ in magnitude using the Pearson correlation between $\hat\beta_T$ and $\beta_T$ across species; an approach that reproduced the benchmark exactly would yield no sign misclassifications and $r = 1$.
 
 Importantly, the definition of $\beta_T$ (@eq-b-true), which compares $\beta_{SMA}$ to an exponent of 0.33, benefits the SLI-isometry estimator by design. The SLI-isometry coefficient $\hat\beta_T$ and the isometric reference quantity $\beta_T$ differ only by a known scaling factor (a variance-correction term; SI Figure 6).
 
@@ -313,7 +313,7 @@ knitr::kable(Classification_tbl)
 
 ## Use of AI tools
 
-Claude Code (Anthropic; Claude Opus models, 2025–2026) was used throughout development of the analysis pipeline and manuscript: drafting and debugging R code, proofreading manuscript text, and checking internal consistency (e.g., cross-references, reported statistics) between the code and the manuscript. All code and prose produced with this assistance were reviewed, verified against the underlying data and simulation output, and are the responsibility of the author.
+The analytical workflow was developed by the lead author, who used Claude Code (Anthropic) to assist with R code development and debugging, manuscript proofreading, and checks of internal consistency between the code and manuscript (e.g., cross-references). Claude Code did not independently determine the analytical approach or interpret the results. All code and prose developed with AI assistance were reviewed and verified by the author, who takes full responsibility for the analysis and manuscript.
 
 # Results
 
@@ -326,6 +326,8 @@ The six methods produced strikingly different estimates of temperature's effect 
 #| include: false
 
 # Reproducible baseline for Figure 3 -- see the Sylvia's-figures note near Figure 2 above.
+# TEMPORARY (Oct 2026): the manuscript embeds this script-generated PDF (all 252 simulated species) instead of Sylvia's polished
+# Figures/Sylvia/Figure3_compare_approaches.pdf, which predates dropping the simulation filter. Switch back once she re-polishes.
 Fig3_compare_approaches <- plot_approaches(Parms_tbl4, x_txt_size = 11, legend.box = "horizontal")
 
 dir.create("Figs_share", showWarnings = FALSE)
@@ -333,7 +335,7 @@ ggsave("Figs_share/Figure3_compare_approaches.pdf", Fig3_compare_approaches,
        width = 9, height = 4.5, units = "in")
 ```
 
-![Estimated effect of temperature on relative appendage length ($\hat{\beta}_T$) for each method across three different realizations of Bergmann's rule (Stouter, Null-effect smaller, and Longer species). Positive values of $\hat{\beta}_T$ indicate that species were estimated to become relatively longer with increasing temperature. Negative values indicate they become relatively stouter. Each point is a simulated species. Point shape indicates allometric scaling category and colour indicates the strength of the difference between temperature's effect on appendage length and mass.](../../Figures/Sylvia/Figure3_compare_approaches.pdf){#fig-compare-approaches width="100%" fig-pos="H"}
+![Estimated effect of temperature on relative appendage length ($\hat{\beta}_T$) for each method across three different realizations of Bergmann's rule (Stouter, Null-effect smaller, and Longer species). Positive values of $\hat{\beta}_T$ indicate that species were estimated to become relatively longer with increasing temperature. Negative values indicate they become relatively stouter. Each point is a simulated species. Point shape indicates allometric scaling category and colour indicates the strength of the difference between temperature's effect on appendage length and mass.](../../Figs_share/Figure3_compare_approaches.pdf){#fig-compare-approaches width="100%" fig-pos="H"}
 
 Ratio approaches tended to diverge from the isometric-relative reference quantity in the positive direction, although this was much more apparent for $A/S$ than $A^2/S$ . For example, among Stouter species, $A/S$ disagreed for `r Ratio_fatter_wrong_pct`% of species, whereas $A^2/S$ disagreed with the reference for only `r Ratio2_fatter_wrong_n` of `r Fatter_n` hypothetical species (@fig-eval). Both ratio indicators performed poorly among species simulated as Null-effect smaller, where $\beta_T = 0$, in that no species had 95% confidence intervals containing 0 for either $A/S$ or $A^2/S$.
 

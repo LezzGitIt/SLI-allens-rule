@@ -11,7 +11,7 @@
 #   gen_data()   -> sim_allometric()  (adds the paper's Temp_inc/Temp_bin columns via format_temp(); driven by pmap() over a b_avg_12/r_12/r_13/r_23 parameter grid whose column names must match the wrapper's arguments)
 #   gen_cov_mat()-> build_cov_mat()   (rescales the gradient block to sd_temp; displayed as teaching content in Extra_scripts/SMA_body_shape_methods.qmd)
 #   build_group_cor_tbl() -> its sliR namesake (renames r/p_value back to the r_mw/p_mw that ~6 downstream filters per empirical script depend on)
-# Still local, deliberately not in sliR: format_temp, run_sma_mod, format_sma_parms, gen_ex_data, calc_lambda, classify_direction, build_sli_mass_cor_tbl, test_group_effect.
+# Still local, deliberately not in sliR: format_temp, gen_ex_data, calc_lambda, classify_direction, build_sli_mass_cor_tbl, test_group_effect.
 
 # Load required libraries
 # MASS is no longer used by this file, but is left attached because supporting_info.qmd sources this script without loading MASS itself; dropping it here would change that document's search path.
@@ -124,31 +124,6 @@ gen_cov_mat <- function(b_avg_12 = 0.33,
   unname(scale_temp %*% Sigma %*% scale_temp)
 }
 
-
-# Fit an SMA model of Append_log ~ Mass_log, optionally allowing the slope to
-# vary with binned temperature (Temp_bin). Used to validate simulated species'
-# direction of shape change via their SMA intercepts.
-run_sma_mod <- function(df, interaction = FALSE) {
-  if (!interaction) {
-    smatr::sma(Append_log ~ Mass_log + Temp_bin, data = df, method = "SMA")
-  } else {
-    smatr::sma(Append_log ~ Mass_log * Temp_bin, data = df, method = "SMA")
-  }
-}
-
-# Tidy the per-Temp_bin coefficients (intercept/slope) from an sma() model
-# fit with run_sma_mod(), decoding the bin label back to a numeric/label pair.
-format_sma_parms <- function(sma_mod) {
-  coef(sma_mod) %>%
-    tibble::rownames_to_column("Temp_inc") %>%
-    dplyr::mutate(
-      Temp_inc = stringr::str_pad(Temp_inc, side = "left", width = 2, pad = "0"),
-      Temp_inc = stringr::str_replace(Temp_inc, "^([0-9])([0-9])$", "\\1.\\2"),
-      Temp_label = paste0(Temp_inc, "°C"),
-      Temp_inc = as.numeric(Temp_inc)
-    ) %>%
-    tibble::tibble()
-}
 
 # Regenerate raw individual-level data for one or more hypothetical species
 # (rows of a Parms_mat-style tibble) via gen_data(), for illustrative figures.

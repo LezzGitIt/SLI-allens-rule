@@ -114,6 +114,8 @@ set.seed(20260712)
 df_morph_l <- pmap(Cols, \(...) gen_data(..., n = N, meas_error = 0,
                                          transient_error_mass = 0,
                                          transient_error_append = 0))
+# sliR::sim_allometric() trims individuals > 3 raw-scale SD from either trait's mean (trim_sd = 3); report the share removed, for the Methods.
+pct_trimmed <- round(100 * mean(1 - map_int(df_morph_l, nrow) / N), 1)
 
 # No post-hoc filtering of simulated species: each species' direction (Longer / Stouter / null) is defined analytically by the sign of beta_iso_true from known parameters, so all designed species are analysed. (An earlier SMA-intercept "validation" step excluded 79 Longer/Stouter species, 73 of them via an unreliable bin-specific-slope criterion; removed Oct 2026.)
 
@@ -491,7 +493,7 @@ dir.create("Derived/Rds", recursive = TRUE, showWarnings = FALSE)
 saveRDS(
   list(
     # Settings / parameter grid (used inline in Methods prose)
-    N_spp = N_spp, N_ind = N_ind,
+    N_spp = N_spp, N_ind = N_ind, pct_trimmed = pct_trimmed,
     r_12 = r_12, r_13 = r_13, r_23 = r_23, b_avg_12 = b_avg_12,
     sma_or_ma = sma_or_ma, log_ratio = log_ratio,
 
