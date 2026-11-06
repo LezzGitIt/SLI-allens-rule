@@ -64,3 +64,8 @@ Rdata/
 .posit/
 
 /.quarto/
+
+# Claude Code project instructions (local only)
+CLAUDE.md
+Extra_scripts/_archive/
+Stats_consulting/
